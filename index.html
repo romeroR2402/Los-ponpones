@@ -126,10 +126,9 @@ var sales=ld("pp_sales",[]);
 var cart=[],cur=null,view=1,armed=false,cat="all";
 var CATS=[["all","Todo"],["m","Marquesitas"],["w","Waffles"],["f","Frapes"]];
 function sc(i){cat=CATS[i][0];draw()}
-var WA="525521532208",EM="romerorayo2402@gmail.com";
+var WA="525521532208";
 function msg(){return "Pedido Los Ponpones:\n"+cart.map(function(i){return i.q+" x "+name(i)+(det(i)?" ("+det(i)+")":"")+" - $"+(i.u*i.q)}).join("\n")+"\nTotal: $"+tot()}
 function wa(){return "https://wa.me/"+WA+"?text="+encodeURIComponent(msg())}
-function ml(){return "mailto:"+EM+"?subject="+encodeURIComponent("Pedido Los Ponpones")+"&body="+encodeURIComponent(msg())}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function $(n){return n.toFixed?"$"+n:n}
 function unit(c){return c.p==="f"?PR.f:PR[c.fruit?P[c.p].kf:P[c.p].k]}
@@ -176,7 +175,7 @@ function openCart(){
   var t=cart.reduce(function(a,i){return a+i.u*i.q},0);
   var h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Pedido</h2>'+cart.map(function(it,i){
     return '<div class="row"><span>'+it.q+" × "+name(it)+(det(it)?"<small>"+esc(det(it))+"</small>":"")+'</span><span><b>'+$(it.u*it.q)+'</b> <button class="x" aria-label="Quitar" onclick="rm('+i+')">✕</button></span></div>'}).join("");
-  h+='<div class="tot"><span>Total</span><span>'+$(t)+'</span></div><button class="btn big" onclick="openPay()">Cobrar</button><a class="btn big alt lnk" href="'+wa()+'" target="_blank" rel="noopener">Enviar pedido por WhatsApp</a><a class="btn big alt lnk" href="'+ml()+'" target="_blank" rel="noopener">Enviar pedido por correo</a><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Seguir agregando</button></div></div>';
+  h+='<div class="tot"><span>Total</span><span>'+$(t)+'</span></div><button class="btn big" onclick="openPay()">Cobrar</button><a class="btn big lnk" href="'+wa()+'" target="_blank" rel="noopener">Enviar pedido por WhatsApp</a><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Seguir agregando</button></div></div>';
   document.getElementById("ov").innerHTML=h;
 }
 function rm(i){cart.splice(i,1);openCart();draw()}
