@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Casa de Los Ponpones</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script src="config.js"></script>
 <style>
 :root{--bg:#FBEFD5;--card:#FFF9EA;--ink:#4A2A1A;--mute:#85634E;--red:#C8283C;--pur:#7A3A8C;--teal:#17697A;--yel:#F5B82E;--line:#E6CFA3;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#241611;--card:#33211A;--ink:#FBEFD5;--mute:#C9A98E;--line:#55392C;--red:#F0566A;--pur:#C79AD9;--teal:#55BFD3;color-scheme:dark}}
@@ -158,8 +159,8 @@ try{localStorage.removeItem("pp_admin");sessionStorage.clear()}catch(e){}
 var HASH="33a47409e796ed31bb5a7518ee4c9613583cfc0dee84df119a90061b25fb5dc6";
 async function sha(t){var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
 function openLogin(err){document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Acceso del dueño</h2><p class="l">Escribe tu contraseña para ver las ventas y cambiar precios.</p><input id="pw" type="password" autocomplete="off" placeholder="Contraseña" onkeydown="if(event.key===\'Enter\')login()"><div class="change" style="color:var(--red);font-size:16px">'+(err||"")+'</div><button class="btn big" onclick="login()">Entrar</button><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Cancelar</button></div></div>'}
-async function login(){var v=document.getElementById("pw").value,ok=false;try{ok=(await sha(v))===HASH}catch(e){openLogin("No se pudo verificar. Abre la app desde tu enlace seguro (https).");return}if(ok){admin=true;closeS();view=2;draw()}else openLogin("Contraseña incorrecta")}
-function logout(){admin=false;view=1;draw()}
+async function login(){var v=document.getElementById("pw").value,ok=false;try{if(sbOn()){var rr=await fetch(SB.url.replace(/\/$/,"")+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:SB.key,"Content-Type":"application/json"},body:JSON.stringify({email:SB.email,password:v})});var dd=await rr.json();if(rr.ok&&dd.access_token){tok=dd.access_token;ok=true}}else ok=(await sha(v))===HASH}catch(e){openLogin("No se pudo verificar. Revisa tu conexión y que la app esté en tu enlace seguro (https).");return}if(ok){admin=true;closeS();view=2;draw();pull()}else openLogin("Contraseña incorrecta")}
+function logout(){admin=false;tok=null;lastSig="";firstPull=true;view=1;draw()}
 var away=0;
 document.addEventListener("visibilitychange",function(){if(document.hidden)away=Date.now();else if(admin&&away&&Date.now()-away>60000)logout()});
 var ORD=ld("pp_me",{t:"rec",n:"",tel:"",dir:""}),clients=ld("pp_clients",[]),TY=[["suc","En sucursal"],["rec","Recoger"],["env","Envío"]];
@@ -169,7 +170,7 @@ function openForm(err){
   h+='<p class="l">Nombre completo</p><input autocomplete="name" placeholder="Nombre y apellido" value="'+esc(o.n)+'" oninput="ORD.n=this.value">';
   if(o.t!=="suc")h+='<p class="l">Teléfono</p><input type="tel" inputmode="tel" autocomplete="tel" placeholder="10 dígitos" value="'+esc(o.tel)+'" oninput="ORD.tel=this.value">';
   if(o.t==="env")h+='<p class="l">Dirección de entrega</p><input autocomplete="street-address" placeholder="Calle, número, colonia y referencias" value="'+esc(o.dir)+'" oninput="ORD.dir=this.value">';
-  h+='<div class="change" style="color:var(--red);font-size:15px">'+(err||"")+'</div><div class="tot"><span>Total</span><span>'+$(tot())+'</span></div><button class="btn big" onclick="sendO()">'+(admin?"Guardar en la fila de pedidos":"Enviar por WhatsApp")+'</button><button class="btn big alt" style="margin-top:8px" onclick="openCart()">Volver al pedido</button></div></div>';
+  h+='<div class="change" style="color:var(--red);font-size:15px">'+(err||"")+'</div><div class="tot"><span>Total</span><span>'+$(tot())+'</span></div><button class="btn big" id="sb" onclick="sendO()">'+(admin?"Guardar en la fila de pedidos":"Enviar por WhatsApp")+'</button><button class="btn big alt" style="margin-top:8px" onclick="openCart()">Volver al pedido</button></div></div>';
   document.getElementById("ov").innerHTML=h}
 function msgO(){var o=ORD,tipo={suc:"En sucursal",rec:"Para recoger",env:"Envío a domicilio"}[o.t];
   return "Pedido Los Ponpones\nTipo: "+tipo+"\nNombre: "+o.n.trim()+(o.t!=="suc"?"\nTeléfono: "+o.tel.trim():"")+(o.t==="env"?"\nDirección: "+o.dir.trim():"")+"\n\n"+cart.map(function(i){return i.q+" x "+name(i)+(det(i)?" ("+det(i)+")":"")+" - $"+(i.u*i.q)}).join("\n")+"\n\nTotal: $"+tot()}
@@ -183,12 +184,37 @@ function sendO(){var o=ORD,e="";
   if(!admin)sv("pp_me",o);upC(o.n.trim(),o.t!=="suc"?o.tel.trim():"",o.t==="env"?o.dir.trim():"",1);
   if(admin){addOrder({t:o.t,n:o.n.trim(),tel:o.t!=="suc"?o.tel.trim():"",dir:o.t==="env"?o.dir.trim():"",items:itemLines(),total:tot()});ORD.n="";ORD.tel="";ORD.dir="";cart=[];closeS();view=3;draw();return}
   var u="https://wa.me/"+WA+"?text="+encodeURIComponent(msgO());
+  if(sbOn()){sendDB(u);return}
   var w=window.open(u,"_blank");if(!w)location.href=u;
   cart=[];closeS();draw()}
 function dc(id){clients=clients.filter(function(c){return c.id!==id});sv("pp_clients",clients);draw()}
 var orders=ld("pp_orders",[]),TYN={suc:"En sucursal",rec:"Para recoger",env:"Envío"},LBL={suc:"Entregado",rec:"Listo · avisar al cliente",env:"Despachado · avisar al cliente"};
+var SB=window.PONPONES||{};
+function sbOn(){return !!(SB.url&&SB.key)}
+var tok=null,seen=ld("pp_seen",[]),lastSig="",firstPull=true;
+function sbH(a){var h={apikey:SB.key,"Content-Type":"application/json"};if(a&&tok)h.Authorization="Bearer "+tok;return h}
+async function sbFetch(p,o,a){var r=await fetch(SB.url.replace(/\/$/,"")+p,Object.assign({headers:sbH(a)},o||{}));if(!r.ok)throw new Error(r.status);var t=await r.text();return t?JSON.parse(t):null}
+function sbIns(o,a){return sbFetch("/rest/v1/orders",{method:"POST",headers:Object.assign(sbH(a),{Prefer:"return=minimal"}),body:JSON.stringify(o)},a)}
+function beep(){try{var c=new (window.AudioContext||window.webkitAudioContext)(),s=c.createOscillator();s.connect(c.destination);s.frequency.value=880;s.start();setTimeout(function(){s.stop();c.close()},250)}catch(e){}}
+async function pull(){
+  if(!sbOn()||!admin||!tok)return;
+  try{var rows=await sbFetch("/rest/v1/orders?select=*&order=created_at.asc",{},true),sig=JSON.stringify(rows);
+    if(sig===lastSig)return;lastSig=sig;
+    var fresh=rows.filter(function(r){return seen.indexOf(r.id)<0});
+    fresh.forEach(function(r){seen.push(r.id);if(r.nombre)upC(r.nombre,r.telefono||"",r.direccion||"",1)});sv("pp_seen",seen);
+    if(fresh.length&&!firstPull){beep();try{navigator.vibrate&&navigator.vibrate(300)}catch(e){}}
+    firstPull=false;
+    orders=rows.map(function(r){return{id:r.id,no:r.id,t:r.tipo,n:r.nombre,tel:r.telefono||"",dir:r.direccion||"",items:r.items||[],total:+r.total,st:r.estado==="pendiente"?"pen":"ok",at:Date.parse(r.created_at)}});
+    draw()}catch(e){if(e&&e.message==="401")logout()}}
+setInterval(pull,10000);
+async function sendDB(u){
+  var o=ORD,bt=document.getElementById("sb");if(bt){bt.disabled=true;bt.textContent="Enviando…"}
+  try{await sbIns({tipo:o.t,nombre:o.n.trim(),telefono:o.t!=="suc"?o.tel.trim():"",direccion:o.t==="env"?o.dir.trim():"",items:itemLines(),total:tot()},false);
+    cart=[];draw();
+    document.getElementById("ov").innerHTML='<div class="ov"><div class="sheet"><div class="hero" style="font-size:72px">✅</div><h2>¡Pedido enviado!</h2><p class="l">Tu pedido ya está en nuestra fila. Te avisaremos por WhatsApp cuando esté listo.</p><a class="btn big lnk" href="'+u+'" target="_blank" rel="noopener">Escribirnos por WhatsApp (opcional)</a><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Listo</button></div></div>'
+  }catch(e){var w=window.open(u,"_blank");if(!w)location.href=u;cart=[];closeS();draw()}}
 function itemLines(){return cart.map(function(i){return i.q+" x "+name(i)+(det(i)?" ("+det(i)+")":"")+" - $"+(i.u*i.q)})}
-function addOrder(o){var no=orders.reduce(function(a,x){return Math.max(a,x.no)},0)+1;orders.push({id:Date.now(),no:no,t:o.t,n:o.n,tel:o.tel,dir:o.dir,items:o.items,total:o.total,st:"pen",at:Date.now()});sv("pp_orders",orders)}
+function addOrder(o){if(sbOn()&&tok)sbIns({tipo:o.t,nombre:o.n,telefono:o.tel||"",direccion:o.dir||"",items:o.items,total:o.total},true).then(pull).catch(function(){});var no=orders.reduce(function(a,x){return Math.max(a,x.no)},0)+1;orders.push({id:Date.now(),no:no,t:o.t,n:o.n,tel:o.tel,dir:o.dir,items:o.items,total:o.total,st:"pen",at:Date.now()});sv("pp_orders",orders)}
 function parseO(txt){var o={t:"rec",n:"",tel:"",dir:"",items:[],total:0};
   txt.split(/\r?\n/).forEach(function(l){l=l.trim();var m;
     if(m=l.match(/^Tipo:\s*(.+)/i)){var v=m[1].toLowerCase();o.t=v.indexOf("env")>-1?"env":v.indexOf("recog")>-1?"rec":"suc"}
@@ -201,9 +227,9 @@ function parseO(txt){var o={t:"rec",n:"",tel:"",dir:"",items:[],total:0};
 function nw(o){var d=(o.tel||"").replace(/\D/g,""),f=(o.n||"").split(" ")[0],
   txt=o.t==="env"?"Hola "+f+", tu pedido #"+o.no+" de Los Ponpones ya salió y va en camino a tu domicilio. ¡Gracias por tu compra!":"Hola "+f+", tu pedido #"+o.no+" de Los Ponpones ya está listo. Pasa por él cuando gustes, ¡te esperamos!";
   return "https://wa.me/"+(d.length===10?"52":"")+d+"?text="+encodeURIComponent(txt)}
-function dn(id){var o=orders.filter(function(x){return x.id===id})[0];if(!o)return;o.st="ok";sv("pp_orders",orders);if(o.t!=="suc"&&o.tel)window.open(nw(o),"_blank");draw()}
-function dq(id){orders=orders.filter(function(x){return x.id!==id});sv("pp_orders",orders);draw()}
-function clrO(){orders=orders.filter(function(x){return x.st!=="ok"});sv("pp_orders",orders);draw()}
+function dn(id){var o=orders.filter(function(x){return x.id===id})[0];if(!o)return;if(sbOn())sbFetch("/rest/v1/orders?id=eq."+id,{method:"PATCH",body:JSON.stringify({estado:"despachado"})},true).then(pull).catch(function(){});o.st="ok";sv("pp_orders",orders);if(o.t!=="suc"&&o.tel)window.open(nw(o),"_blank");draw()}
+function dq(id){if(sbOn())sbFetch("/rest/v1/orders?id=eq."+id,{method:"DELETE"},true).catch(function(){});orders=orders.filter(function(x){return x.id!==id});sv("pp_orders",orders);draw()}
+function clrO(){if(sbOn())sbFetch("/rest/v1/orders?estado=eq.despachado",{method:"DELETE"},true).catch(function(){});orders=orders.filter(function(x){return x.st!=="ok"});sv("pp_orders",orders);draw()}
 function pasteO(){var o=parseO(document.getElementById("pt").value);
   if(!o){document.getElementById("pe").textContent="No pude leer el pedido. Copia el mensaje completo tal como llegó.";return}
   addOrder(o);if(o.n)upC(o.n,o.tel,o.dir,1);draw()}
