@@ -140,6 +140,41 @@ async function sha(t){var b=await crypto.subtle.digest("SHA-256",new TextEncoder
 function openLogin(err){document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Acceso del dueño</h2><p class="l">Escribe tu contraseña para ver las ventas y cambiar precios.</p><input id="pw" type="password" autocomplete="current-password" placeholder="Contraseña" onkeydown="if(event.key===\'Enter\')login()"><div class="change" style="color:var(--red);font-size:16px">'+(err||"")+'</div><button class="btn big" onclick="login()">Entrar</button><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Cancelar</button></div></div>'}
 async function login(){var v=document.getElementById("pw").value,ok=false;try{ok=(await sha(v))===HASH}catch(e){openLogin("No se pudo verificar. Abre la app desde tu enlace seguro (https).");return}if(ok){admin=true;sv("pp_admin",1);closeS();view=2;draw()}else openLogin("Contraseña incorrecta")}
 function logout(){admin=false;sv("pp_admin",0);view=1;draw()}
+var ORD=ld("pp_me",{t:"rec",n:"",tel:"",dir:""}),clients=ld("pp_clients",[]),TY=[["suc","En sucursal"],["rec","Recoger"],["env","Envío"]];
+function st(i){ORD.t=TY[i][0];openForm()}
+function openForm(err){
+  var o=ORD,h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Datos del pedido</h2><p class="l">¿Cómo quieres tu pedido?</p><div class="seg" style="grid-template-columns:repeat(3,1fr)">'+TY.map(function(x,i){return '<button class="'+(o.t===x[0]?"on":"")+'" onclick="st('+i+')">'+x[1]+'</button>'}).join("")+'</div>';
+  h+='<p class="l">Nombre completo</p><input autocomplete="name" placeholder="Nombre y apellido" value="'+esc(o.n)+'" oninput="ORD.n=this.value">';
+  if(o.t!=="suc")h+='<p class="l">Teléfono</p><input type="tel" inputmode="tel" autocomplete="tel" placeholder="10 dígitos" value="'+esc(o.tel)+'" oninput="ORD.tel=this.value">';
+  if(o.t==="env")h+='<p class="l">Dirección de entrega</p><input autocomplete="street-address" placeholder="Calle, número, colonia y referencias" value="'+esc(o.dir)+'" oninput="ORD.dir=this.value">';
+  h+='<div class="change" style="color:var(--red);font-size:15px">'+(err||"")+'</div><div class="tot"><span>Total</span><span>'+$(tot())+'</span></div><button class="btn big" onclick="sendO()">Enviar por WhatsApp</button><button class="btn big alt" style="margin-top:8px" onclick="openCart()">Volver al pedido</button></div></div>';
+  document.getElementById("ov").innerHTML=h}
+function msgO(){var o=ORD,tipo={suc:"En sucursal",rec:"Para recoger",env:"Envío a domicilio"}[o.t];
+  return "Pedido Los Ponpones\nTipo: "+tipo+"\nNombre: "+o.n.trim()+(o.t!=="suc"?"\nTeléfono: "+o.tel.trim():"")+(o.t==="env"?"\nDirección: "+o.dir.trim():"")+"\n\n"+cart.map(function(i){return i.q+" x "+name(i)+(det(i)?" ("+det(i)+")":"")+" - $"+(i.u*i.q)}).join("\n")+"\n\nTotal: $"+tot()}
+function upC(n,tel,dir,inc){var d=(tel||"").replace(/\D/g,""),k=null;clients.forEach(function(c){if((d&&c.d===d)||(!d&&c.n.toLowerCase()===n.toLowerCase()))k=c});
+  if(k){k.n=n;if(tel){k.tel=tel;k.d=d}if(dir)k.dir=dir;k.k+=inc}else clients.push({id:Date.now(),n:n,tel:tel||"",d:d,dir:dir||"",k:inc});sv("pp_clients",clients)}
+function sendO(){var o=ORD,e="";
+  if(o.n.trim().split(/\s+/).length<2)e="Escribe tu nombre completo (nombre y apellido).";
+  else if(o.t!=="suc"&&o.tel.replace(/\D/g,"").length<10)e="Escribe un teléfono de 10 dígitos.";
+  else if(o.t==="env"&&o.dir.trim().length<8)e="Escribe tu dirección completa para el envío.";
+  if(e){openForm(e);return}
+  sv("pp_me",o);upC(o.n.trim(),o.t!=="suc"?o.tel.trim():"",o.t==="env"?o.dir.trim():"",1);
+  var u="https://wa.me/"+WA+"?text="+encodeURIComponent(msgO());
+  var w=window.open(u,"_blank");if(!w)location.href=u;
+  cart=[];closeS();draw()}
+function dc(id){clients=clients.filter(function(c){return c.id!==id});sv("pp_clients",clients);draw()}
+function ac(){var a=document.getElementById("cn"),b=document.getElementById("ct"),n=a.value.trim(),t=b.value.trim(),d=document.getElementById("cd").value.trim(),bad=false;
+  a.style.borderColor=b.style.borderColor="transparent";
+  if(n.split(/\s+/).length<2){a.style.borderColor="var(--red)";bad=true}
+  if(t.replace(/\D/g,"").length<10){b.style.borderColor="var(--red)";bad=true}
+  if(bad)return;upC(n,t,d,0);draw()}
+function clientsHtml(){
+  var h='<h2 style="margin-top:28px">Clientes ('+clients.length+')</h2>';
+  h+=clients.length?clients.slice().reverse().map(function(c){
+    var w=c.d?'<a class="x" href="https://wa.me/'+(c.d.length===10?"52":"")+c.d+'" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a> ':"";
+    return '<div class="row"><span><b>'+esc(c.n)+'</b><small>'+esc([c.tel,c.dir].filter(Boolean).join(" · "))+'</small><small>'+c.k+(c.k===1?" pedido":" pedidos")+'</small></span><span>'+w+'<button class="x" aria-label="Borrar cliente" onclick="dc('+c.id+')">✕</button></span></div>'}).join(""):'<p class="empty">Aún no hay clientes. Se guardan cuando alguien hace un pedido desde este teléfono, o los puedes agregar aquí.</p>';
+  h+='<p class="l">Agregar cliente</p><input id="cn" placeholder="Nombre completo"><input id="ct" type="tel" inputmode="tel" placeholder="Teléfono (10 dígitos)"><input id="cd" placeholder="Dirección (opcional)"><button class="btn" style="margin-top:10px" onclick="ac()">Guardar cliente</button>';
+  return h}
 var CATS=[["all","Todo"],["m","Marquesitas"],["w","Waffles"],["f","Frapes"]];
 function sc(i){cat=CATS[i][0];draw()}
 var WA="525521532208";
@@ -193,7 +228,7 @@ function openCart(){
   var t=cart.reduce(function(a,i){return a+i.u*i.q},0);
   var h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Pedido</h2>'+cart.map(function(it,i){
     return '<div class="row"><span>'+it.q+" × "+name(it)+(det(it)?"<small>"+esc(det(it))+"</small>":"")+'</span><span><b>'+$(it.u*it.q)+'</b> <button class="x" aria-label="Quitar" onclick="rm('+i+')">✕</button></span></div>'}).join("");
-  h+='<div class="tot"><span>Total</span><span>'+$(t)+'</span></div>'+(admin?'<button class="btn big" onclick="openPay()">Cobrar</button>':'')+'<a class="btn big lnk" href="'+wa()+'" target="_blank" rel="noopener">Enviar pedido por WhatsApp</a><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Seguir agregando</button></div></div>';
+  h+='<div class="tot"><span>Total</span><span>'+$(t)+'</span></div>'+(admin?'<button class="btn big" onclick="openPay()">Cobrar</button>':'')+'<button class="btn big" style="margin-top:8px" onclick="openForm()">Enviar pedido por WhatsApp</button><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Seguir agregando</button></div></div>';
   document.getElementById("ov").innerHTML=h;
 }
 function rm(i){cart.splice(i,1);openCart();draw()}
@@ -226,6 +261,7 @@ function drawSales(m){
     ["m","w","f"].map(function(k){return '<div class="stat"><b>'+cnt[k]+'</b><span>'+P[k].n+(cnt[k]==1?"":"s")+'</span></div>'}).join("")+'</div>';
   h+=ts.length?ts.slice().reverse().map(function(s){
     return '<div class="row"><span>'+new Date(s.t).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"})+'<small>'+esc(s.items.map(function(i){return i.q+" "+name(i)+(det(i)?" ("+det(i)+")":"")}).join(", "))+'</small></span><span><b>'+$(s.total)+'</b> <button class="x" aria-label="Borrar venta" onclick="ds('+s.id+')">✕</button></span></div>'}).join(""):'<p class="empty">Todavía no hay ventas hoy. Cuando cobres un pedido aparecerá aquí.</p>';
+  h+=clientsHtml();
   h+='<h2 style="margin-top:28px">Precios</h2><div class="pr">'+[["m","Marquesita normal"],["mf","Marquesita con fruta"],["w","Waffle normal"],["wf","Waffle con fruta"],["f","Frape"]].map(function(a){
     return '<div><label>'+a[1]+'</label><input type="number" inputmode="decimal" value="'+PR[a[0]]+'" onchange="up(\''+a[0]+'\',this.value)"></div>'}).join("")+'</div>';
   h+='<button class="btn alt" style="margin-top:22px" onclick="clr()">'+(armed?"¿Seguro? Toca otra vez para borrar todo":"Borrar historial de ventas")+'</button>';
