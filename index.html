@@ -88,7 +88,7 @@ nav button.on{background:#FFF8EE;color:#2B1B10}
 .bar{left:0;right:0;margin:0 auto;width:calc(100% - 32px);max-width:520px;bottom:calc(82px + env(safe-area-inset-bottom,0px));background:var(--acc);color:#2B1B10;border-radius:24px;padding:10px 10px 10px 20px}
 .bar .btn{background:#2B1B10;color:#FFF8EE}
 .ov{background:rgba(60,35,15,.45)}
-.sheet{background:var(--card);border-radius:34px 34px 0 0}
+.sheet{background:var(--card);border-radius:34px 34px 0 0;animation:none}
 .sheet h2{font-size:26px;font-weight:800}
 .hero{background:var(--acc);border-radius:26px;height:130px;display:flex;align-items:center;justify-content:center;font-size:76px;margin-bottom:14px}
 .seg button,.chip{border:0;background:var(--tile)}
@@ -111,6 +111,8 @@ input{background:var(--tile);border:2px solid transparent;border-radius:16px}
 .pe img{width:100%;height:100%;object-fit:contain;display:block}
 .hero{height:210px;background:#FFF3E0;padding:10px;font-size:0}
 .hero img{height:100%;max-width:100%;object-fit:contain}
+.qty button{display:flex;align-items:center;justify-content:center;padding:0;line-height:1}
+.qty b{line-height:1}
 </style>
 </head>
 <body>
@@ -177,6 +179,8 @@ function clientsHtml(){
   return h}
 var CATS=[["all","Todo"],["m","Marquesitas"],["w","Waffles"],["f","Frapes"]];
 function sc(i){cat=CATS[i][0];draw()}
+var mainKey="";
+function mk(){var k=view+"|"+cat;if(mainKey===k)return false;mainKey=k;return true}
 var WA="525521532208";
 function msg(){return "Pedido Los Ponpones:\n"+cart.map(function(i){return i.q+" x "+name(i)+(det(i)?" ("+det(i)+")":"")+" - $"+(i.u*i.q)}).join("\n")+"\nTotal: $"+tot()}
 function wa(){return "https://wa.me/"+WA+"?text="+encodeURIComponent(msg())}
@@ -193,30 +197,30 @@ function draw(){
   if(view==2&&!admin)view=1;
   var m=document.getElementById("main"),b=document.getElementById("bar");
   if(view==1){
-    m.innerHTML='<div class="promo"><div><small>Hoy en Los Ponpones</small><h2>Marquesitas desde '+$(PR.m)+'</h2><span class="pill">Elige tu favorito</span></div><div class="pe"><img alt="" src="'+IMG.m+'"></div></div><div class="cats">'+CATS.map(function(c,i){return '<button class="cat'+(cat===c[0]?" on":"")+'" onclick="sc('+i+')">'+c[1]+'</button>'}).join("")+'</div><div class="grid">'+["m","w","f"].filter(function(k){return cat==="all"||cat===k}).map(function(k){var p=P[k];
+    if(mk())m.innerHTML='<div class="promo"><div><small>Hoy en Los Ponpones</small><h2>Marquesitas desde '+$(PR.m)+'</h2><span class="pill">Elige tu favorito</span></div><div class="pe"><img decoding="sync" alt="" src="'+IMG.m+'"></div></div><div class="cats">'+CATS.map(function(c,i){return '<button class="cat'+(cat===c[0]?" on":"")+'" onclick="sc('+i+')">'+c[1]+'</button>'}).join("")+'</div><div class="grid">'+["m","w","f"].filter(function(k){return cat==="all"||cat===k}).map(function(k){var p=P[k];
       var sub=(k==="f"?"":"Desde ")+$(PR[p.k]);
-      return '<button class="prod" style="--c:'+p.c+'" onclick="openP(\''+k+'\')"><span class="it"><img alt="'+p.n+'" src="'+IMG[k]+'"></span><h2>'+p.n+'</h2><p>'+sub+'</p><span class="add">'+CART+'</span></button>'}).join("")+'</div>';
+      return '<button class="prod" style="--c:'+p.c+'" onclick="openP(\''+k+'\')"><span class="it"><img decoding="sync" alt="'+p.n+'" src="'+IMG[k]+'"></span><h2>'+p.n+'</h2><p>'+sub+'</p><span class="add">'+CART+'</span></button>'}).join("")+'</div>';
     var t=cart.reduce(function(a,i){return a+i.u*i.q},0),n=cart.reduce(function(a,i){return a+i.q},0);
     b.innerHTML=n?'<div class="bar"><span><b>'+$(t)+'</b> · '+n+(n==1?" producto":" productos")+'</span><button class="btn" onclick="openCart()">Ver pedido</button></div>':"";
-  }else{b.innerHTML="";drawSales(m)}
+  }else{b.innerHTML="";mainKey="";drawSales(m)}
 }
 function chip(t,on,fn){return '<button class="chip'+(on?" on":"")+'" onclick="'+fn+'">'+esc(t)+'</button>'}
 function openP(k){cur={p:k,fruit:false,fl:"",fr:[],oth:"",q:1};rs()}
 function rs(){
-  var c=cur,p=P[c.p],h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><div class="hero"><img alt="'+p.n+'" src="'+IMG[c.p]+'"></div><h2>'+p.n+'</h2>';
+  var c=cur,p=P[c.p],h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><div class="hero"><img decoding="sync" alt="'+p.n+'" src="'+IMG[c.p]+'"></div><h2>'+p.n+'</h2>';
   if(c.p!=="f"){
     h+='<div class="seg"><button class="'+(c.fruit?"":"on")+'" onclick="sf(0)">Normal<b>'+$(PR[p.k])+'</b></button><button class="'+(c.fruit?"on":"")+'" onclick="sf(1)">Con fruta o extra<b>'+$(PR[p.kf])+'</b></button></div>';
     h+='<p class="l">Sabor</p><div class="chips">'+FL.map(function(x,i){return chip(x,c.fl===x&&!c.oth,"sfl("+i+")")}).join("")+'</div><input placeholder="Otro sabor (opcional)" value="'+esc(c.oth)+'" oninput="cur.oth=this.value">';
     if(c.fruit)h+='<p class="l">Frutas y extras</p><div class="chips">'+FR.map(function(x,i){return chip(x,c.fr.indexOf(x)>-1,"tfr("+i+")")}).join("")+'</div>';
   }else h+='<p class="l">Sabor</p><div class="chips">'+FLF.map(function(x,i){return chip(x,c.fl===x&&!c.oth,"sfl("+i+")")}).join("")+'</div><input placeholder="Otro sabor o nota (opcional)" value="'+esc(c.oth)+'" oninput="cur.oth=this.value">';
-  h+='<div class="qty"><button aria-label="Menos" onclick="qq(-1)">−</button><b>'+c.q+'</b><button aria-label="Más" onclick="qq(1)">+</button></div>';
-  h+='<button class="btn big" onclick="addC()">Agregar '+$(unit(c)*c.q)+'</button><button class="btn big alt" onclick="closeS()" style="margin-top:8px">Cancelar</button></div></div>';
+  h+='<div class="qty"><button aria-label="Menos" onclick="qq(-1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14"/></svg></button><b id="qv">'+c.q+'</b><button aria-label="Más" onclick="qq(1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button></div>';
+  h+='<button class="btn big" id="ab" onclick="addC()">Agregar '+$(unit(c)*c.q)+'</button><button class="btn big alt" onclick="closeS()" style="margin-top:8px">Cancelar</button></div></div>';
   document.getElementById("ov").innerHTML=h;
 }
 function sf(v){cur.fruit=!!v;if(!v)cur.fr=[];rs()}
 function sfl(i){var L=cur.p==="f"?FLF:FL;cur.fl=cur.fl===L[i]?"":L[i];cur.oth="";rs()}
 function tfr(i){var x=FR[i],j=cur.fr.indexOf(x);j>-1?cur.fr.splice(j,1):cur.fr.push(x);rs()}
-function qq(d){cur.q=Math.max(1,cur.q+d);rs()}
+function qq(d){cur.q=Math.max(1,cur.q+d);document.getElementById("qv").textContent=cur.q;document.getElementById("ab").textContent="Agregar "+$(unit(cur)*cur.q)}
 function closeS(){document.getElementById("ov").innerHTML=""}
 function addC(){
   var c=cur,it={p:c.p,fruit:c.fruit,fl:(c.oth||"").trim()||c.fl,fr:c.fr.slice(),q:c.q,u:unit(c)};
