@@ -116,7 +116,7 @@ input{background:var(--tile);border:2px solid transparent;border-radius:16px}
 <body>
 <header>
   <small class="wl">Caja de</small><h1 class="logo">Los Ponpones</h1>
-  <nav><button id="t1" onclick="tab(1)">🏠 Vender</button><button id="t2" onclick="tab(2)">🧾 Ventas</button></nav>
+  <nav><button id="t1" onclick="tab(1)">🏠 Menú</button><button id="t2" onclick="tab(2)">🔒 Dueño</button></nav>
 </header>
 <main id="main"></main>
 <div id="bar"></div>
@@ -134,7 +134,12 @@ function ld(k,d){try{var v=localStorage.getItem(k);if(v)return JSON.parse(v)}cat
 function sv(k,v){mem[k]=v;try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 var PR=Object.assign({},DEF,ld("pp_prices",{}));
 var sales=ld("pp_sales",[]);
-var cart=[],cur=null,view=1,armed=false,cat="all";
+var cart=[],cur=null,view=1,armed=false,cat="all",admin=ld("pp_admin",0)===1;
+var HASH="33a47409e796ed31bb5a7518ee4c9613583cfc0dee84df119a90061b25fb5dc6";
+async function sha(t){var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
+function openLogin(err){document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Acceso del dueño</h2><p class="l">Escribe tu contraseña para ver las ventas y cambiar precios.</p><input id="pw" type="password" autocomplete="current-password" placeholder="Contraseña" onkeydown="if(event.key===\'Enter\')login()"><div class="change" style="color:var(--red);font-size:16px">'+(err||"")+'</div><button class="btn big" onclick="login()">Entrar</button><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Cancelar</button></div></div>'}
+async function login(){var v=document.getElementById("pw").value,ok=false;try{ok=(await sha(v))===HASH}catch(e){openLogin("No se pudo verificar. Abre la app desde tu enlace seguro (https).");return}if(ok){admin=true;sv("pp_admin",1);closeS();view=2;draw()}else openLogin("Contraseña incorrecta")}
+function logout(){admin=false;sv("pp_admin",0);view=1;draw()}
 var CATS=[["all","Todo"],["m","Marquesitas"],["w","Waffles"],["f","Frapes"]];
 function sc(i){cat=CATS[i][0];draw()}
 var WA="525521532208";
@@ -145,10 +150,12 @@ function $(n){return n.toFixed?"$"+n:n}
 function unit(c){return c.p==="f"?PR.f:PR[c.fruit?P[c.p].kf:P[c.p].k]}
 function name(it){return P[it.p].n+(it.fruit?(it.fr.every(function(x){return FR.indexOf(x)<3})?" con fruta":" con extras"):"")}
 function det(it){return [it.fl,it.fr&&it.fr.join(", ")].filter(Boolean).join(" · ")}
-function tab(n){view=n;armed=false;draw()}
+function tab(n){if(n==2&&!admin){openLogin();return}view=n;armed=false;draw()}
 function draw(){
   document.getElementById("t1").className=view==1?"on":"";
   document.getElementById("t2").className=view==2?"on":"";
+  document.getElementById("t2").textContent=admin?"🧾 Ventas":"🔒 Dueño";
+  if(view==2&&!admin)view=1;
   var m=document.getElementById("main"),b=document.getElementById("bar");
   if(view==1){
     m.innerHTML='<div class="promo"><div><small>Hoy en Los Ponpones</small><h2>Marquesitas desde '+$(PR.m)+'</h2><span class="pill">Elige tu favorito</span></div><div class="pe"><img alt="" src="'+IMG.m+'"></div></div><div class="cats">'+CATS.map(function(c,i){return '<button class="cat'+(cat===c[0]?" on":"")+'" onclick="sc('+i+')">'+c[1]+'</button>'}).join("")+'</div><div class="grid">'+["m","w","f"].filter(function(k){return cat==="all"||cat===k}).map(function(k){var p=P[k];
@@ -186,7 +193,7 @@ function openCart(){
   var t=cart.reduce(function(a,i){return a+i.u*i.q},0);
   var h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Pedido</h2>'+cart.map(function(it,i){
     return '<div class="row"><span>'+it.q+" × "+name(it)+(det(it)?"<small>"+esc(det(it))+"</small>":"")+'</span><span><b>'+$(it.u*it.q)+'</b> <button class="x" aria-label="Quitar" onclick="rm('+i+')">✕</button></span></div>'}).join("");
-  h+='<div class="tot"><span>Total</span><span>'+$(t)+'</span></div><button class="btn big" onclick="openPay()">Cobrar</button><a class="btn big lnk" href="'+wa()+'" target="_blank" rel="noopener">Enviar pedido por WhatsApp</a><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Seguir agregando</button></div></div>';
+  h+='<div class="tot"><span>Total</span><span>'+$(t)+'</span></div>'+(admin?'<button class="btn big" onclick="openPay()">Cobrar</button>':'')+'<a class="btn big lnk" href="'+wa()+'" target="_blank" rel="noopener">Enviar pedido por WhatsApp</a><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Seguir agregando</button></div></div>';
   document.getElementById("ov").innerHTML=h;
 }
 function rm(i){cart.splice(i,1);openCart();draw()}
@@ -222,6 +229,7 @@ function drawSales(m){
   h+='<h2 style="margin-top:28px">Precios</h2><div class="pr">'+[["m","Marquesita normal"],["mf","Marquesita con fruta"],["w","Waffle normal"],["wf","Waffle con fruta"],["f","Frape"]].map(function(a){
     return '<div><label>'+a[1]+'</label><input type="number" inputmode="decimal" value="'+PR[a[0]]+'" onchange="up(\''+a[0]+'\',this.value)"></div>'}).join("")+'</div>';
   h+='<button class="btn alt" style="margin-top:22px" onclick="clr()">'+(armed?"¿Seguro? Toca otra vez para borrar todo":"Borrar historial de ventas")+'</button>';
+  h+='<button class="btn" style="margin:22px 0 0 8px" onclick="logout()">Cerrar sesión</button>';
   m.innerHTML=h;
 }
 function ds(id){sales=sales.filter(function(s){return s.id!==id});sv("pp_sales",sales);draw()}
