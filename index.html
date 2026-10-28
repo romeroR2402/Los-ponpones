@@ -153,12 +153,15 @@ function ld(k,d){try{var v=localStorage.getItem(k);if(v)return JSON.parse(v)}cat
 function sv(k,v){mem[k]=v;try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
 var PR=Object.assign({},DEF,ld("pp_prices",{}));
 var sales=ld("pp_sales",[]);
-var cart=[],cur=null,view=1,armed=false,cat="all",admin=ld("pp_admin",0)===1;
+var cart=[],cur=null,view=1,armed=false,cat="all",admin=false;
+try{localStorage.removeItem("pp_admin");sessionStorage.clear()}catch(e){}
 var HASH="33a47409e796ed31bb5a7518ee4c9613583cfc0dee84df119a90061b25fb5dc6";
 async function sha(t){var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
-function openLogin(err){document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Acceso del dueño</h2><p class="l">Escribe tu contraseña para ver las ventas y cambiar precios.</p><input id="pw" type="password" autocomplete="current-password" placeholder="Contraseña" onkeydown="if(event.key===\'Enter\')login()"><div class="change" style="color:var(--red);font-size:16px">'+(err||"")+'</div><button class="btn big" onclick="login()">Entrar</button><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Cancelar</button></div></div>'}
-async function login(){var v=document.getElementById("pw").value,ok=false;try{ok=(await sha(v))===HASH}catch(e){openLogin("No se pudo verificar. Abre la app desde tu enlace seguro (https).");return}if(ok){admin=true;sv("pp_admin",1);closeS();view=2;draw()}else openLogin("Contraseña incorrecta")}
-function logout(){admin=false;sv("pp_admin",0);view=1;draw()}
+function openLogin(err){document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Acceso del dueño</h2><p class="l">Escribe tu contraseña para ver las ventas y cambiar precios.</p><input id="pw" type="password" autocomplete="off" placeholder="Contraseña" onkeydown="if(event.key===\'Enter\')login()"><div class="change" style="color:var(--red);font-size:16px">'+(err||"")+'</div><button class="btn big" onclick="login()">Entrar</button><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Cancelar</button></div></div>'}
+async function login(){var v=document.getElementById("pw").value,ok=false;try{ok=(await sha(v))===HASH}catch(e){openLogin("No se pudo verificar. Abre la app desde tu enlace seguro (https).");return}if(ok){admin=true;closeS();view=2;draw()}else openLogin("Contraseña incorrecta")}
+function logout(){admin=false;view=1;draw()}
+var away=0;
+document.addEventListener("visibilitychange",function(){if(document.hidden)away=Date.now();else if(admin&&away&&Date.now()-away>60000)logout()});
 var ORD=ld("pp_me",{t:"rec",n:"",tel:"",dir:""}),clients=ld("pp_clients",[]),TY=[["suc","En sucursal"],["rec","Recoger"],["env","Envío"]];
 function st(i){ORD.t=TY[i][0];openForm()}
 function openForm(err){
@@ -177,8 +180,8 @@ function sendO(){var o=ORD,e="";
   else if(o.t!=="suc"&&o.tel.replace(/\D/g,"").length<10)e="Escribe un teléfono de 10 dígitos.";
   else if(o.t==="env"&&o.dir.trim().length<8)e="Escribe tu dirección completa para el envío.";
   if(e){openForm(e);return}
-  sv("pp_me",o);upC(o.n.trim(),o.t!=="suc"?o.tel.trim():"",o.t==="env"?o.dir.trim():"",1);
-  if(admin){addOrder({t:o.t,n:o.n.trim(),tel:o.t!=="suc"?o.tel.trim():"",dir:o.t==="env"?o.dir.trim():"",items:itemLines(),total:tot()});cart=[];closeS();view=3;draw();return}
+  if(!admin)sv("pp_me",o);upC(o.n.trim(),o.t!=="suc"?o.tel.trim():"",o.t==="env"?o.dir.trim():"",1);
+  if(admin){addOrder({t:o.t,n:o.n.trim(),tel:o.t!=="suc"?o.tel.trim():"",dir:o.t==="env"?o.dir.trim():"",items:itemLines(),total:tot()});ORD.n="";ORD.tel="";ORD.dir="";cart=[];closeS();view=3;draw();return}
   var u="https://wa.me/"+WA+"?text="+encodeURIComponent(msgO());
   var w=window.open(u,"_blank");if(!w)location.href=u;
   cart=[];closeS();draw()}
