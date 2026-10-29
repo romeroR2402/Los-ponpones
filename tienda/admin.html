@@ -43,7 +43,6 @@
 <script src="js/db.js"></script>
 </head>
 <body>
-<div id="demo" class="demo" hidden>Modo demo: los cambios se guardan solo en este navegador. Corre <b>supabase/tienda.sql</b> para publicar de verdad.</div>
 <header class="top"><div class="wrap"><a class="ib" href="index.html" aria-label="Ver tienda"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></a><h1>Panel de la tienda</h1><button class="ib" id="bSalir" aria-label="Salir" hidden onclick="DB.salir().then(()=>location.reload())"><svg class="i" viewBox="0 0 24 24"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg></button></div></header>
 <main><div class="wrap" id="view"></div></main>
 <div class="toast" id="toast" role="status"></div>
@@ -56,7 +55,6 @@ let tab = 'pedidos', PRODS = [], PEDS = [], AJ = {}, ed = null, filtro = 'pendie
 
 async function inicio() {
   await DB.productos(); // detecta modo demo
-  $('#demo').hidden = !DB.demo;
   // En modo demo no hay nada que proteger: entra directo sin contraseña
   if (DB.demo && !(await DB.sesion())) await DB.entrar('demo', '');
   const u = await DB.sesion();

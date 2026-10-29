@@ -14,7 +14,6 @@
 <script src="js/db.js"></script>
 </head>
 <body class="con-nav">
-<div id="demo" class="demo" hidden>Modo demo: corre <b>supabase/tienda.sql</b> en Supabase para recibir pedidos reales.</div>
 <header class="top"><div class="wrap" id="top"></div></header>
 <main><div class="wrap" id="view"></div></main>
 <nav class="nav" aria-label="Navegación"><div class="wrap" id="nav"></div></nav>
@@ -318,7 +317,6 @@ function cuenta() {
   $('#view').innerHTML = '<div class="empty"><span class="spin"></span></div>';
   [PRODS, AJ] = await Promise.all([DB.productos(), DB.ajustes()]);
   PRODS = PRODS.filter(p => p.activo !== false).map(p => ({...p, tallas: p.tallas || [], colores: p.colores || [], imagenes: p.imagenes || []}));
-  $('#demo').hidden = !DB.demo;
   render();
 })();
 </script>
