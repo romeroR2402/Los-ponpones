@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tienda de Serigrafía</title>
+<meta name="description" content="Playeras, sudaderas, suéteres, pantalones y bolsas con serigrafía.">
+<meta name="theme-color" content="#3b2a22">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tienda.css">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/db.js"></script>
+</head>
+<body class="con-nav">
+<div id="demo" class="demo" hidden>Modo demo: corre <b>supabase/tienda.sql</b> en Supabase para recibir pedidos reales.</div>
+<header class="top"><div class="wrap" id="top"></div></header>
+<main><div class="wrap" id="view"></div></main>
+<nav class="nav" aria-label="Navegación"><div class="wrap" id="nav"></div></nav>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+// ===================== Íconos =====================
+const I = n => `<svg class="i" viewBox="0 0 24 24">${{
+  menu:'<path d="M4 7h16M4 12h16M4 17h16"/>',
+  bag:'<path d="M6 8h12l-1 12H7L6 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  search:'<circle cx="11" cy="11" r="6.5"/><path d="m20 20-4-4"/>',
+  filter:'<path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/>',
+  back:'<path d="M15 5l-7 7 7 7"/>',
+  heart:'<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10Z"/>',
+  share:'<path d="M12 3v12M8 7l4-4 4 4"/><path d="M5 12v7h14v-7"/>',
+  home:'<path d="M4 11 12 4l8 7v9h-5v-6H9v6H4Z"/>',
+  grid:'<rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/>',
+  box:'<path d="M4 8l8-4 8 4v8l-8 4-8-4Z"/><path d="M4 8l8 4 8-4M12 12v8"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+  shield:'<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6Z"/><path d="m9 12 2 2 4-4"/>',
+  swap:'<path d="M4 9h13l-3-3M20 15H7l3 3"/>',
+  card:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/>',
+  cart:'<path d="M3 4h2l2.5 11h10L20 7H6.2"/><circle cx="9" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>',
+  trash:'<path d="M5 7h14M10 7V5h4v2M7 7l1 13h8l1-13"/>',
+  upload:'<path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v4h16v-4"/>',
+  check:'<path d="m5 12 5 5 9-10"/>',
+  wa:'<path d="M4 20l1.3-4A8 8 0 1 1 8 18.7Z"/><path d="M9 9c0 3 3 6 6 6l1-1.5-2-1-1 1c-1-.5-2-1.5-2.5-2.5l1-1-1-2Z"/>',
+  print:'<path d="M7 9V4h10v5"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 14h10v6H7Z"/>'
+}[n]||''}</svg>`;
+
+// ===================== Estado =====================
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => '$' + Number(n || 0).toLocaleString('es-MX', {minimumFractionDigits: 0, maximumFractionDigits: 2});
+let PRODS = [], AJ = {};
+let cart = DB.ls.get('tienda_carrito', []);
+let favs = DB.ls.get('tienda_favs', []);
+let misPedidos = DB.ls.get('tienda_mis_pedidos', []);
+let q = '', sel = {};
+const saveCart = () => { DB.ls.set('tienda_carrito', cart); };
+
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2200); }
+const ph = (p, color) => p.imagenes && p.imagenes[0]
+  ? `<img src="${esc(p.imagenes[0])}" alt="${esc(p.nombre)}" loading="lazy">`
+  : DB.prendaSVG(p.categoria, color || (p.colores[0] && p.colores[0].hex));
+const pct = p => p.precio_antes > p.precio ? Math.round((1 - p.precio / p.precio_antes) * 100) : 0;
+const cartCount = () => cart.reduce((s, i) => s + i.cant, 0);
+
+function card(p) {
+  const cols = p.colores || [];
+  return `<article class="card" onclick="go('producto/${p.id}')">
+    <div class="im">${ph(p)}</div>
+    ${pct(p) ? `<span class="off">-${pct(p)}%</span>` : ''}
+    <button class="fav ${favs.includes(p.id) ? 'on' : ''}" aria-label="Favorito" onclick="event.stopPropagation();toggleFav('${p.id}',this)">${I('heart')}</button>
+    <div class="bd"><h4>${esc(p.nombre)}</h4><div class="dt">${esc(p.detalle || p.categoria)}</div>
+      <div class="price"><b>${money(p.precio)}</b>${p.precio_antes > p.precio ? `<s>${money(p.precio_antes)}</s>` : ''}</div>
+      ${cols.length ? `<div class="dots">${cols.slice(0, 3).map(c => `<i style="background:${esc(c.hex)}" title="${esc(c.nombre)}"></i>`).join('')}${cols.length > 3 ? `+${cols.length - 3}` : ''}</div>` : ''}
+    </div></article>`;
+}
+function toggleFav(id, btn) {
+  favs = favs.includes(id) ? favs.filter(x => x !== id) : [...favs, id];
+  DB.ls.set('tienda_favs', favs);
+  if (btn) btn.classList.toggle('on'); else render();
+}
+
+// ===================== Rutas =====================
+function go(r) { location.hash = r; }
+window.addEventListener('hashchange', () => { render(); scrollTo(0, 0); });
+
+function topBar(kind, title) {
+  const cartBtn = `<button class="ib" aria-label="Carrito" onclick="go('carrito')">${I('bag')}${cartCount() ? `<span class="badge">${cartCount()}</span>` : ''}</button>`;
+  if (kind === 'home') return `<button class="ib" aria-label="Pedidos" onclick="go('pedidos')">${I('menu')}</button>
+    <a class="logo" href="#inicio"><b>${esc(AJ.nombre || 'SERIGRAFÍA')}</b><small>${esc(AJ.lema || 'Estampados')}</small></a>${cartBtn}`;
+  return `<button class="ib" aria-label="Regresar" onclick="history.length>1?history.back():go('inicio')">${I('back')}</button><h1>${esc(title)}</h1>${kind === 'prod' ? `<button class="ib" aria-label="Compartir" onclick="compartir()">${I('share')}</button>` : ''}${cartBtn}`;
+}
+function navBar(on) {
+  const it = [['inicio', 'home', 'Inicio'], ['tienda', 'grid', 'Categorías'], ['favoritos', 'heart', 'Favoritos'], ['pedidos', 'box', 'Pedidos'], ['cuenta', 'user', 'Cuenta']];
+  $('#nav').innerHTML = it.map(([r, i, t]) => `<button class="${on === r ? 'on' : ''}" onclick="go('${r}')">${I(i)}${t}</button>`).join('');
+}
+
+function render() {
+  const [ruta, arg] = decodeURIComponent(location.hash.slice(1) || 'inicio').split('/');
+  const V = { inicio, tienda, producto, carrito, pago, listo, favoritos, pedidos, cuenta }[ruta] || inicio;
+  V(arg);
+  document.title = (AJ.nombre || 'Tienda') + ' · Serigrafía';
+}
+
+// ---------- Inicio ----------
+function inicio() {
+  navBar('inicio'); $('#top').innerHTML = topBar('home');
+  const dest = PRODS.filter(p => p.destacado);
+  const heroP = PRODS.find(p => p.imagenes && p.imagenes[0]);
+  $('#view').innerHTML = `
+    <form class="search" onsubmit="event.preventDefault();q=this.q.value;go('tienda')">
+      <label>${I('search')}<input name="q" placeholder="Buscar playeras, sudaderas, bolsas…" aria-label="Buscar"></label>
+      <button type="button" class="ib" aria-label="Filtros" onclick="go('tienda')">${I('filter')}</button></form>
+    <section class="hero">
+      <div class="tx"><h2>Prendas con diseño<br>hecho a mano</h2><p>Serigrafía de calidad que dura lavada tras lavada.</p>
+        <button class="btn" onclick="go('tienda')">COMPRAR AHORA</button></div>
+      <div class="art">${heroP ? `<img src="${esc(heroP.imagenes[0])}" alt="">` : DB.prendaSVG('Playeras', '#f4f1ec')}</div>
+    </section>
+    <div class="perks"><div>${I('print')}Serigrafía de calidad</div><div>${I('swap')}Cambios fáciles</div><div>${I('card')}Pago por transferencia</div></div>
+    <div class="sec"><h3>Comprar por categoría</h3><button onclick="go('tienda')">Ver todo</button></div>
+    <div class="cats">${DB.CATEGORIAS.map(c => { const p = PRODS.find(x => x.categoria === c);
+      return `<button class="cat" onclick="go('tienda/${c}')"><span class="ph">${p && p.imagenes[0] ? `<img src="${esc(p.imagenes[0])}" alt="">` : DB.prendaSVG(c, catColor(c))}</span>${c}</button>`; }).join('')}</div>
+    ${dest.length ? `<div class="sec"><h3>Más vendidos</h3><button onclick="go('tienda')">Ver todo</button></div><div class="row">${dest.map(card).join('')}</div>` : ''}
+    <div class="sec"><h3>Novedades</h3></div>
+    <div class="grid">${PRODS.slice(0, 8).map(card).join('') || '<p class="empty">Pronto publicaremos productos.</p>'}</div>`;
+}
+const catColor = c => ({Playeras: '#a9c4ec', Sudaderas: '#9aae8a', Suéteres: '#d8c7ab', Pantalones: '#3d4f6e', Bolsas: '#e8dcc4'}[c]);
+
+// ---------- Catálogo ----------
+function tienda(cat) {
+  navBar('tienda'); $('#top').innerHTML = topBar('list', cat || 'Toda la tienda');
+  const t = q.trim().toLowerCase();
+  const lista = PRODS.filter(p => (!cat || p.categoria === cat) && (!t || (p.nombre + ' ' + p.categoria + ' ' + p.detalle + ' ' + p.descripcion).toLowerCase().includes(t)));
+  $('#view').innerHTML = `
+    <div class="tabs">${['', ...DB.CATEGORIAS].map(c => `<button class="${(cat || '') === c ? 'on' : ''}" onclick="go('tienda${c ? '/' + c : ''}')">${c || 'Todo'}</button>`).join('')}</div>
+    ${t ? `<p class="note">Resultados para “${esc(q)}” · <a href="#" onclick="q='';render();return false">quitar</a></p>` : ''}
+    ${lista.length ? `<div class="grid">${lista.map(card).join('')}</div>` : `<div class="empty">${I('search')}<p>No hay productos aquí todavía.</p></div>`}`;
+}
+
+// ---------- Producto ----------
+let pdImg = 0;
+function producto(id) {
+  const p = PRODS.find(x => String(x.id) === id);
+  if (!p) return tienda();
+  navBar('tienda'); $('#top').innerHTML = topBar('prod', '');
+  if (sel.id !== id) { sel = {id, talla: p.tallas.length === 1 ? p.tallas[0] : '', color: p.colores[0] ? p.colores[0].nombre : '', cant: 1}; pdImg = 0; }
+  const hexSel = (p.colores.find(c => c.nombre === sel.color) || {}).hex;
+  const imgs = p.imagenes.length ? p.imagenes : [null];
+  const vista = i => imgs[i] ? `<img src="${esc(imgs[i])}" alt="${esc(p.nombre)}">` : DB.prendaSVG(p.categoria, hexSel);
+  $('#view').innerHTML = `<div class="pd">
+    <div><div class="gal" style="${imgs.length < 2 ? 'grid-template-columns:1fr' : ''}">
+      ${imgs.length > 1 ? `<div class="thumbs">${imgs.map((_, i) => `<button class="${i === pdImg ? 'on' : ''}" onclick="pdImg=${i};render()">${vista(i)}</button>`).join('')}</div>` : ''}
+      <div class="main" id="mainImg">${vista(pdImg)}</div></div>
+      ${imgs.length > 1 ? `<div class="pdots">${imgs.map((_, i) => `<i class="${i === pdImg ? 'on' : ''}"></i>`).join('')}</div>` : ''}</div>
+    <div class="pinfo">
+      <h2>${esc(p.nombre)}</h2><div class="dt">${esc(p.detalle || p.categoria)}</div>
+      <div class="price"><b>${money(p.precio)}</b>${p.precio_antes > p.precio ? `<s>${money(p.precio_antes)}</s><span class="pill">${pct(p)}% OFF</span>` : ''}</div>
+      ${p.tallas.length ? `<div class="lbl">Elige tu talla <span>Guía: CH 36 · M 38 · G 40 · XG 42</span></div>
+        <div class="sizes">${p.tallas.map(t => `<button class="${sel.talla === t ? 'on' : ''}" onclick="sel.talla='${esc(t)}';render()">${esc(t)}</button>`).join('')}</div>` : ''}
+      ${p.colores.length ? `<div class="lbl">Color <span>${esc(sel.color)}</span></div>
+        <div class="colors">${p.colores.map(c => `<button class="${sel.color === c.nombre ? 'on' : ''}" style="background:${esc(c.hex)}" title="${esc(c.nombre)}" aria-label="${esc(c.nombre)}" onclick="sel.color='${esc(c.nombre)}';render()"></button>`).join('')}</div>` : ''}
+      <div class="lbl">Cantidad</div>
+      <div class="qty"><button onclick="sel.cant=Math.max(1,sel.cant-1);render()">−</button><span>${sel.cant}</span><button onclick="sel.cant=Math.min(99,sel.cant+1);render()">+</button></div>
+      ${p.descripcion ? `<p class="desc">${esc(p.descripcion)}</p>` : ''}
+      <div class="buy"><button class="btn out lg" onclick="agregar(false)">${I('cart')} Agregar</button><button class="btn lg" onclick="agregar(true)">Comprar ahora</button></div>
+    </div></div>`;
+}
+function agregar(comprar) {
+  const p = PRODS.find(x => String(x.id) === sel.id);
+  if (p.tallas.length && !sel.talla) return toast('Elige una talla');
+  const ex = cart.find(i => i.id === p.id && i.talla === sel.talla && i.color === sel.color);
+  if (ex) ex.cant = Math.min(99, ex.cant + sel.cant); else cart.push({id: p.id, talla: sel.talla, color: sel.color, cant: sel.cant});
+  saveCart(); toast('Agregado al carrito');
+  comprar ? go('carrito') : ($('#top').innerHTML = topBar('prod', ''));
+}
+function compartir() {
+  const d = {title: document.title, url: location.href};
+  if (navigator.share) navigator.share(d).catch(() => {}); else navigator.clipboard.writeText(location.href).then(() => toast('Enlace copiado'));
+}
+
+// ---------- Carrito ----------
+function lineas() {
+  return cart.map(i => ({...i, p: PRODS.find(p => p.id === i.id)})).filter(i => i.p);
+}
+function totales() {
+  const sub = lineas().reduce((s, i) => s + i.p.precio * i.cant, 0), env = Number(AJ.envio) || 0;
+  return {sub, env, total: sub + env};
+}
+function carrito() {
+  navBar(''); $('#top').innerHTML = topBar('list', 'Mi carrito');
+  const L = lineas(), T = totales();
+  if (!L.length) { $('#view').innerHTML = `<div class="empty">${I('bag')}<p>Tu carrito está vacío.</p><button class="btn" onclick="go('tienda')">Ver productos</button></div>`; return; }
+  $('#view').innerHTML = `<div class="layout"><div class="list">${L.map((i, k) => {
+      const hex = (i.p.colores.find(c => c.nombre === i.color) || {}).hex;
+      return `<div class="ci"><div class="ph">${ph(i.p, hex)}</div>
+      <div><h4>${esc(i.p.nombre)}</h4><small>${[i.talla && 'Talla ' + esc(i.talla), esc(i.color)].filter(Boolean).join(' · ')}</small>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:6px"><div class="qty"><button onclick="cant(${k},-1)">−</button><span>${i.cant}</span><button onclick="cant(${k},1)">+</button></div><b>${money(i.p.precio * i.cant)}</b></div></div>
+      <button class="rm" aria-label="Quitar" onclick="cart.splice(${k},1);saveCart();render()">${I('trash')}</button></div>`; }).join('')}</div>
+    <div><div class="sum"><div><span>Subtotal</span><span>${money(T.sub)}</span></div><div><span>Envío</span><span>${T.env ? money(T.env) : 'Por acordar'}</span></div>
+      <div class="t"><span>Total</span><span>${money(T.total)}</span></div></div>
+      <button class="btn lg" style="margin-top:14px" onclick="go('pago')">Continuar al pago</button></div></div>`;
+}
+function cant(k, d) { cart[k].cant = Math.max(1, Math.min(99, cart[k].cant + d)); saveCart(); render(); }
+
+// ---------- Pago ----------
+let comp = null, form = DB.ls.get('tienda_cliente', {});
+function pago() {
+  navBar(''); $('#top').innerHTML = topBar('list', 'Pago por transferencia');
+  if (!lineas().length) return go('carrito');
+  const T = totales();
+  const fila = (k, v) => v ? `<div class="k"><div><span>${k}</span><br><b>${esc(v)}</b></div><button type="button" onclick="copiar('${esc(String(v).replace(/\s/g, ''))}')">Copiar</button></div>` : '';
+  $('#view').innerHTML = `<form class="layout" id="fp" onsubmit="enviar(event)">
+    <div>
+      <div class="bank"><h4>Datos para tu transferencia</h4>
+        ${fila('Banco', AJ.banco)}${fila('Titular', AJ.titular)}${fila('CLABE', AJ.clabe)}${fila('Cuenta', AJ.cuenta)}${fila('Tarjeta', AJ.tarjeta)}
+        <div class="k"><div><span>Monto a pagar</span><br><b style="font-size:22px">${money(T.total)}</b></div><button type="button" onclick="copiar('${T.total}')">Copiar</button></div></div>
+      <p class="note">${esc(AJ.nota_pago)}</p>
+      <div class="lbl">Sube tu comprobante</div>
+      <label class="drop ${comp ? 'ok' : ''}" id="drop">${comp ? (comp.type.startsWith('image/') ? `<img src="${URL.createObjectURL(comp)}" alt="Comprobante">` : I('check')) + `<span>${esc(comp.name)} · toca para cambiar</span>`
+        : `${I('upload')}<b>Foto o captura del comprobante</b><span>JPG, PNG o PDF</span>`}
+        <input type="file" accept="image/*,application/pdf" onchange="comp=this.files[0]||null;guardaForm();render()"></label>
+    </div>
+    <div>
+      <div class="lbl" style="margin-top:0">Tus datos</div>
+      <label class="f">Nombre completo<input name="cliente" required maxlength="80" autocomplete="name" value="${esc(form.cliente)}"></label>
+      <label class="f">WhatsApp / Teléfono<input name="telefono" required inputmode="tel" maxlength="20" autocomplete="tel" value="${esc(form.telefono)}"></label>
+      <label class="f">Dirección de envío (o “recoger”)<textarea name="direccion" rows="3" maxlength="300" autocomplete="street-address">${esc(form.direccion)}</textarea></label>
+      <label class="f">Notas (diseño, color de tinta, etc.)<textarea name="notas" rows="2" maxlength="300">${esc(form.notas)}</textarea></label>
+      <div class="sum"><div><span>${cartCount()} artículo(s)</span><span>${money(T.sub)}</span></div><div><span>Envío</span><span>${T.env ? money(T.env) : 'Por acordar'}</span></div><div class="t"><span>Total</span><span>${money(T.total)}</span></div></div>
+      <button class="btn lg" style="margin-top:14px" id="bEnv">Enviar pedido y comprobante</button>
+    </div></form>`;
+  $('#fp').addEventListener('input', guardaForm);
+}
+function guardaForm() { const f = $('#fp'); if (!f) return; form = Object.fromEntries(new FormData(f)); delete form[''];
+  DB.ls.set('tienda_cliente', {cliente: form.cliente, telefono: form.telefono, direccion: form.direccion}); }
+function copiar(t) { navigator.clipboard.writeText(t).then(() => toast('Copiado'), () => toast(t)); }
+
+async function enviar(e) {
+  e.preventDefault(); guardaForm();
+  if (!comp) return toast('Sube la foto de tu comprobante');
+  if (comp.size > 15e6) return toast('El archivo es muy grande (máx. 15 MB)');
+  const b = $('#bEnv'); b.disabled = true; b.innerHTML = '<span class="spin"></span> Enviando…';
+  try {
+    const T = totales();
+    const up = await DB.subirComprobante(comp, {cliente: form.cliente, telefono: form.telefono, total: T.total});
+    const folio = await DB.crearPedido({...form, items: cart, comprobante: up.ruta, drive: up.drive});
+    misPedidos.unshift({folio, telefono: form.telefono, total: T.total, fecha: new Date().toISOString()});
+    DB.ls.set('tienda_mis_pedidos', misPedidos.slice(0, 30));
+    const resumen = lineas().map(i => `• ${i.cant}× ${i.p.nombre} ${[i.talla, i.color].filter(Boolean).join(' ')}`).join('\n');
+    DB.ls.set('tienda_ultimo', {folio, total: T.total, resumen});
+    cart = []; saveCart(); comp = null; form.notas = '';
+    go('listo/' + folio);
+  } catch (err) {
+    toast('No se pudo enviar: ' + err.message); b.disabled = false; b.textContent = 'Enviar pedido y comprobante';
+  }
+}
+function listo(folio) {
+  navBar(''); $('#top').innerHTML = topBar('list', 'Pedido enviado');
+  const u = DB.ls.get('tienda_ultimo', {});
+  const wa = AJ.whatsapp ? `https://wa.me/${String(AJ.whatsapp).replace(/\D/g, '')}?text=${encodeURIComponent(`¡Hola! Acabo de hacer el pedido ${folio} por ${money(u.total)} y subí mi comprobante.\n${u.resumen || ''}`)}` : '';
+  $('#view').innerHTML = `<div class="ok-box"><div class="ck">${I('check')}</div><h2>¡Gracias por tu compra!</h2>
+    <p class="note">Recibimos tu comprobante. Revisaremos tu pago y te avisaremos.</p>
+    <div class="folio">${esc(folio)}</div><p class="note">Guarda tu folio para consultar el estado de tu pedido.</p>
+    <div style="display:grid;gap:10px;max-width:360px;margin:16px auto">
+      ${wa ? `<a class="btn lg" href="${wa}" target="_blank" rel="noopener">${I('wa')} Avisar por WhatsApp</a>` : ''}
+      <button class="btn out lg" onclick="go('pedidos')">Ver mis pedidos</button></div></div>`;
+}
+
+// ---------- Favoritos ----------
+function favoritos() {
+  navBar('favoritos'); $('#top').innerHTML = topBar('list', 'Favoritos');
+  const L = PRODS.filter(p => favs.includes(p.id));
+  $('#view').innerHTML = L.length ? `<div class="grid">${L.map(card).join('')}</div>` : `<div class="empty">${I('heart')}<p>Toca el corazón en un producto para guardarlo aquí.</p></div>`;
+}
+
+// ---------- Pedidos ----------
+const PASOS = ['pendiente', 'pagado', 'enviado', 'entregado'];
+const NOMBRE_PASO = {pendiente: 'Revisando pago', pagado: 'Pago confirmado', enviado: 'Enviado', entregado: 'Entregado'};
+function pedidos() {
+  navBar('pedidos'); $('#top').innerHTML = topBar('list', 'Mis pedidos');
+  $('#view').innerHTML = `
+    <form class="ord" onsubmit="buscar(event)"><b>Consultar un pedido</b>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+        <label class="f">Folio<input name="folio" required placeholder="P-261029-AB12"></label>
+        <label class="f">Teléfono<input name="tel" required inputmode="tel" value="${esc(form.telefono)}"></label></div>
+      <button class="btn" style="width:100%">Consultar</button></form>
+    <div id="res"></div>
+    ${misPedidos.length ? `<div class="sec"><h3>Pedidos en este celular</h3></div>` + misPedidos.map(p => `<div class="ord" style="cursor:pointer" onclick="buscar(null,'${esc(p.folio)}','${esc(p.telefono)}')">
+      <header><b>${esc(p.folio)}</b><span>${money(p.total)}</span></header><small style="color:var(--mute)">${new Date(p.fecha).toLocaleString('es-MX')} · toca para ver estado</small></div>`).join('') : ''}`;
+}
+async function buscar(e, folio, tel) {
+  if (e) { e.preventDefault(); folio = e.target.folio.value; tel = e.target.tel.value; }
+  const r = $('#res'); r.innerHTML = '<div class="empty"><span class="spin"></span></div>';
+  try {
+    const p = await DB.verPedido(folio, tel);
+    if (!p) { r.innerHTML = '<p class="note">No encontramos ese pedido. Revisa el folio y el teléfono.</p>'; return; }
+    const n = PASOS.indexOf(p.estado);
+    r.innerHTML = `<div class="ord"><header><b>${esc(p.folio)}</b><span class="st ${esc(p.estado)}">${esc(NOMBRE_PASO[p.estado] || p.estado)}</span></header>
+      ${p.estado === 'cancelado' ? '' : `<div class="track">${PASOS.map((s, i) => `<div class="${i <= n ? 'on' : ''}"><i></i>${NOMBRE_PASO[s]}</div>`).join('')}</div>`}
+      <div style="margin-top:12px;font-size:13.5px">${(p.items || []).map(i => `${i.cant}× ${esc(i.nombre)} ${esc([i.talla, i.color].filter(Boolean).join(' · '))}`).join('<br>')}</div>
+      <div style="margin-top:8px;font-weight:700">Total ${money(p.total)}</div></div>`;
+    r.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+  } catch (err) { r.innerHTML = `<p class="note">Error: ${esc(err.message)}</p>`; }
+}
+
+// ---------- Cuenta ----------
+function cuenta() {
+  navBar('cuenta'); $('#top').innerHTML = topBar('list', 'Cuenta');
+  const wa = AJ.whatsapp ? `https://wa.me/${String(AJ.whatsapp).replace(/\D/g, '')}` : '';
+  $('#view').innerHTML = `<div class="list">
+    ${wa ? `<a class="ord" href="${wa}" target="_blank" rel="noopener" style="text-decoration:none;display:flex;gap:12px;align-items:center">${I('wa')}<div><b>Contáctanos por WhatsApp</b><br><small style="color:var(--mute)">Pedidos especiales y diseños personalizados</small></div></a>` : ''}
+    <div class="ord" style="display:flex;gap:12px;align-items:center">${I('shield')}<div><b>Compra segura</b><br><small style="color:var(--mute)">Tu comprobante solo lo ve la tienda.</small></div></div>
+    <a class="ord" href="admin.html" style="text-decoration:none;display:flex;gap:12px;align-items:center">${I('user')}<div><b>Soy el dueño</b><br><small style="color:var(--mute)">Publicar productos y revisar pagos</small></div></a></div>`;
+}
+
+// ===================== Arranque =====================
+(async function () {
+  $('#view').innerHTML = '<div class="empty"><span class="spin"></span></div>';
+  [PRODS, AJ] = await Promise.all([DB.productos(), DB.ajustes()]);
+  PRODS = PRODS.filter(p => p.activo !== false).map(p => ({...p, tallas: p.tallas || [], colores: p.colores || [], imagenes: p.imagenes || []}));
+  $('#demo').hidden = !DB.demo;
+  render();
+})();
+</script>
+</body>
+</html>
