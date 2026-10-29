@@ -57,10 +57,12 @@ let tab = 'pedidos', PRODS = [], PEDS = [], AJ = {}, ed = null, filtro = 'pendie
 async function inicio() {
   await DB.productos(); // detecta modo demo
   $('#demo').hidden = !DB.demo;
+  // En modo demo no hay nada que proteger: entra directo sin contraseña
+  if (DB.demo && !(await DB.sesion())) await DB.entrar('demo', '');
   const u = await DB.sesion();
   if (!u) return login();
   if (u.noAdmin) { $('#view').innerHTML = `<div class="login"><h2>Sin permiso</h2><p class="note">${esc(u.email)} no está en la lista de administradores (tabla <b>tienda_admins</b>).</p><button class="btn" onclick="DB.salir().then(()=>location.reload())">Salir</button></div>`; return; }
-  $('#bSalir').hidden = false;
+  $('#bSalir').hidden = DB.demo;
   await cargar(); pintar();
 }
 function login() {
