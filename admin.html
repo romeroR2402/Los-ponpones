@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Panel de la Tienda</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#3b2a22">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tienda.css">
+<style>
+.tbar{display:flex;gap:8px;margin:4px 0 16px;overflow-x:auto}
+.tbar button{border:1.5px solid var(--line);background:var(--card);border-radius:99px;padding:8px 16px;font-weight:600;font-size:13px;white-space:nowrap}
+.tbar button.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+.pr{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--card);margin-bottom:10px}
+.pr .ph{width:64px;height:64px;border-radius:10px;background:var(--soft);overflow:hidden;display:grid;place-items:center}
+.pr .ph img{width:100%;height:100%;object-fit:cover}.pr .ph svg{width:80%}
+.pr h4{margin:0;font-size:14px}.pr small{color:var(--mute)}
+.chip{font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--soft);margin-left:4px}
+.fotos{display:flex;flex-wrap:wrap;gap:10px}
+.fotos div{position:relative;width:86px;height:86px;border-radius:12px;overflow:hidden;background:var(--soft)}
+.fotos img{width:100%;height:100%;object-fit:cover}
+.fotos button{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:14px;line-height:1}
+.fotos label{width:86px;height:86px;border:2px dashed var(--line);border-radius:12px;display:grid;place-items:center;color:var(--mute);cursor:pointer;text-align:center;font-size:11px}
+.fotos label input{display:none}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chk{display:flex;align-items:center;gap:8px;font-size:14px;margin:6px 0 12px}
+.chk input{width:20px;height:20px;accent-color:var(--brand)}
+.crow{display:grid;grid-template-columns:44px 1fr 32px;gap:8px;align-items:center;margin-bottom:8px}
+.crow input[type=color]{width:44px;height:42px;border:1.5px solid var(--line);border-radius:10px;padding:2px;background:var(--card)}
+.crow input[type=text]{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--card)}
+.crow button{border:0;background:none;color:var(--mute)}
+.compimg{max-width:100%;max-height:420px;border-radius:12px;margin-top:10px;border:1px solid var(--line)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stats div{background:var(--soft);border-radius:14px;padding:12px}
+.stats b{display:block;font-size:20px}.stats span{font-size:12px;color:var(--mute)}
+.ord select{border:1.5px solid var(--line);border-radius:10px;padding:8px;background:var(--card)}
+.login{max-width:380px;margin:8vh auto;text-align:center}
+.login h2{font:400 26px var(--serif)}
+</style>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="js/db.js"></script>
+</head>
+<body>
+<div id="demo" class="demo" hidden>Modo demo: los cambios se guardan solo en este navegador. Corre <b>supabase/tienda.sql</b> para publicar de verdad.</div>
+<header class="top"><div class="wrap"><a class="ib" href="index.html" aria-label="Ver tienda"><svg class="i" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></a><h1>Panel de la tienda</h1><button class="ib" id="bSalir" aria-label="Salir" hidden onclick="DB.salir().then(()=>location.reload())"><svg class="i" viewBox="0 0 24 24"><path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/></svg></button></div></header>
+<main><div class="wrap" id="view"></div></main>
+<div class="toast" id="toast" role="status"></div>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => '$' + Number(n || 0).toLocaleString('es-MX', {maximumFractionDigits: 2});
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2400); }
+let tab = 'pedidos', PRODS = [], PEDS = [], AJ = {}, ed = null, filtro = 'pendiente';
+
+async function inicio() {
+  await DB.productos(); // detecta modo demo
+  $('#demo').hidden = !DB.demo;
+  const u = await DB.sesion();
+  if (!u) return login();
+  if (u.noAdmin) { $('#view').innerHTML = `<div class="login"><h2>Sin permiso</h2><p class="note">${esc(u.email)} no está en la lista de administradores (tabla <b>tienda_admins</b>).</p><button class="btn" onclick="DB.salir().then(()=>location.reload())">Salir</button></div>`; return; }
+  $('#bSalir').hidden = false;
+  await cargar(); pintar();
+}
+function login() {
+  $('#view').innerHTML = `<form class="login" onsubmit="entrar(event)"><h2>Bienvenido</h2><p class="note">Entra para publicar productos y revisar pagos.</p>
+    <label class="f" style="text-align:left">Correo<input name="e" type="email" required autocomplete="username"></label>
+    <label class="f" style="text-align:left">Contraseña<input name="p" type="password" ${DB.demo ? '' : 'required'} autocomplete="current-password"></label>
+    <button class="btn lg">Entrar</button></form>`;
+}
+async function entrar(e) {
+  e.preventDefault();
+  try { await DB.entrar(e.target.e.value, e.target.p.value); inicio(); } catch (err) { toast('No se pudo entrar: ' + err.message); }
+}
+async function cargar() {
+  [PRODS, PEDS, AJ] = await Promise.all([DB.productos(), DB.pedidos(), DB.ajustes()]);
+}
+function pintar() {
+  const pend = PEDS.filter(p => p.estado === 'pendiente').length;
+  $('#view').innerHTML = `<div class="tbar">
+    <button class="${tab === 'pedidos' ? 'on' : ''}" onclick="tab='pedidos';pintar()">Pedidos${pend ? ` (${pend})` : ''}</button>
+    <button class="${tab === 'productos' ? 'on' : ''}" onclick="tab='productos';ed=null;pintar()">Productos (${PRODS.length})</button>
+    <button class="${tab === 'ajustes' ? 'on' : ''}" onclick="tab='ajustes';pintar()">Datos bancarios</button></div><div id="tabv"></div>`;
+  ({pedidos: vPedidos, productos: ed ? vEditor : vProductos, ajustes: vAjustes})[tab]();
+}
+
+// ===================== Pedidos =====================
+function vPedidos() {
+  const hoy = new Date().toDateString();
+  const pagados = PEDS.filter(p => ['pagado', 'enviado', 'entregado'].includes(p.estado));
+  const L = PEDS.filter(p => filtro === 'todos' || p.estado === filtro);
+  $('#tabv').innerHTML = `<div class="stats"><div><b>${PEDS.filter(p => p.estado === 'pendiente').length}</b><span>Por revisar</span></div>
+    <div><b>${PEDS.filter(p => new Date(p.creado).toDateString() === hoy).length}</b><span>Pedidos hoy</span></div>
+    <div><b>${money(pagados.reduce((s, p) => s + Number(p.total), 0))}</b><span>Vendido</span></div></div>
+    <div class="tabs">${['pendiente', 'pagado', 'enviado', 'entregado', 'cancelado', 'todos'].map(s => `<button class="${filtro === s ? 'on' : ''}" onclick="filtro='${s}';pintar()" style="text-transform:capitalize">${s}</button>`).join('')}</div>
+    ${L.length ? L.map(p => `<div class="ord">
+      <header><div><b>${esc(p.folio)}</b><br><small style="color:var(--mute)">${new Date(p.creado).toLocaleString('es-MX')}</small></div><b style="font-size:18px">${money(p.total)}</b></header>
+      <div style="font-size:14px"><b>${esc(p.cliente)}</b> · <a href="https://wa.me/52${esc(String(p.telefono).replace(/\D/g, '').slice(-10))}" target="_blank" rel="noopener">${esc(p.telefono)}</a></div>
+      ${p.direccion ? `<div style="font-size:13px;color:var(--mute)">${esc(p.direccion)}</div>` : ''}
+      ${p.notas ? `<div style="font-size:13px;margin-top:4px">📝 ${esc(p.notas)}</div>` : ''}
+      <div style="font-size:13.5px;margin:10px 0;padding:10px;background:var(--soft);border-radius:10px">${(p.items || []).map(i => `${i.cant}× ${esc(i.nombre)} ${esc([i.talla, i.color].filter(Boolean).join(' · '))} — ${money(i.precio * i.cant)}`).join('<br>')}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+        <select onchange="estado('${p.id}',this.value)" aria-label="Estado">${DB.ESTADOS.map(s => `<option ${s === p.estado ? 'selected' : ''}>${s}</option>`).join('')}</select>
+        ${p.comprobante ? `<button class="btn out" onclick="verComp(this,'${esc(p.comprobante)}')">Ver comprobante</button>` : ''}
+        ${p.drive_url ? `<a class="btn out" href="${esc(p.drive_url)}" target="_blank" rel="noopener">Abrir en Drive</a>` : ''}
+      </div><div class="cv"></div></div>`).join('') : '<div class="empty"><p>No hay pedidos aquí.</p></div>'}`;
+}
+async function verComp(btn, ruta) {
+  const box = btn.closest('.ord').querySelector('.cv');
+  if (box.innerHTML) { box.innerHTML = ''; return; }
+  try {
+    const url = await DB.urlComprobante(ruta);
+    box.innerHTML = /\.pdf($|\?)/i.test(ruta) || url.startsWith('data:application/pdf') ? `<a class="btn" href="${esc(url)}" target="_blank" rel="noopener" style="margin-top:10px">Abrir PDF</a>`
+      : `<a href="${esc(url)}" target="_blank" rel="noopener"><img class="compimg" src="${esc(url)}" alt="Comprobante"></a>`;
+  } catch (e) { toast(e.message); }
+}
+async function estado(id, s) {
+  try { await DB.cambiarEstado(id, s); PEDS.find(p => p.id === id).estado = s; toast('Pedido marcado como ' + s); pintar(); } catch (e) { toast(e.message); }
+}
+
+// ===================== Productos =====================
+function vProductos() {
+  $('#tabv').innerHTML = `<button class="btn lg" style="margin-bottom:16px" onclick="editar()">+ Publicar producto nuevo</button>
+    ${PRODS.map(p => `<div class="pr"><div class="ph">${p.imagenes && p.imagenes[0] ? `<img src="${esc(p.imagenes[0])}" alt="">` : DB.prendaSVG(p.categoria, p.colores && p.colores[0] && p.colores[0].hex)}</div>
+      <div><h4>${esc(p.nombre)}${p.activo ? '' : '<span class="chip">Oculto</span>'}${p.destacado ? '<span class="chip">★ Destacado</span>' : ''}</h4><small>${esc(p.categoria)} · ${money(p.precio)}</small></div>
+      <button class="btn out" onclick="editar('${p.id}')">Editar</button></div>`).join('')}`;
+}
+function editar(id) {
+  const p = PRODS.find(x => x.id === id);
+  ed = p ? JSON.parse(JSON.stringify(p)) : {nombre: '', categoria: 'Playeras', descripcion: '', detalle: 'Algodón 100% · Serigrafía', precio: '', precio_antes: '',
+    tallas: ['CH', 'M', 'G', 'XG'], colores: [{nombre: 'Negro', hex: '#1d1d1f'}], imagenes: [], destacado: false, activo: true, orden: 0};
+  ed.tallas = ed.tallas || []; ed.colores = ed.colores || []; ed.imagenes = ed.imagenes || [];
+  pintar(); scrollTo(0, 0);
+}
+const TALLAS = ['XCH', 'CH', 'M', 'G', 'XG', 'XXG', 'Unitalla', '28', '30', '32', '34', '36'];
+function vEditor() {
+  $('#tabv').innerHTML = `<form id="fe" onsubmit="guardar(event)">
+    <div class="lbl" style="margin-top:0">Fotos <span>La primera es la portada</span></div>
+    <div class="fotos">${ed.imagenes.map((u, i) => `<div><img src="${esc(u)}" alt=""><button type="button" aria-label="Quitar" onclick="ed.imagenes.splice(${i},1);vEditor()">×</button></div>`).join('')}
+      <label>+ Agregar<br>fotos<input type="file" accept="image/*" multiple onchange="subir(this.files)"></label></div>
+    <div id="subiendo" class="note"></div>
+    <label class="f">Nombre<input name="nombre" required maxlength="80" value="${esc(ed.nombre)}"></label>
+    <div class="two"><label class="f">Categoría<select name="categoria">${DB.CATEGORIAS.map(c => `<option ${c === ed.categoria ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+      <label class="f">Detalle corto<input name="detalle" maxlength="60" value="${esc(ed.detalle)}" placeholder="Algodón · Serigrafía"></label></div>
+    <div class="two"><label class="f">Precio<input name="precio" type="number" min="0" step="0.01" required inputmode="decimal" value="${esc(ed.precio)}"></label>
+      <label class="f">Precio antes (opcional)<input name="precio_antes" type="number" min="0" step="0.01" inputmode="decimal" value="${esc(ed.precio_antes ?? '')}"></label></div>
+    <label class="f">Descripción<textarea name="descripcion" rows="3" maxlength="800">${esc(ed.descripcion)}</textarea></label>
+    <div class="lbl">Tallas <span>Déjalas vacías para bolsas</span></div>
+    <div class="sizes">${TALLAS.map(t => `<button type="button" class="${ed.tallas.includes(t) ? 'on' : ''}" onclick="leer();ed.tallas=ed.tallas.includes('${t}')?ed.tallas.filter(x=>x!=='${t}'):TALLAS.filter(x=>ed.tallas.includes(x)||x==='${t}');vEditor()">${t}</button>`).join('')}</div>
+    <div class="lbl">Colores disponibles</div>
+    <div id="cols">${ed.colores.map((c, i) => `<div class="crow"><input type="color" value="${esc(c.hex)}" oninput="ed.colores[${i}].hex=this.value"><input type="text" value="${esc(c.nombre)}" placeholder="Nombre del color" oninput="ed.colores[${i}].nombre=this.value"><button type="button" aria-label="Quitar" onclick="leer();ed.colores.splice(${i},1);vEditor()">✕</button></div>`).join('')}</div>
+    <button type="button" class="btn out" onclick="leer();ed.colores.push({nombre:'',hex:'#ffffff'});vEditor()">+ Color</button>
+    <label class="chk" style="margin-top:18px"><input type="checkbox" name="destacado" ${ed.destacado ? 'checked' : ''}> Mostrar en “Más vendidos”</label>
+    <label class="chk"><input type="checkbox" name="activo" ${ed.activo ? 'checked' : ''}> Visible en la tienda</label>
+    <div class="buy"><button type="button" class="btn out lg" onclick="${ed.id ? 'borrar()' : 'ed=null;pintar()'}">${ed.id ? 'Eliminar' : 'Cancelar'}</button><button class="btn lg" id="bG">${ed.id ? 'Guardar cambios' : 'Publicar'}</button></div>
+  </form>`;
+}
+function leer() {
+  const f = $('#fe'); if (!f) return;
+  const d = new FormData(f);
+  Object.assign(ed, {nombre: d.get('nombre').trim(), categoria: d.get('categoria'), detalle: d.get('detalle').trim(), descripcion: d.get('descripcion').trim(),
+    precio: d.get('precio'), precio_antes: d.get('precio_antes'), destacado: d.has('destacado'), activo: d.has('activo')});
+}
+async function subir(files) {
+  leer();
+  const s = $('#subiendo');
+  for (const [i, f] of [...files].entries()) {
+    s.textContent = `Subiendo foto ${i + 1} de ${files.length}…`;
+    try { ed.imagenes.push(await DB.subirFoto(f)); } catch (e) { toast('Error al subir: ' + e.message); }
+  }
+  vEditor();
+}
+async function guardar(e) {
+  e.preventDefault(); leer();
+  const b = $('#bG'); b.disabled = true; b.innerHTML = '<span class="spin"></span>';
+  try {
+    await DB.guardarProducto({...ed, precio: Number(ed.precio), precio_antes: ed.precio_antes ? Number(ed.precio_antes) : null,
+      colores: ed.colores.filter(c => c.nombre.trim())});
+    toast(ed.id ? 'Cambios guardados' : '¡Producto publicado!');
+    ed = null; PRODS = await DB.productos(); pintar();
+  } catch (err) { toast('No se pudo guardar: ' + err.message); b.disabled = false; b.textContent = 'Guardar'; }
+}
+async function borrar() {
+  if (!confirm('¿Eliminar "' + ed.nombre + '"? No se puede deshacer.')) return;
+  try { await DB.borrarProducto(ed.id); ed = null; PRODS = await DB.productos(); toast('Producto eliminado'); pintar(); } catch (e) { toast(e.message); }
+}
+
+// ===================== Ajustes =====================
+function vAjustes() {
+  const c = (n, l, t = 'text', extra = '') => `<label class="f">${l}<input name="${n}" type="${t}" value="${esc(AJ[n] ?? '')}" ${extra}></label>`;
+  $('#tabv').innerHTML = `<form onsubmit="guardarAj(event)">
+    <div class="two">${c('nombre', 'Nombre de la tienda')}${c('lema', 'Texto bajo el logo')}</div>
+    <div class="lbl">Cuenta para recibir pagos</div>
+    ${c('banco', 'Banco')}${c('titular', 'Titular de la cuenta')}${c('clabe', 'CLABE interbancaria (18 dígitos)', 'text', 'inputmode="numeric"')}
+    <div class="two">${c('cuenta', 'Número de cuenta', 'text', 'inputmode="numeric"')}${c('tarjeta', 'Tarjeta (opcional)', 'text', 'inputmode="numeric"')}</div>
+    <label class="f">Mensaje para el cliente<textarea name="nota_pago" rows="2">${esc(AJ.nota_pago)}</textarea></label>
+    <div class="two">${c('whatsapp', 'Tu WhatsApp (ej. 5215512345678)', 'tel')}${c('envio', 'Costo de envío (0 = por acordar)', 'number', 'min="0" step="0.01"')}</div>
+    <button class="btn lg">Guardar datos</button>
+    <p class="note">Los comprobantes también se guardan en tu carpeta de Google Drive si configuraste <b>driveUrl</b> en config.js${(window.TIENDA || {}).driveUrl ? ' ✅ (conectado)' : ' ⚠️ (aún no conectado)'}.</p></form>`;
+}
+async function guardarAj(e) {
+  e.preventDefault();
+  const d = Object.fromEntries(new FormData(e.target));
+  d.envio = Number(d.envio) || 0;
+  try { await DB.guardarAjustes({...AJ, ...d}); AJ = {...AJ, ...d}; toast('Datos guardados'); } catch (err) { toast(err.message); }
+}
+inicio();
+</script>
+</body>
+</html>
