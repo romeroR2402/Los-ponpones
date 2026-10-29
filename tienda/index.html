@@ -154,10 +154,10 @@ function producto(id) {
     <div class="pinfo">
       <h2>${esc(p.nombre)}</h2><div class="dt">${esc(p.detalle || p.categoria)}</div>
       <div class="price"><b>${money(p.precio)}</b>${p.precio_antes > p.precio ? `<s>${money(p.precio_antes)}</s><span class="pill">${pct(p)}% OFF</span>` : ''}</div>
-      ${p.tallas.length ? `<div class="lbl">Elige tu talla <span>Guía: CH 36 · M 38 · G 40 · XG 42</span></div>
+      ${p.tallas.length ? `<div class="lbl">Elige tu talla <span>Niño: 2 a 14 · Adulto: CH a XG</span></div>
         <div class="sizes">${p.tallas.map(t => `<button class="${sel.talla === t ? 'on' : ''}" onclick="sel.talla='${esc(t)}';render()">${esc(t)}</button>`).join('')}</div>` : ''}
       ${p.colores.length ? `<div class="lbl">Color <span>${esc(sel.color)}</span></div>
-        <div class="colors">${p.colores.map(c => `<button class="${sel.color === c.nombre ? 'on' : ''}" style="background:${esc(c.hex)}" title="${esc(c.nombre)}" aria-label="${esc(c.nombre)}" onclick="sel.color='${esc(c.nombre)}';render()"></button>`).join('')}</div>` : ''}
+        <div class="colors">${p.colores.map((c, ci) => `<button class="${sel.color === c.nombre ? 'on' : ''}" style="background:${esc(c.hex)}" title="${esc(c.nombre)}" aria-label="${esc(c.nombre)}" onclick="sel.color='${esc(c.nombre)}';${p.imagenes.length === p.colores.length ? `pdImg=${ci};` : ''}render()"></button>`).join('')}</div>` : ''}
       <div class="lbl">Cantidad</div>
       <div class="qty"><button onclick="sel.cant=Math.max(1,sel.cant-1);render()">−</button><span>${sel.cant}</span><button onclick="sel.cant=Math.min(99,sel.cant+1);render()">+</button></div>
       ${p.descripcion ? `<p class="desc">${esc(p.descripcion)}</p>` : ''}

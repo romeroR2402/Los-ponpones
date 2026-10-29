@@ -13,13 +13,11 @@
     nota_pago: 'Haz tu transferencia y sube la foto de tu comprobante. Confirmamos tu pedido en menos de 24 h.'
   };
   const c = (n, h) => ({ nombre: n, hex: h });
+  const T_NINO = ['2', '4', '6', '8', '10', '12', '14', 'CH', 'M', 'G', 'XG'];
   const PRODUCTOS_DEMO = [
-    { id: 'd1', nombre: 'Playera Clásica Estampada', categoria: 'Playeras', precio: 199, precio_antes: 249, tallas: ['CH', 'M', 'G', 'XG'], colores: [c('Negro', '#1d1d1f'), c('Blanco', '#f4f4f2'), c('Arena', '#d9c7a7')], detalle: 'Algodón 100% · Serigrafía', descripcion: 'Playera de algodón con estampado en serigrafía de alta duración.', destacado: true, activo: true, imagenes: [] },
-    { id: 'd2', nombre: 'Sudadera con Gorro', categoria: 'Sudaderas', precio: 549, precio_antes: 649, tallas: ['CH', 'M', 'G', 'XG'], colores: [c('Gris', '#9a9a9e'), c('Negro', '#1d1d1f')], detalle: 'Felpa · Serigrafía', descripcion: 'Sudadera afelpada con capucha y bolsa canguro, estampado al frente.', destacado: true, activo: true, imagenes: [] },
-    { id: 'd3', nombre: 'Tote Bag de Manta', categoria: 'Bolsas', precio: 149, precio_antes: null, tallas: [], colores: [c('Natural', '#e8dcc4'), c('Negro', '#1d1d1f')], detalle: 'Manta gruesa · Serigrafía', descripcion: 'Bolsa de manta resistente, ideal para el día a día.', destacado: true, activo: true, imagenes: [] },
-    { id: 'd4', nombre: 'Suéter Cuello Redondo', categoria: 'Suéteres', precio: 449, precio_antes: null, tallas: ['CH', 'M', 'G', 'XG'], colores: [c('Verde olivo', '#5b6b3a'), c('Marino', '#1f2c4c')], detalle: 'Algodón/poliéster · Serigrafía', descripcion: 'Suéter cómodo de cuello redondo con diseño estampado.', destacado: false, activo: true, imagenes: [] },
-    { id: 'd5', nombre: 'Pants Jogger', categoria: 'Pantalones', precio: 399, precio_antes: 459, tallas: ['CH', 'M', 'G', 'XG'], colores: [c('Negro', '#1d1d1f'), c('Gris', '#9a9a9e')], detalle: 'Felpa ligera · Serigrafía', descripcion: 'Jogger con puño y estampado lateral.', destacado: false, activo: true, imagenes: [] },
-    { id: 'd6', nombre: 'Playera Oversize', categoria: 'Playeras', precio: 249, precio_antes: null, tallas: ['CH', 'M', 'G', 'XG'], colores: [c('Blanco', '#f4f4f2'), c('Rosa', '#f0b8b8'), c('Azul cielo', '#a9c4ec')], detalle: 'Algodón peinado · Serigrafía', descripcion: 'Corte holgado con estampado en espalda.', destacado: true, activo: true, imagenes: [] }
+    { id: 'p-huntrix', nombre: 'Playera Huntrix', categoria: 'Playeras', precio: 199, precio_antes: null, tallas: T_NINO, colores: [c('Rosa', '#e8318a')], detalle: 'Algodón · Estampado a todo color', descripcion: 'Playera rosa con diseño de Huntrix, estampado a todo color. Tallas para niña, niño y adulto.', destacado: true, activo: true, imagenes: ['img/huntrix-rosa.jpg'] },
+    { id: 'p-bluey', nombre: 'Playera Bluey Catrín', categoria: 'Playeras', precio: 199, precio_antes: null, tallas: T_NINO, colores: [c('Verde limón', '#7ed321')], detalle: 'Algodón · Edición Día de Muertos', descripcion: 'Playera verde con Bluey vestido de catrín y su guitarra. Edición especial Día de Muertos.', destacado: true, activo: true, imagenes: ['img/bluey-verde.jpg'] },
+    { id: 'p-xolo', nombre: 'Playera Xolo Papel Picado', categoria: 'Playeras', precio: 199, precio_antes: null, tallas: T_NINO, colores: [c('Negro', '#1d1d1f'), c('Morado', '#6a2bc4')], detalle: 'Algodón · Serigrafía naranja', descripcion: 'Xoloitzcuintle estilo papel picado en serigrafía naranja. Disponible en negro y morado.', destacado: true, activo: true, imagenes: ['img/xolo-negra.jpg', 'img/xolo-morada.jpg'] }
   ];
 
   // ---------- almacenamiento local seguro ----------
@@ -27,7 +25,7 @@
     get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } }
   };
-  const demoProductos = () => ls.get('tienda_demo_productos', PRODUCTOS_DEMO);
+  const demoProductos = () => ls.get('tienda_demo_productos_v2', PRODUCTOS_DEMO);
   const demoPedidos = () => ls.get('tienda_demo_pedidos', []);
 
   let demo = !sb;
@@ -153,13 +151,13 @@
       if (demo) {
         const l = demoProductos();
         if (p.id) Object.assign(l.find(x => x.id === p.id), datos); else l.unshift({ id: rnd(), ...datos });
-        ls.set('tienda_demo_productos', l); return;
+        ls.set('tienda_demo_productos_v2', l); return;
       }
       if (p.id) chk(await sb.from('tienda_productos').update(datos).eq('id', p.id));
       else chk(await sb.from('tienda_productos').insert(datos));
     },
     async borrarProducto(id) {
-      if (demo) { ls.set('tienda_demo_productos', demoProductos().filter(x => x.id !== id)); return; }
+      if (demo) { ls.set('tienda_demo_productos_v2', demoProductos().filter(x => x.id !== id)); return; }
       chk(await sb.from('tienda_productos').delete().eq('id', id));
     },
     async pedidos() {

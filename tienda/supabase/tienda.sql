@@ -154,13 +154,11 @@ create policy "cliente sube comprobante" on storage.objects for insert with chec
 drop policy if exists "admin ve comprobantes" on storage.objects;
 create policy "admin ve comprobantes" on storage.objects for select using (bucket_id = 'comprobantes' and tienda_es_admin());
 
--- ---------- 8. Productos de ejemplo (bórralos desde el panel cuando subas los tuyos) ----------
-insert into tienda_productos(nombre, categoria, descripcion, precio, precio_antes, tallas, colores, detalle, destacado, orden)
+-- ---------- 8. Tus primeros productos (se cargan solo si la tabla está vacía) ----------
+insert into tienda_productos(nombre, categoria, descripcion, precio, precio_antes, tallas, colores, imagenes, detalle, destacado, orden)
 select * from (values
-  ('Playera Clásica Estampada','Playeras','Playera de algodón con estampado en serigrafía de alta duración.',199,249,array['CH','M','G','XG'],'[{"nombre":"Negro","hex":"#1d1d1f"},{"nombre":"Blanco","hex":"#f4f4f2"},{"nombre":"Arena","hex":"#d9c7a7"}]'::jsonb,'Algodón 100% · Serigrafía',true,1),
-  ('Sudadera con Gorro','Sudaderas','Sudadera afelpada con capucha y bolsa canguro, estampado al frente.',549,649,array['CH','M','G','XG'],'[{"nombre":"Gris","hex":"#9a9a9e"},{"nombre":"Negro","hex":"#1d1d1f"}]'::jsonb,'Felpa · Serigrafía',true,2),
-  ('Tote Bag de Manta','Bolsas','Bolsa de manta resistente, ideal para el día a día.',149,null,array[]::text[],'[{"nombre":"Natural","hex":"#e8dcc4"},{"nombre":"Negro","hex":"#1d1d1f"}]'::jsonb,'Manta gruesa · Serigrafía',true,3),
-  ('Suéter Cuello Redondo','Suéteres','Suéter cómodo de cuello redondo con diseño estampado.',449,null,array['CH','M','G','XG'],'[{"nombre":"Verde olivo","hex":"#5b6b3a"},{"nombre":"Marino","hex":"#1f2c4c"}]'::jsonb,'Algodón/poliéster · Serigrafía',false,4),
-  ('Pants Jogger','Pantalones','Jogger con puño y estampado lateral.',399,459,array['CH','M','G','XG'],'[{"nombre":"Negro","hex":"#1d1d1f"},{"nombre":"Gris","hex":"#9a9a9e"}]'::jsonb,'Felpa ligera · Serigrafía',false,5)
+  ('Playera Huntrix','Playeras','Playera rosa con diseño de Huntrix, estampado a todo color. Tallas para niña, niño y adulto.',199,null::numeric,array['2','4','6','8','10','12','14','CH','M','G','XG'],'[{"nombre":"Rosa","hex":"#e8318a"}]'::jsonb,array['img/huntrix-rosa.jpg'],'Algodón · Estampado a todo color',true,1),
+  ('Playera Bluey Catrín','Playeras','Playera verde con Bluey vestido de catrín y su guitarra. Edición especial Día de Muertos.',199,null,array['2','4','6','8','10','12','14','CH','M','G','XG'],'[{"nombre":"Verde limón","hex":"#7ed321"}]'::jsonb,array['img/bluey-verde.jpg'],'Algodón · Edición Día de Muertos',true,2),
+  ('Playera Xolo Papel Picado','Playeras','Xoloitzcuintle estilo papel picado en serigrafía naranja. Disponible en negro y morado.',199,null,array['2','4','6','8','10','12','14','CH','M','G','XG'],'[{"nombre":"Negro","hex":"#1d1d1f"},{"nombre":"Morado","hex":"#6a2bc4"}]'::jsonb,array['img/xolo-negra.jpg','img/xolo-morada.jpg'],'Algodón · Serigrafía naranja',true,3)
 ) v
 where not exists (select 1 from tienda_productos);
