@@ -218,7 +218,7 @@ try{localStorage.removeItem("pp_admin");sessionStorage.clear()}catch(e){}
 var HASH="33a47409e796ed31bb5a7518ee4c9613583cfc0dee84df119a90061b25fb5dc6";
 async function sha(t){var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
 function openLogin(err){document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Acceso del dueño</h2><p class="l">Escribe tu contraseña para ver las ventas y cambiar precios.</p><input id="pw" type="password" autocomplete="off" placeholder="Contraseña" onkeydown="if(event.key===\'Enter\')login()"><div class="change" style="color:var(--red);font-size:16px">'+(err||"")+'</div><button class="btn big" onclick="login()">Entrar</button><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Cancelar</button></div></div>'}
-async function login(){var v=document.getElementById("pw").value,ok=false;try{if(sbOn()){var rr=await fetch(SB.url.replace(/\/$/,"")+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:SB.key,"Content-Type":"application/json"},body:JSON.stringify({email:SB.email,password:v})});var dd=await rr.json();if(rr.ok&&dd.access_token){tok=dd.access_token;ok=true}}else ok=(await sha(v))===HASH}catch(e){openLogin("No se pudo verificar. Revisa tu conexión y que la app esté en tu enlace seguro (https).");return}if(ok){admin=true;closeS();view=2;draw();pull();loadShop().then(function(){if(shopOk&&!shop.abierta)askOpen()})}else openLogin("Contraseña incorrecta")}
+async function login(){var v=document.getElementById("pw").value,ok=false;try{if(sbOn()){var rr=await fetch(SB.url.replace(/\/$/,"")+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:SB.key,"Content-Type":"application/json"},body:JSON.stringify({email:SB.email,password:v})});var dd=await rr.json();if(rr.ok&&dd.access_token){tok=dd.access_token;ok=true}}else ok=(await sha(v))===HASH}catch(e){openLogin("No se pudo verificar. Revisa tu conexión y que la app esté en tu enlace seguro (https).");return}if(ok){admin=true;closeS();view=2;draw();pull();loadShop().then(function(){syncAll();if(shopOk&&!shop.abierta)askOpen()})}else openLogin("Contraseña incorrecta")}
 function logout(){admin=false;tok=null;lastSig="";firstPull=true;view=1;draw()}
 var away=0;
 document.addEventListener("visibilitychange",function(){if(document.hidden)away=Date.now();else if(admin&&away&&Date.now()-away>60000)logout()});
@@ -234,7 +234,7 @@ function openForm(err){
 function msgO(){var o=ORD,tipo={suc:"En sucursal",rec:"Para recoger",env:"Envío a domicilio"}[o.t];
   return "Pedido Los Ponpones\nTipo: "+tipo+"\nNombre: "+o.n.trim()+(o.t!=="suc"?"\nTeléfono: "+o.tel.trim():"")+(o.t==="env"?"\nDirección: "+o.dir.trim()+"\nPago: transferencia (mando comprobante)":"")+"\n\n"+cart.map(function(i){return i.q+" x "+name(i)+(det(i)?" ("+det(i)+")":"")+" - $"+(i.u*i.q)}).join("\n")+"\n\nTotal: $"+tot()}
 function upC(n,tel,dir,inc){var d=(tel||"").replace(/\D/g,""),k=null;clients.forEach(function(c){if((d&&c.d===d)||(!d&&c.n.toLowerCase()===n.toLowerCase()))k=c});
-  if(k){k.n=n;if(tel){k.tel=tel;k.d=d}if(dir)k.dir=dir;k.k+=inc}else clients.push({id:Date.now(),n:n,tel:tel||"",d:d,dir:dir||"",k:inc});sv("pp_clients",clients)}
+  if(k){k.n=n;if(tel){k.tel=tel;k.d=d}if(dir)k.dir=dir;k.k+=inc}else clients.push(k={id:newId(),n:n,tel:tel||"",d:d,dir:dir||"",k:inc});sv("pp_clients",clients);pushC(k)}
 function sendO(){var o=ORD,e="";
   var bad=cart.filter(function(i){return ago(P[i.p].n)||ago(i.fl)||(i.fr||[]).some(function(x){return ago(x)})})[0];
   if(closedNow())e="La tienda está cerrada. Por ahora no recibimos pedidos.";
@@ -249,7 +249,7 @@ function sendO(){var o=ORD,e="";
   if(sbOn()){sendDB(u);return}
   var w=window.open(u,"_blank");if(!w)location.href=u;
   cart=[];closeS();draw()}
-function dc(id){clients=clients.filter(function(c){return c.id!==id});sv("pp_clients",clients);draw()}
+function dc(id){if(sbOn()&&admin&&tok)sbFetch("/rest/v1/clientes?id=eq."+id,{method:"DELETE"},true).catch(function(){});clients=clients.filter(function(c){return c.id!==id});sv("pp_clients",clients);draw()}
 var orders=ld("pp_orders",[]),TYN={suc:"En sucursal",rec:"Para recoger",env:"Envío"},LBL={suc:"Entregado",rec:"Listo · avisar al cliente",env:"Despachado · avisar al cliente"};
 var SB=window.PONPONES||{};
 function sbOn(){return !!(SB.url&&SB.key)}
@@ -260,7 +260,7 @@ function sbIns(o,a){return sbFetch("/rest/v1/orders",{method:"POST",headers:Obje
 function beep(){try{var c=new (window.AudioContext||window.webkitAudioContext)(),s=c.createOscillator();s.connect(c.destination);s.frequency.value=880;s.start();setTimeout(function(){s.stop();c.close()},250)}catch(e){}}
 async function pull(){
   if(!sbOn()||!admin||!tok)return;
-  try{var rows=await sbFetch("/rest/v1/orders?select=*&order=created_at.asc",{},true),sig=JSON.stringify(rows);
+  try{var rows=await sbFetch("/rest/v1/orders?select=*&archivado=eq.false&order=created_at.asc",{},true),sig=JSON.stringify(rows);
     if(sig===lastSig)return;lastSig=sig;
     var fresh=rows.filter(function(r){return seen.indexOf(r.id)<0});
     fresh.forEach(function(r){seen.push(r.id);if(r.nombre)upC(r.nombre,r.telefono||"",r.direccion||"",1)});sv("pp_seen",seen);
@@ -269,7 +269,7 @@ async function pull(){
     orders=rows.map(function(r){return{id:r.id,no:r.id,t:r.tipo,n:r.nombre,tel:r.telefono||"",dir:r.direccion||"",items:r.items||[],total:+r.total,st:r.estado==="pendiente"?"pen":"ok",at:Date.parse(r.created_at)}});
     draw()}catch(e){if(e&&e.message==="401")logout()}}
 setInterval(function(){pull();mine();loadShop()},10000);
-document.addEventListener("visibilitychange",function(){if(!document.hidden){mine();loadShop()}});
+document.addEventListener("visibilitychange",function(){if(!document.hidden){mine();loadShop().then(syncAll)}});
 async function sendDB(u){
   var o=ORD,bt=document.getElementById("sb");if(bt){bt.disabled=true;bt.textContent="Enviando…"}
   var code=uid(),row={tipo:o.t,nombre:o.n.trim(),telefono:o.t!=="suc"?o.tel.trim():"",direccion:o.t==="env"?o.dir.trim():"",items:itemLines(),total:tot(),codigo:code};
@@ -312,8 +312,8 @@ var AGG=[["Productos",["Marquesita","Waffle","Frape"]],["Sabores",FL.concat(FLF.
 function ago(x){return !!x&&shop.agotado.indexOf(x)>-1}
 function closedNow(){return !admin&&shopOk&&!shop.abierta}
 async function loadShop(){if(!sbOn())return;
-  try{var r=await sbFetch("/rest/v1/tienda?id=eq.1&select=abierta,agotado",{},admin);
-    if(r&&r[0]){var n={abierta:!!r[0].abierta,agotado:r[0].agotado||[]},ch=!shopOk||JSON.stringify(n)!==JSON.stringify(shop);shop=n;shopOk=true;if(ch)draw()}}catch(e){}}
+  try{var r=await sbFetch("/rest/v1/tienda?id=eq.1&select=abierta,agotado,precios",{},admin);
+    if(r&&r[0]){var n={abierta:!!r[0].abierta,agotado:r[0].agotado||[],precios:r[0].precios||{}},ch=!shopOk||JSON.stringify(n)!==JSON.stringify(shop);shop=n;shopOk=true;if(Object.keys(n.precios).length){PR=Object.assign({},DEF,n.precios);sv("pp_prices",PR)}if(ch)draw()}}catch(e){}}
 async function saveShop(p){var old=JSON.stringify(shop);Object.assign(shop,p);shopErr="";draw();
   try{var r=await sbFetch("/rest/v1/tienda?id=eq.1",{method:"PATCH",headers:Object.assign(sbH(true),{Prefer:"return=representation"}),body:JSON.stringify(Object.assign({updated_at:new Date().toISOString()},p))},true);
     if(!r||!r.length)throw new Error("sin permiso");shopOk=true}
@@ -332,6 +332,31 @@ function payHtml(){return '<div class="pay"><b>Pago por transferencia · '+PAGO.
   [["CLABE",PAGO.clabe],["Número de cuenta",PAGO.cuenta]].map(function(a){return '<div class="r"><span><small>'+a[0]+'</small><code>'+a[1]+'</code></span><button class="btn alt sm" onclick="cp(this,\''+a[1]+'\')">Copiar</button></div>'}).join("")+
   '<small>Envíanos tu comprobante por WhatsApp para mandar tu pedido.</small></div>'}
 function cp(b,t){try{navigator.clipboard.writeText(t).then(function(){b.textContent="Copiado ✓"},function(){})}catch(e){}}
+var lastId=0,syncErr="";
+function newId(){lastId=Math.max(Date.now(),(lastId||0)+1);return lastId}
+function cRow(c){return{id:c.id,nombre:c.n||"",telefono:c.tel||"",digitos:c.d||"",direccion:c.dir||"",pedidos:c.k||0,updated_at:new Date().toISOString()}}
+function cObj(r){return{id:+r.id,n:r.nombre,tel:r.telefono,d:r.digitos,dir:r.direccion,k:r.pedidos}}
+function vRow(s){return{id:s.id,created_at:new Date(s.t).toISOString(),items:s.items,total:s.total,pagado:s.paid||s.total}}
+function vObj(r){return{id:+r.id,t:Date.parse(r.created_at),items:r.items||[],total:+r.total,paid:+r.pagado}}
+function sbUp(t,rows){return sbFetch("/rest/v1/"+t,{method:"POST",headers:Object.assign(sbH(true),{Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify(rows)},true)}
+function pushC(c){if(sbOn()&&admin&&tok)sbUp("clientes",[cRow(c)]).catch(function(){})}
+function pushV(s){if(sbOn()&&admin&&tok)sbUp("ventas",[vRow(s)]).catch(function(){})}
+async function allRows(p){var out=[],o=0,r;do{r=await sbFetch(p+"&limit=1000&offset="+o,{},true)||[];out=out.concat(r);o+=1000}while(r.length===1000);return out}
+async function syncAll(){if(!sbOn()||!admin||!tok)return;
+  try{var sc=await allRows("/rest/v1/clientes?select=*&order=id.asc"),ids={};sc.forEach(function(r){ids[r.id]=1});
+    var lc=clients.filter(function(c){return !ids[c.id]});if(lc.length)await sbUp("clientes",lc.map(cRow));
+    clients=sc.map(cObj).concat(lc);sv("pp_clients",clients);
+    var d0=new Date();d0.setHours(0,0,0,0);
+    var vs=await allRows("/rest/v1/ventas?select=id&order=id.asc"),vi={};vs.forEach(function(r){vi[r.id]=1});
+    var lv=sales.filter(function(x){return !vi[x.id]});if(lv.length)await sbUp("ventas",lv.map(vRow));
+    var tv=await allRows("/rest/v1/ventas?select=*&created_at=gte."+encodeURIComponent(d0.toISOString())+"&order=id.asc");
+    sales=sales.filter(function(x){return x.t<d0.getTime()}).concat(tv.map(vObj));sv("pp_sales",sales);
+    if(shopOk&&!Object.keys(shop.precios||{}).length&&JSON.stringify(PR)!==JSON.stringify(DEF))saveShop({precios:Object.assign({},PR)});
+    syncErr=""}catch(e){syncErr="No se pudo guardar en la nube ("+(e&&e.message)+"). Tus datos siguen en este teléfono."}
+  draw()}
+async function backup(){var d={app:"Casa de Los Ponpones",fecha:new Date().toISOString(),precios:PR,clientes:clients,ventas:sales,pedidos:orders};
+  if(sbOn()&&admin&&tok){try{d.pedidos=await allRows("/rest/v1/orders?select=*&order=id.asc");d.ventas=await allRows("/rest/v1/ventas?select=*&order=id.asc");d.clientes=await allRows("/rest/v1/clientes?select=*&order=id.asc");d.tienda=await sbFetch("/rest/v1/tienda?select=*",{},true)}catch(e){}}
+  var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(d,null,1)],{type:"application/json"}));a.download="respaldo-ponpones-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},1000)}
 function rmMine(c){my=my.filter(function(x){return x.c!==c});sv("pp_my",my);if(!my.length)view=1;draw()}
 function itemLines(){return cart.map(function(i){return i.q+" x "+name(i)+(det(i)?" ("+det(i)+")":"")+" - $"+(i.u*i.q)})}
 function addOrder(o){if(sbOn()&&tok)sbIns({tipo:o.t,nombre:o.n,telefono:o.tel||"",direccion:o.dir||"",items:o.items,total:o.total},true).then(pull).catch(function(){});var no=orders.reduce(function(a,x){return Math.max(a,x.no)},0)+1;orders.push({id:Date.now(),no:no,t:o.t,n:o.n,tel:o.tel,dir:o.dir,items:o.items,total:o.total,st:"pen",at:Date.now()});sv("pp_orders",orders)}
@@ -348,8 +373,8 @@ function nw(o){var d=(o.tel||"").replace(/\D/g,""),f=(o.n||"").split(" ")[0],
   txt=o.t==="env"?"Hola "+f+", tu pedido #"+o.no+" de Los Ponpones ya salió y va en camino a tu domicilio. ¡Gracias por tu compra!":"Hola "+f+", tu pedido #"+o.no+" de Los Ponpones ya está listo. Pasa por él cuando gustes, ¡te esperamos!";
   return "https://wa.me/"+(d.length===10?"52":"")+d+"?text="+encodeURIComponent(txt)}
 function dn(id){var o=orders.filter(function(x){return x.id===id})[0];if(!o)return;if(sbOn())sbFetch("/rest/v1/orders?id=eq."+id,{method:"PATCH",body:JSON.stringify({estado:"despachado"})},true).then(pull).catch(function(){});o.st="ok";sv("pp_orders",orders);if(o.t!=="suc"&&o.tel)window.open(nw(o),"_blank");draw()}
-function dq(id){if(sbOn())sbFetch("/rest/v1/orders?id=eq."+id,{method:"DELETE"},true).catch(function(){});orders=orders.filter(function(x){return x.id!==id});sv("pp_orders",orders);draw()}
-function clrO(){if(sbOn())sbFetch("/rest/v1/orders?estado=eq.despachado",{method:"DELETE"},true).catch(function(){});orders=orders.filter(function(x){return x.st!=="ok"});sv("pp_orders",orders);draw()}
+function dq(id){if(sbOn())sbFetch("/rest/v1/orders?id=eq."+id,{method:"PATCH",body:JSON.stringify({archivado:true})},true).catch(function(){});orders=orders.filter(function(x){return x.id!==id});sv("pp_orders",orders);draw()}
+function clrO(){if(sbOn())sbFetch("/rest/v1/orders?estado=eq.despachado&archivado=eq.false",{method:"PATCH",body:JSON.stringify({archivado:true})},true).catch(function(){});orders=orders.filter(function(x){return x.st!=="ok"});sv("pp_orders",orders);draw()}
 function pasteO(){var o=parseO(document.getElementById("pt").value);
   if(!o){document.getElementById("pe").textContent="No pude leer el pedido. Copia el mensaje completo tal como llegó.";return}
   addOrder(o);if(o.n)upC(o.n,o.tel,o.dir,1);draw()}
@@ -459,7 +484,7 @@ function sp(v){paid=v;rp()}
 function done(){
   var t=tot();
   if(paid&&paid<t){document.getElementById("chg").textContent="Faltan "+$(t-paid)+" para completar";return}
-  sales.push({id:Date.now(),t:Date.now(),items:cart,total:t,paid:paid||t});sv("pp_sales",sales);
+  var sl={id:newId(),t:Date.now(),items:cart,total:t,paid:paid||t};sales.push(sl);sv("pp_sales",sales);pushV(sl);
   cart=[];closeS();draw();
 }
 function today(){var d=new Date().toDateString();return sales.filter(function(s){return new Date(s.t).toDateString()===d})}
@@ -473,12 +498,11 @@ function drawSales(m){
   h+=clientsHtml();
   h+='<h2 style="margin-top:28px">Precios</h2><div class="pr">'+[["m","Marquesita normal"],["mf","Marquesita con fruta"],["w","Waffle normal"],["wf","Waffle con fruta"],["f","Frape"]].map(function(a){
     return '<div><label>'+a[1]+'</label><input type="number" inputmode="decimal" value="'+PR[a[0]]+'" onchange="up(\''+a[0]+'\',this.value)"></div>'}).join("")+'</div>';
-  h+='<div class="acts" style="margin-top:22px"><button class="btn alt grow" onclick="clr()">'+(armed?"¿Seguro? Toca otra vez":"Borrar historial")+'</button><button class="btn" onclick="logout()">Cerrar sesión</button></div>';
+  h+='<p class="l" style="font-size:13px;margin-top:22px">'+(syncErr?'<span style="color:var(--red)">⚠️ '+esc(syncErr)+'</span>':sbOn()?"☁️ Pedidos, clientes, ventas y precios se guardan en la nube.":"Los datos se guardan solo en este teléfono.")+'</p><div class="acts"><button class="btn alt grow" onclick="backup()">Descargar respaldo</button><button class="btn" onclick="logout()">Cerrar sesión</button></div>';
   m.innerHTML=h;
 }
-function ds(id){sales=sales.filter(function(s){return s.id!==id});sv("pp_sales",sales);draw()}
-function up(k,v){var n=parseFloat(v);if(n>=0){PR[k]=n;sv("pp_prices",PR)}}
-function clr(){if(!armed){armed=true;draw();return}sales=[];sv("pp_sales",sales);armed=false;draw()}
+function ds(id){if(sbOn()&&admin&&tok)sbFetch("/rest/v1/ventas?id=eq."+id,{method:"DELETE"},true).catch(function(){});sales=sales.filter(function(s){return s.id!==id});sv("pp_sales",sales);draw()}
+function up(k,v){var n=parseFloat(v);if(n>=0){PR[k]=n;sv("pp_prices",PR);if(sbOn()&&admin)saveShop({precios:Object.assign({},PR)})}}
 draw();mine();loadShop();
 </script>
 </body>
