@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BotHub — Chatbots con IA para WhatsApp y Facebook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f4f5f7;--panel:#fff;--ink:#0e1525;--mute:#667085;--line:#e6e8ec;--soft:#f0f2f5;--acc:#4f46e5;--warn:#e8590c;--r:14px;--wa:#25d366;--fb:#0866ff}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+input,select,textarea{font:inherit;color:inherit}
+.hide{display:none!important}
+/* Login */
+.auth{min-height:100vh;min-height:100dvh;display:grid;grid-template-columns:1.1fr 1fr}
+.auth-side{background:linear-gradient(150deg,#0e1525,#26315a 70%,#2d3d74);color:#fff;padding:48px;display:flex;flex-direction:column;justify-content:center;gap:18px}
+.auth-side h1{font-size:34px;line-height:1.15;margin:0;letter-spacing:-.02em}
+.auth-side p{color:#c3c9d8;line-height:1.6;margin:0;max-width:460px}
+.auth-feats{display:grid;gap:12px;margin-top:10px}
+.auth-feats div{display:flex;gap:12px;align-items:center;color:#dfe3ec}
+.auth-feats span{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.1);display:grid;place-items:center;flex:none}
+.auth-main{display:grid;place-items:center;padding:28px}
+.auth-card{width:100%;max-width:380px}
+.auth-card h2{font-size:22px;margin:0 0 6px}
+.auth-card .sub{margin-bottom:22px}
+.auth-card form{display:grid;gap:14px}
+.link{color:var(--acc);font-weight:600}
+.err{background:#fff1f0;color:#b42318;border:1px solid #fecdca;padding:10px 12px;border-radius:10px;font-size:13px}
+.okmsg{background:#ecfdf3;color:#067647;border:1px solid #abefc6;padding:10px 12px;border-radius:10px;font-size:13px}
+/* Shell */
+.shell{display:grid;grid-template-columns:260px 1fr;height:100vh;height:100dvh}
+.side{background:#0e1525;color:#d7dbe4;display:flex;flex-direction:column;padding:18px 14px;gap:6px;overflow:auto}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;color:#fff;padding:4px 8px 14px}
+.logo i{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,#6d5efc,#22c3a6);display:grid;place-items:center;font-style:normal;font-size:16px}
+.auth .logo{color:#fff;padding:0}
+.slabel{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#7d869a;padding:10px 8px 6px;display:flex;justify-content:space-between;align-items:center}
+.slabel button{color:#a5adff;font-size:12px;text-transform:none;letter-spacing:0;font-weight:600}
+.bizitem{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;text-align:left;width:100%;color:#c6cbd6}
+.bizitem:hover{background:#1a2236}.bizitem.on{background:#1f2942;color:#fff}
+.dot{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;font-size:12px;flex:none;color:#fff;font-weight:700}
+.bizitem .nm{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.pill{background:var(--warn);color:#fff;border-radius:99px;font-size:11px;padding:1px 7px;font-weight:700}
+.nav{display:flex;flex-direction:column;gap:2px}
+.navbtn{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;color:#c6cbd6;width:100%;text-align:left;font-weight:500}
+.navbtn:hover{background:#1a2236}.navbtn.on{background:#fff;color:#0e1525;font-weight:700}
+.navbtn .pill{margin-left:auto}
+.sfoot{margin-top:auto;font-size:12px;color:#7d869a;padding:10px 8px;line-height:1.6;word-break:break-all}
+.sfoot button{color:#a5adff;font-weight:600;font-size:12px}
+.main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.top{display:none}
+#view{flex:1;min-height:0;overflow:auto}
+.pad{padding:28px clamp(16px,3vw,36px);max-width:1100px}
+h1{font-size:24px;margin:0 0 4px;letter-spacing:-.02em}
+h2{font-size:16px;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 22px;line-height:1.5}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 14px;border-radius:10px;font-weight:600;background:var(--soft);border:1px solid var(--line);white-space:nowrap}
+.btn:hover{filter:brightness(.97)}
+.btn.pri{background:var(--acc);color:#fff;border-color:transparent}
+.btn.dark{background:#0e1525;color:#fff;border-color:transparent}
+.btn.red{color:#c92a2a}.btn.sm{padding:6px 10px;font-size:13px}.btn.full{width:100%;padding:11px}
+.btn:disabled{opacity:.55;cursor:default}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.tcard{text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px;transition:.15s;display:flex;flex-direction:column;gap:8px}
+.tcard:hover{border-color:var(--ink);transform:translateY(-2px)}
+.tcard .ic{font-size:26px}.tcard b{font-size:15px}.tcard span{color:var(--mute);font-size:13px;line-height:1.45}
+.mtag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px;background:var(--soft);color:var(--mute);align-self:flex-start;text-transform:uppercase;letter-spacing:.03em}
+/* Inbox */
+.inbox{display:grid;grid-template-columns:340px 1fr;height:100%;min-height:0}
+.clist{border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.clhead{padding:16px;border-bottom:1px solid var(--line)}
+.stats{font-size:12px;color:var(--mute);margin:4px 0 12px}
+.search{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft);outline:none}
+.filters{display:flex;gap:6px;margin-top:10px;overflow-x:auto}
+.chip{padding:5px 10px;border-radius:99px;font-size:12px;font-weight:600;background:var(--soft);color:var(--mute);white-space:nowrap}
+.chip.on{background:var(--ink);color:#fff}
+#convlist{overflow:auto;flex:1}
+.citem{display:flex;gap:11px;padding:13px 16px;border-bottom:1px solid var(--line);width:100%;text-align:left;align-items:flex-start}
+.citem:hover{background:#fafbfc}.citem.on{background:#eef0ff}
+.av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#fff;flex:none;font-size:14px;position:relative}
+.av .ch{position:absolute;right:-3px;bottom:-3px;width:17px;height:17px;border-radius:50%;border:2px solid #fff;display:grid;place-items:center;font-size:9px;color:#fff;font-weight:800}
+.ch.whatsapp{background:var(--wa)}.ch.facebook{background:var(--fb)}.ch.prueba{background:#98a2b3}
+.cbody{flex:1;min-width:0}
+.crow{display:flex;justify-content:space-between;gap:8px}
+.crow b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctime{font-size:11px;color:var(--mute);flex:none}
+.cprev{color:var(--mute);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.tags{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.tag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;background:var(--soft);color:var(--mute);text-transform:uppercase;letter-spacing:.03em}
+.tag.bot{background:#e7f8ee;color:#0f7a3d}.tag.hum{background:#fff1e6;color:#c2410c}.tag.done{background:#eef0f3;color:#667085}
+.unr{width:9px;height:9px;border-radius:50%;background:var(--acc);flex:none;margin-top:5px}
+.empty{padding:40px 20px;text-align:center;color:var(--mute);line-height:1.6}
+.thread{display:flex;flex-direction:column;min-height:0;background:var(--bg)}
+.thead{display:flex;align-items:center;gap:10px;padding:12px 18px;background:var(--panel);border-bottom:1px solid var(--line);flex-wrap:wrap}
+.thead .who{flex:1;min-width:140px}.thead .who small{display:block;color:var(--mute);font-size:12px}
+.back{display:none}
+.msgs{flex:1;overflow:auto;padding:20px 18px;display:flex;flex-direction:column;gap:8px}
+.b{max-width:76%;padding:9px 13px;border-radius:16px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word;font-size:14px}
+.b small{display:block;font-size:10.5px;opacity:.65;margin-top:3px}
+.b.cliente{align-self:flex-start;background:var(--panel);border:1px solid var(--line);border-bottom-left-radius:5px}
+.b.bot{align-self:flex-end;background:var(--acc);color:#fff;border-bottom-right-radius:5px}
+.b.agente{align-self:flex-end;background:#0e1525;color:#fff;border-bottom-right-radius:5px}
+.b.sistema{align-self:center;background:#fff6e5;color:#8a5300;font-size:12px;border-radius:99px;padding:5px 12px;max-width:90%;text-align:center}
+.lbl{font-size:10.5px;font-weight:700;opacity:.75;display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.04em}
+.typing{display:inline-flex;gap:4px}
+.typing i{width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.5;animation:bl 1s infinite}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes bl{50%{opacity:1}}
+.comp{display:flex;gap:8px;padding:12px 14px;background:var(--panel);border-top:1px solid var(--line);align-items:flex-end}
+.comp textarea{flex:1;resize:none;border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-height:42px;max-height:140px;outline:none;background:var(--soft)}
+.banner{padding:8px 18px;font-size:12.5px;background:#fff6e5;color:#8a5300;border-bottom:1px solid #f5e1bd}
+/* Forms */
+.form{display:grid;gap:16px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:13px}
+label.f small{font-weight:400;color:var(--mute);line-height:1.4}
+.inp{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;outline:none}
+.inp:focus{border-color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 18%,transparent)}
+textarea.inp{resize:vertical;min-height:84px;line-height:1.5}
+.sec{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--mute);font-weight:700;margin:10px 0 -4px}
+.actions{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap;position:sticky;bottom:0;background:var(--bg);padding:14px 0}
+.colors{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sw{width:28px;height:28px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px var(--line)}
+.sw.on{box-shadow:0 0 0 2px var(--ink)}
+.switch{display:flex;align-items:center;gap:10px;font-weight:600}
+.switch input{width:40px;height:22px;accent-color:var(--acc)}
+/* Products & orders */
+.ptable{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.ptable th{text-align:left;font-size:12px;color:var(--mute);font-weight:600;padding:10px 12px;background:#fafbfc;border-bottom:1px solid var(--line)}
+.ptable td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.ptable tr:last-child td{border-bottom:0}
+.ptable .inp{padding:7px 9px}
+.addrow{display:grid;grid-template-columns:2fr 110px 2fr auto;gap:8px;margin-top:14px}
+.ogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.ocard{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:8px}
+.ocard .hd{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ocard ul{margin:0;padding-left:18px;color:var(--ink);line-height:1.6}
+.ocard .meta{font-size:13px;color:var(--mute);line-height:1.5}
+.ocard .tot{font-weight:800;font-size:17px}
+.est{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;text-transform:uppercase}
+.est.nuevo{background:#eef0ff;color:#3730a3}.est.confirmado{background:#e7f8ee;color:#0f7a3d}.est.entregado{background:#eef0f3;color:#475467}.est.cancelado{background:#fff1f0;color:#b42318}
+/* Simulator */
+.simwrap{display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:26px;align-items:start}
+.phone{background:#fff;border:1px solid var(--line);border-radius:26px;overflow:hidden;display:flex;flex-direction:column;height:min(640px,calc(100dvh - 190px));min-height:420px;box-shadow:0 20px 50px -24px rgba(14,21,37,.35)}
+.phead{background:var(--acc);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:10px}
+.phead .av{background:rgba(255,255,255,.22);width:36px;height:36px}
+.phead small{display:block;opacity:.85;font-size:11.5px}
+.phone .msgs{background:#f7f8fa;padding:14px}
+.phone .b.cliente{align-self:flex-end;background:var(--acc);color:#fff;border:0;border-radius:16px;border-bottom-right-radius:5px}
+.phone .b.bot,.phone .b.agente{align-self:flex-start;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:16px;border-bottom-left-radius:5px}
+.phone .comp input{flex:1;border:1px solid var(--line);border-radius:99px;padding:10px 14px;outline:none;background:var(--soft)}
+.send{width:40px;height:40px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-size:16px;flex:none}
+.tips li{margin-bottom:8px;color:var(--mute);line-height:1.5}.tips b{color:var(--ink)}
+.qs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.qs button{background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:6px 11px;font-size:12.5px}
+.qs button:hover{border-color:var(--ink)}
+/* Connect */
+.conn{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.chead{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.cicon{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;color:#fff;font-weight:800;font-size:18px}
+.status{font-size:12px;font-weight:700;padding:3px 9px;border-radius:99px;margin-left:auto}
+.status.on{background:#e7f8ee;color:#0f7a3d}.status.off{background:var(--soft);color:var(--mute)}
+.code{background:#0e1525;color:#d6deeb;border-radius:10px;padding:10px 12px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;display:flex;justify-content:space-between;gap:10px;align-items:center;word-break:break-all}
+.code button{color:#a5adff;font-weight:600;flex:none}
+.steps{margin:10px 0 0;padding-left:20px;line-height:1.65;color:#344054}
+.note{background:#eef0ff;border:1px solid #d9dcff;color:#2f2a8a;border-radius:12px;padding:14px 16px;line-height:1.55;font-size:13.5px}
+#modal{position:fixed;inset:0;background:rgba(14,21,37,.45);display:none;place-items:center;z-index:50;padding:20px}
+#modal.on{display:grid}
+.mbox{background:#fff;border-radius:16px;padding:22px;max-width:380px;width:100%}
+.mbox p{margin:0 0 18px;line-height:1.5}.mbox .act{display:flex;gap:8px;justify-content:flex-end}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#0e1525;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;transition:.25s;z-index:60;pointer-events:none;font-weight:500;max-width:90vw}
+#toast.on{opacity:1;transform:translateX(-50%)}
+.tabs{display:none}
+.loading{display:grid;place-items:center;height:100%;min-height:60vh;color:var(--mute)}
+@media (max-width:820px){
+ .auth{grid-template-columns:1fr}.auth-side{padding:28px 22px}.auth-side h1{font-size:26px}.auth-feats{display:none}
+ .shell{grid-template-columns:1fr;grid-template-rows:auto 1fr auto}
+ .side{display:none}
+ .top{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#0e1525;color:#fff}
+ .top .logo{padding:0;font-size:15px}.top .logo i{width:26px;height:26px;font-size:14px}
+ .top select{flex:1;min-width:0;background:#1f2942;color:#fff;border:0;border-radius:9px;padding:8px 10px;font-weight:600}
+ .top .btn{background:#1f2942;color:#fff;border:0;padding:8px 11px}
+ .tabs{display:grid;grid-template-columns:repeat(6,1fr);background:#fff;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+ .tabs button{padding:8px 2px 9px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;color:var(--mute);font-weight:600;position:relative}
+ .tabs button span{font-size:18px}.tabs button.on{color:var(--acc)}
+ .tabs .pill{position:absolute;top:3px;right:calc(50% - 22px);font-size:10px;padding:0 5px}
+ .pad{padding:20px 14px}
+ .inbox{grid-template-columns:1fr}.inbox .thread{display:none}.inbox.open .clist{display:none}.inbox.open .thread{display:flex}
+ .back{display:inline-flex}
+ .row2,.simwrap,.conn{grid-template-columns:1fr}
+ .addrow{grid-template-columns:1fr 100px}.addrow .inp:nth-child(3){grid-column:1/-1}.addrow .btn{grid-column:1/-1}
+ .phone{height:calc(100dvh - 250px)}
+ .b{max-width:85%}
+ .ptable .hide-m{display:none}
+}
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">Cargando…</div></div>
+<div id="modal"></div>
+<div id="toast"></div>
+
+<script>
+/* ======================= Configuración ======================= */
+const SB_URL = 'https://vsmseukmtshfkswlhdmq.supabase.co';
+const SB_KEY = 'sb_publishable_J6IcD8ARpQ6oxaNwzfUnzw_0nR8rW6_';
+const WEBHOOK_URL = SB_URL + '/functions/v1/bot-webhook';
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+/* ======================= Utilidades ======================= */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const initials = s => (String(s||'?').trim().split(/\s+/).map(w=>w[0]).join('').slice(0,2)||'?').toUpperCase();
+const money = n => '$' + Number(n||0).toLocaleString('es-MX',{maximumFractionDigits:2});
+function fmtTime(t){ if(!t) return ''; const d=new Date(t), n=new Date();
+  return d.toDateString()===n.toDateString()? d.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}) : d.toLocaleDateString('es-MX',{day:'numeric',month:'short'}); }
+function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('on'),2800); }
+function ask(msg, ok='Confirmar'){ return new Promise(res=>{ const m=$('#modal');
+  m.innerHTML=`<div class="mbox"><p>${esc(msg)}</p><div class="act"><button class="btn" data-a="0">Cancelar</button><button class="btn dark" data-a="1">${esc(ok)}</button></div></div>`;
+  m.classList.add('on'); m.onclick=e=>{ const a=e.target.dataset.a; if(a===undefined&&e.target!==m) return; m.classList.remove('on'); res(a==='1'); }; }); }
+async function copyText(t,btn){ try{ await navigator.clipboard.writeText(t); if(btn){const o=btn.textContent;btn.textContent='¡Copiado!';setTimeout(()=>btn.textContent=o,1400);} }catch(e){ toast('Selecciona el texto y cópialo manualmente'); } }
+const AVC=['#6366f1','#0ea5a4','#f59e0b','#db2777','#16a34a','#2563eb','#e4572e','#7c3aed'];
+const avColor = s => AVC[[...String(s)].reduce((a,c)=>a+c.charCodeAt(0),0)%AVC.length];
+const COLORS=['#4f46e5','#e4572e','#0ea5a4','#16a34a','#db2777','#f59e0b','#2563eb','#7c3aed','#0e1525'];
+const TONES=['Amigable y cálido','Profesional y formal','Divertido y casual','Breve y directo','Empático y paciente'];
+const MODOS={ventas:'🛒 Vender productos',citas:'📅 Agendar citas',informacion:'💬 Informar y cotizar'};
+const CANAL={whatsapp:['W','WhatsApp'],facebook:['f','Facebook'],prueba:['P','Prueba']};
+function errMsg(e){ return (e&&(e.message||e.error_description||e.error))||'Ocurrió un error'; }
+
+/* ======================= Plantillas ======================= */
+const TEMPLATES=[
+ {icon:'🛍️',title:'Tienda / Venta de artículos',desc:'Vende productos por chat y registra pedidos.',color:'#db2777',
+  n:{nombre:'Mi Tienda',giro:'Venta de artículos',modo:'ventas',tono:'Amigable y cálido',bienvenida:'¡Hola! 👋 Gracias por escribirnos. ¿Qué artículo te interesa? Te comparto precios y disponibilidad.',
+   horario:'Lunes a sábado de 10:00 a 19:00',contacto:'',envio:'Envíos a todo México (3 a 5 días). Entrega personal en puntos acordados.',pagos:'Transferencia, depósito en OXXO o efectivo contra entrega',
+   faqs:'¿Hacen envíos? Sí, a todo México.\n¿Puedo apartar? Sí, con el 50% de anticipo.\n¿Tienen garantía? Sí, cambios por defecto en los primeros 7 días.',
+   reglas:'Si preguntan por mayoreo (más de 20 piezas) pásalo con una persona.',datos_pedido:'nombre, teléfono, dirección de entrega y forma de pago'},
+  p:[['Producto ejemplo A',150,'Edita o borra este producto'],['Producto ejemplo B',250,'Disponible en varios colores']]},
+ {icon:'🍽️',title:'Restaurante / Comida',desc:'Menú, pedidos a domicilio y reservaciones.',color:'#e4572e',
+  n:{nombre:'La Terraza',giro:'Restaurante',modo:'ventas',tono:'Amigable y cálido',bienvenida:'¡Hola! 👋 Bienvenido a La Terraza. ¿Quieres ver el menú, pedir a domicilio o reservar?',
+   horario:'Lunes a domingo de 13:00 a 23:00',contacto:'',envio:'Domicilio gratis en pedidos desde $300 dentro de 5 km',pagos:'Efectivo, tarjeta y transferencia',
+   faqs:'¿Tienen opciones vegetarianas? Sí: enchiladas de queso y ensaladas.\n¿Hay estacionamiento? Sí, con valet.',reglas:'Grupos de más de 10 personas los atiende una persona.',datos_pedido:'nombre, teléfono y dirección (o fecha, hora y personas si es reservación)'},
+  p:[['Tacos al pastor (3 pzas)',85,''],['Enchiladas suizas',120,''],['Arrachera 300 g',280,''],['Agua fresca',35,'Jamaica u horchata']]},
+ {icon:'🦷',title:'Clínica / Consultorio',desc:'Agenda citas y explica servicios.',color:'#0ea5a4',
+  n:{nombre:'Sonrisa Dental',giro:'Clínica dental',modo:'citas',tono:'Empático y paciente',bienvenida:'Hola 😊 Soy el asistente de Sonrisa Dental. ¿Te gustaría agendar una cita?',
+   horario:'Lunes a viernes 9:00–19:00, sábados 9:00–14:00',contacto:'',envio:'',pagos:'Efectivo, tarjeta y 3 o 6 meses sin intereses',
+   faqs:'¿Atienden niños? Sí, martes y jueves.\n¿Aceptan seguros? Damos factura para reembolso.',reglas:'No des diagnósticos. Si hay dolor fuerte, sangrado o inflamación, pasa a una persona.',datos_pedido:'nombre completo, teléfono, servicio, fecha y hora'},
+  p:[['Consulta de valoración',350,''],['Limpieza dental',700,''],['Blanqueamiento',3500,'']]},
+ {icon:'💇',title:'Salón / Estética',desc:'Citas, servicios y precios.',color:'#7c3aed',
+  n:{nombre:'Studio Bella',giro:'Salón de belleza',modo:'citas',tono:'Divertido y casual',bienvenida:'¡Hola, hermosa! ✨ ¿Qué servicio te gustaría agendar?',
+   horario:'Martes a domingo de 10:00 a 20:00',contacto:'',envio:'',pagos:'Efectivo, tarjeta y transferencia',faqs:'¿Necesito cita? Sí, recomendamos agendar.',reglas:'',datos_pedido:'nombre, teléfono, servicio, fecha y hora'},
+  p:[['Corte de cabello',250,''],['Uñas acrílicas',450,''],['Tinte completo',900,'Desde']]},
+ {icon:'🏠',title:'Servicios / Cotizaciones',desc:'Inmobiliaria, talleres, contratistas.',color:'#2563eb',
+  n:{nombre:'Mi Servicio',giro:'Servicios profesionales',modo:'informacion',tono:'Profesional y formal',bienvenida:'Buen día, gracias por contactarnos. ¿En qué le podemos ayudar?',
+   horario:'Lunes a viernes 9:00–18:00',contacto:'',envio:'',pagos:'',faqs:'',reglas:'Pregunta presupuesto y necesidad antes de cotizar.',datos_pedido:'nombre, teléfono, correo y descripción de lo que necesita'},p:[]},
+ {icon:'✨',title:'En blanco',desc:'Empieza desde cero.',color:'#4f46e5',
+  n:{nombre:'Mi negocio',giro:'',modo:'ventas',tono:'Amigable y cálido',bienvenida:'¡Hola! ¿En qué te puedo ayudar?',horario:'',contacto:'',envio:'',pagos:'',faqs:'',reglas:'',datos_pedido:'nombre y teléfono'},p:[]}
+];
+
+/* ======================= Estado ======================= */
+const S={user:null,negocios:[],sel:null,view:'inbox',convs:[],openConv:null,msgs:[],msgsConv:null,pedidos:[],productos:[],cred:{},att:{},
+  filter:'all',q:'',testConv:null,typing:null,authMode:'login',authMsg:null,channel:null,loadingBiz:false};
+const VIEWS=[['inbox','💬','Conversaciones'],['pedidos','🧾','Pedidos'],['productos','📦','Productos'],['test','🧪','Probar bot'],['config','⚙️','Configurar'],['connect','🔌','Conectar']];
+const biz = () => S.negocios.find(n=>n.id===S.sel);
+
+/* ======================= Login ======================= */
+function renderAuth(){
+  const m=S.authMode;
+  $('#root').innerHTML=`<div class="auth">
+   <div class="auth-side"><div class="logo"><i>🤖</i>BotHub</div>
+    <h1>Chatbots con IA que venden y atienden por ti</h1>
+    <p>Conecta WhatsApp y Facebook de cada negocio, carga tus productos y deja que el bot responda, tome pedidos y agende citas las 24 horas.</p>
+    <div class="auth-feats"><div><span>💬</span>Todas las conversaciones en un solo panel</div><div><span>🛒</span>Pedidos y citas registrados automáticamente</div><div><span>🙋</span>Tomas el control cuando quieras</div></div>
+   </div>
+   <div class="auth-main"><div class="auth-card">
+    <h2>${m==='login'?'Iniciar sesión':m==='signup'?'Crear cuenta':'Recuperar contraseña'}</h2>
+    <p class="sub">${m==='login'?'Entra a tu panel de negocios.':m==='signup'?'Regístrate para crear tus bots.':'Te enviaremos un enlace a tu correo.'}</p>
+    ${S.authMsg?`<div class="${S.authMsg.ok?'okmsg':'err'}" style="margin-bottom:14px">${esc(S.authMsg.t)}</div>`:''}
+    <form id="authform">
+      <label class="f">Correo<input class="inp" type="email" id="a_email" required autocomplete="email"></label>
+      ${m!=='reset'?`<label class="f">Contraseña<input class="inp" type="password" id="a_pass" required minlength="6" autocomplete="${m==='login'?'current-password':'new-password'}"></label>`:''}
+      <button class="btn pri full" id="a_btn">${m==='login'?'Entrar':m==='signup'?'Crear cuenta':'Enviar enlace'}</button>
+    </form>
+    <p style="margin-top:18px;color:var(--mute);line-height:1.9">
+     ${m==='login'?`¿No tienes cuenta? <button class="link" onclick="setAuth('signup')">Regístrate</button><br><button class="link" onclick="setAuth('reset')">Olvidé mi contraseña</button>`:`<button class="link" onclick="setAuth('login')">← Volver a iniciar sesión</button>`}
+    </p>
+   </div></div></div>`;
+  $('#authform').onsubmit=doAuth;
+}
+function setAuth(m){ S.authMode=m; S.authMsg=null; renderAuth(); }
+async function doAuth(e){
+  e.preventDefault(); const email=$('#a_email').value.trim(), pass=$('#a_pass')?.value; const btn=$('#a_btn'); btn.disabled=true;
+  try{
+    if(S.authMode==='login'){ const {error}=await sb.auth.signInWithPassword({email,password:pass}); if(error) throw error; }
+    else if(S.authMode==='signup'){ const {data,error}=await sb.auth.signUp({email,password:pass,options:{emailRedirectTo:location.href.split('#')[0]}}); if(error) throw error;
+      if(!data.session){ S.authMode='login'; S.authMsg={ok:1,t:'Cuenta creada. Revisa tu correo para confirmarla y después inicia sesión.'}; renderAuth(); } }
+    else { const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href.split('#')[0]}); if(error) throw error; S.authMode='login'; S.authMsg={ok:1,t:'Listo, revisa tu correo.'}; renderAuth(); }
+  }catch(err){ const t=errMsg(err); S.authMsg={t:/Invalid login/i.test(t)?'Correo o contraseña incorrectos.':/not confirmed/i.test(t)?'Confirma tu correo antes de entrar.':t}; renderAuth(); }
+}
+async function logout(){ if(S.channel) sb.removeChannel(S.channel); S.channel=null; await sb.auth.signOut(); }
+
+/* ======================= Datos ======================= */
+async function startApp(user){
+  S.user=user; $('#root').innerHTML='<div class="loading">Cargando tus negocios…</div>';
+  const {data,error}=await sb.from('bot_negocios').select('*').order('created_at');
+  if(error){ $('#root').innerHTML=`<div class="loading">No se pudieron cargar los datos: ${esc(error.message)}</div>`; return; }
+  S.negocios=data||[];
+  await loadAttention();
+  subscribe();
+  if(S.negocios.length){ S.sel=S.negocios[0].id; await loadBiz(); S.view='inbox'; } else S.view='new';
+  render();
+}
+async function loadAttention(){
+  const {data}=await sb.from('bot_conversaciones').select('id,negocio_id').eq('estado','atencion');
+  S.att={}; (data||[]).forEach(c=>S.att[c.id]=c.negocio_id);
+}
+const attCount = nid => Object.values(S.att).filter(x=>!nid||x===nid).length;
+async function loadBiz(){
+  const id=S.sel; if(!id) return;
+  S.loadingBiz=true;
+  const [c,p,pr,cr]=await Promise.all([
+    sb.from('bot_conversaciones').select('*').eq('negocio_id',id).order('updated_at',{ascending:false}).limit(300),
+    sb.from('bot_pedidos').select('*').eq('negocio_id',id).order('created_at',{ascending:false}).limit(300),
+    sb.from('bot_productos').select('*').eq('negocio_id',id).order('created_at'),
+    sb.from('bot_credenciales').select('wa_token,fb_token').eq('negocio_id',id).maybeSingle()]);
+  if(S.sel!==id) return;
+  S.convs=c.data||[]; S.pedidos=p.data||[]; S.productos=pr.data||[];
+  S.cred={wa:!!cr.data?.wa_token, fb:!!cr.data?.fb_token};
+  S.loadingBiz=false;
+}
+async function loadMsgs(convId){
+  const {data}=await sb.from('bot_mensajes').select('*').eq('conversacion_id',convId).order('created_at').limit(500);
+  S.msgs=data||[]; S.msgsConv=convId;
+}
+function subscribe(){
+  if(S.channel) return;
+  const f='owner=eq.'+S.user.id;
+  S.channel=sb.channel('bothub-'+S.user.id)
+   .on('postgres_changes',{event:'*',schema:'public',table:'bot_conversaciones',filter:f},p=>{
+      if(p.eventType==='DELETE'){ S.convs=S.convs.filter(c=>c.id!==p.old.id); delete S.att[p.old.id]; }
+      else { const r=p.new;
+        if(r.estado==='atencion') S.att[r.id]=r.negocio_id; else delete S.att[r.id];
+        if(r.negocio_id===S.sel){ const i=S.convs.findIndex(c=>c.id===r.id); if(i>=0) S.convs[i]=r; else S.convs.push(r); S.convs.sort((a,b)=>new Date(b.updated_at)-new Date(a.updated_at)); }
+        if(p.eventType==='UPDATE'&&p.old?.estado!=='atencion'&&r.estado==='atencion') toast(`🙋 ${r.cliente_nombre} necesita atención`);
+      }
+      refresh();
+   })
+   .on('postgres_changes',{event:'INSERT',schema:'public',table:'bot_mensajes',filter:f},p=>{
+      const m=p.new; if(m.conversacion_id!==S.msgsConv) return;
+      if(S.msgs.some(x=>x.id===m.id)) return;
+      if(m.rol==='cliente'){ const t=S.msgs.findIndex(x=>x.tmp&&x.texto===m.texto); if(t>=0) S.msgs.splice(t,1); }
+      if(m.rol==='bot'&&S.typing===m.conversacion_id) S.typing=null;
+      S.msgs.push(m); renderMsgs();
+   })
+   .on('postgres_changes',{event:'*',schema:'public',table:'bot_pedidos',filter:f},p=>{
+      if(p.eventType==='DELETE'){ S.pedidos=S.pedidos.filter(x=>x.id!==p.old.id); }
+      else { const r=p.new; if(r.negocio_id===S.sel){ const i=S.pedidos.findIndex(x=>x.id===r.id); if(i>=0) S.pedidos[i]=r; else S.pedidos.unshift(r); }
+        if(p.eventType==='INSERT') toast(`🧾 Nuevo ${r.tipo} de ${r.cliente_nombre||'un cliente'}`); }
+      if(S.view==='pedidos') renderPedidos(); renderNav();
+   })
+   .subscribe();
+}
+async function call(accion,conversacion_id,texto){
+  const {data,error}=await sb.functions.invoke('bot-chat',{body:{accion,conversacion_id,texto}});
+  if(error){ let m=errMsg(error); try{ const j=await error.context.json(); m=j.error||m; }catch(_){} throw new Error(m); }
+  return data;
+}
+
+/* ======================= Render general ======================= */
+function render(){
+  const b=biz(); document.documentElement.style.setProperty('--acc',(b&&b.color)||'#4f46e5');
+  if(!$('#shell')){
+    $('#root').innerHTML=`<div class="shell" id="shell"><aside class="side" id="side"></aside><header class="top" id="top"></header><main class="main"><section id="view"></section></main><nav class="tabs" id="tabs"></nav></div>`;
+  }
+  renderNav();
+  const v=$('#view');
+  if(S.view==='new') v.innerHTML=viewNew();
+  else if(!b) v.innerHTML='<div class="loading">Selecciona un negocio</div>';
+  else if(S.view==='inbox'){ v.innerHTML=viewInbox(); renderConvList(); renderThread(); }
+  else if(S.view==='pedidos'){ v.innerHTML='<div class="pad" id="pedidos"></div>'; renderPedidos(); }
+  else if(S.view==='productos') v.innerHTML=viewProductos();
+  else if(S.view==='test'){ v.innerHTML=viewTest(); renderMsgs(true); }
+  else if(S.view==='config') v.innerHTML=viewConfig();
+  else if(S.view==='connect') v.innerHTML=viewConnect();
+}
+function refresh(){ renderNav(); if(S.view==='inbox'){ renderConvList(); renderThreadHead(); } if(S.view==='test') renderSimStatus(); }
+function renderNav(){
+  const list=S.negocios, b=biz(), inApp=S.view!=='new'&&b;
+  const pend=S.pedidos.filter(p=>p.estado==='nuevo').length;
+  const badge=k=> k==='inbox'&&attCount(S.sel)?`<span class="pill">${attCount(S.sel)}</span>`:k==='pedidos'&&pend?`<span class="pill">${pend}</span>`:'';
+  $('#side').innerHTML=`<div class="logo"><i>🤖</i>BotHub</div>
+   <div class="slabel">Negocios <button onclick="go('new')">+ Nuevo</button></div>
+   ${list.map(n=>`<button class="bizitem ${n.id===S.sel&&S.view!=='new'?'on':''}" onclick="selBiz('${n.id}')"><span class="dot" style="background:${esc(n.color)}">${esc(initials(n.nombre))}</span><span class="nm">${esc(n.nombre)}</span>${attCount(n.id)?`<span class="pill">${attCount(n.id)}</span>`:''}</button>`).join('')||'<div style="padding:4px 10px;color:#7d869a;font-size:13px">Aún no tienes negocios</div>'}
+   ${inApp?`<div class="slabel">Panel</div><div class="nav">${VIEWS.map(([k,ic,l])=>`<button class="navbtn ${S.view===k?'on':''}" onclick="go('${k}')"><span>${ic}</span>${l}${badge(k)}</button>`).join('')}</div>`:''}
+   <div class="sfoot">${esc(S.user.email)}<br><button onclick="logout()">Cerrar sesión</button></div>`;
+  $('#top').innerHTML=`<div class="logo"><i>🤖</i></div><select onchange="this.value==='__new'?go('new'):this.value==='__out'?logout():selBiz(this.value)">${list.map(n=>`<option value="${n.id}" ${n.id===S.sel&&S.view!=='new'?'selected':''}>${esc(n.nombre)}${attCount(n.id)?` (${attCount(n.id)})`:''}</option>`).join('')}<option value="__new" ${S.view==='new'?'selected':''}>+ Nuevo negocio…</option><option value="__out">Cerrar sesión</option></select>`;
+  const t=$('#tabs'); t.classList.toggle('hide',!inApp);
+  t.innerHTML=VIEWS.map(([k,ic,l])=>`<button class="${S.view===k?'on':''}" onclick="go('${k}')"><span>${ic}</span>${l.split(' ')[0]}${badge(k)}</button>`).join('');
+}
+async function go(view){ S.view=view; if(view!=='inbox') S.openConv=null;
+  if(view==='test') await prepTest();
+  if(view==='pedidos'||view==='inbox'){ const id=S.sel; const [c,p]=await Promise.all([
+    sb.from('bot_conversaciones').select('*').eq('negocio_id',id).order('updated_at',{ascending:false}).limit(300),
+    sb.from('bot_pedidos').select('*').eq('negocio_id',id).order('created_at',{ascending:false}).limit(300)]);
+    if(S.sel===id){ if(c.data) S.convs=c.data; if(p.data) S.pedidos=p.data; } }
+  if(S.view===view) render(); }
+async function selBiz(id){ S.sel=id; S.openConv=null; S.testConv=null; S.msgs=[]; S.msgsConv=null; if(S.view==='new') S.view='inbox';
+  document.documentElement.style.setProperty('--acc',biz()?.color||'#4f46e5'); $('#view').innerHTML='<div class="loading">Cargando…</div>'; renderNav();
+  await loadBiz(); if(S.view==='test') await prepTest(); render(); }
+
+/* ======================= Nuevo negocio ======================= */
+function viewNew(){
+  const first=!S.negocios.length;
+  return `<div class="pad"><h1>${first?'Crea tu primer negocio':'Nuevo negocio'}</h1>
+   <p class="sub">Elige el tipo de negocio. El bot cambia su forma de actuar: <b>vender</b> productos, <b>agendar</b> citas o <b>informar</b> y cotizar. Todo se puede editar después.</p>
+   <div class="tgrid">${TEMPLATES.map((t,i)=>`<button class="tcard" onclick="createBiz(${i},this)"><span class="ic">${t.icon}</span><b>${esc(t.title)}</b><span>${esc(t.desc)}</span><span class="mtag">${MODOS[t.n.modo]}</span></button>`).join('')}</div>
+   ${!first?`<p style="margin-top:20px"><button class="btn" onclick="go('inbox')">← Volver</button></p>`:''}</div>`;
+}
+async function createBiz(i,el){
+  el.disabled=true; const t=TEMPLATES[i];
+  const {data,error}=await sb.from('bot_negocios').insert({...t.n,color:t.color}).select('*').single();
+  if(error){ el.disabled=false; toast('No se pudo crear: '+error.message); return; }
+  if(t.p.length) await sb.from('bot_productos').insert(t.p.map(([nombre,precio,descripcion])=>({negocio_id:data.id,nombre,precio,descripcion})));
+  S.negocios.push(data); S.sel=data.id; await loadBiz(); S.view='config'; render(); toast('Negocio creado. Personaliza su información.');
+}
+
+/* ======================= Conversaciones ======================= */
+function viewInbox(){
+  return `<div class="inbox ${S.openConv?'open':''}">
+   <div class="clist"><div class="clhead"><h2>Conversaciones</h2><div class="stats" id="stats"></div>
+    <input class="search" placeholder="Buscar cliente o mensaje…" value="${esc(S.q)}" oninput="S.q=this.value;renderConvList()">
+    <div class="filters">${[['all','Todas'],['atencion','Requieren atención'],['whatsapp','WhatsApp'],['facebook','Facebook'],['cerrada','Resueltas'],['prueba','Pruebas']].map(([k,l])=>`<button class="chip ${S.filter===k?'on':''}" onclick="S.filter='${k}';document.querySelectorAll('.filters .chip').forEach(x=>x.classList.remove('on'));this.classList.add('on');renderConvList()">${l}</button>`).join('')}</div>
+   </div><div id="convlist"></div></div>
+   <div class="thread" id="thread"></div></div>`;
+}
+function renderConvList(){
+  const el=$('#convlist'); if(!el) return;
+  const all=S.convs.filter(c=>c.canal!=='prueba');
+  const st=$('#stats'); if(st) st.textContent=all.length?`${all.length} clientes · ${all.filter(c=>c.estado==='atencion').length} requieren atención · ${all.filter(c=>c.modo==='bot'&&c.estado!=='cerrada').length} con el bot`:'Sin conversaciones de clientes todavía';
+  const q=S.q.trim().toLowerCase(), f=S.filter;
+  let list=S.convs.filter(c=> f==='prueba'?c.canal==='prueba' : f==='all'?true : f==='atencion'?c.estado==='atencion' : f==='cerrada'?c.estado==='cerrada' : c.canal===f);
+  if(q) list=list.filter(c=>(c.cliente_nombre||'').toLowerCase().includes(q)||(c.ultimo_mensaje||'').toLowerCase().includes(q)||c.cliente_id.includes(q));
+  if(!list.length){ el.innerHTML=`<div class="empty">${S.convs.length?'No hay conversaciones con este filtro.':'Aún no hay conversaciones.<br>Conecta WhatsApp o Facebook en <b>Conectar</b>, o prueba el bot en <b>Probar bot</b>.'}</div>`; return; }
+  el.innerHTML=list.map(c=>{ const tag=c.estado==='cerrada'?'<span class="tag done">Resuelta</span>':c.modo==='bot'?'<span class="tag bot">Bot</span>':'<span class="tag hum">Humano</span>';
+    return `<button class="citem ${c.id===S.openConv?'on':''}" onclick="openConv('${c.id}')">
+     <span class="av" style="background:${avColor(c.cliente_nombre)}">${esc(initials(c.cliente_nombre))}<span class="ch ${c.canal}">${CANAL[c.canal][0]}</span></span>
+     <span class="cbody"><span class="crow"><b>${esc(c.cliente_nombre)}</b><span class="ctime">${fmtTime(c.updated_at)}</span></span>
+     <div class="cprev">${esc(c.ultimo_mensaje||'—')}</div>
+     <span class="tags">${tag}${c.estado==='atencion'?'<span class="tag hum">⚠ Atención</span>':''}</span></span>
+     ${c.no_leido&&c.id!==S.openConv?'<span class="unr"></span>':''}</button>`; }).join('');
+}
+async function openConv(id){
+  S.openConv=id; const c=S.convs.find(x=>x.id===id);
+  document.querySelector('.inbox')?.classList.add('open'); renderConvList();
+  $('#thread').innerHTML='<div class="loading">Cargando…</div>';
+  await loadMsgs(id); if(S.openConv!==id) return;
+  renderThread();
+  if(c&&c.no_leido){ c.no_leido=false; sb.from('bot_conversaciones').update({no_leido:false}).eq('id',id).then(()=>{}); renderConvList(); }
+}
+function closeConv(){ S.openConv=null; S.msgsConv=null; document.querySelector('.inbox')?.classList.remove('open'); renderConvList(); renderThread(); }
+function renderThread(){
+  const el=$('#thread'); if(!el) return;
+  const c=S.convs.find(x=>x.id===S.openConv);
+  if(!c){ el.innerHTML='<div class="empty" style="margin:auto">Selecciona una conversación para verla.</div>'; return; }
+  el.innerHTML=`<div class="thead" id="thead"></div><div id="tban"></div><div class="msgs" id="msgs"></div>
+   <div class="comp"><textarea id="agentmsg" rows="1" placeholder="Responder como agente${c.canal!=='prueba'?' (se envía por '+CANAL[c.canal][1]+')':''}…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();agentSend()}"></textarea>
+   <button class="btn sm" onclick="suggest(this)">✨ Sugerir</button><button class="btn pri sm" id="sendbtn" onclick="agentSend()">Enviar</button></div>`;
+  renderThreadHead(); renderMsgs(true);
+}
+function renderThreadHead(){
+  const h=$('#thead'); const c=S.convs.find(x=>x.id===S.openConv); if(!h||!c) return;
+  h.innerHTML=`<button class="btn sm back" onclick="closeConv()">←</button>
+   <span class="av" style="background:${avColor(c.cliente_nombre)}">${esc(initials(c.cliente_nombre))}<span class="ch ${c.canal}">${CANAL[c.canal][0]}</span></span>
+   <div class="who"><b>${esc(c.cliente_nombre)}</b><small>${CANAL[c.canal][1]}${c.canal==='whatsapp'?' · +'+esc(c.cliente_id):''}</small></div>
+   ${c.modo==='bot'?`<button class="btn sm" onclick="setMode('humano')">🙋 Tomar control</button>`:`<button class="btn sm" onclick="setMode('bot')">🤖 Devolver al bot</button>`}
+   ${c.estado!=='cerrada'?`<button class="btn sm" onclick="setEstado('cerrada')">✓ Resolver</button>`:`<button class="btn sm" onclick="setEstado('abierta')">Reabrir</button>`}
+   <button class="btn sm red" onclick="delConv()">🗑</button>`;
+  $('#tban').innerHTML=c.estado==='atencion'?'<div class="banner">⚠ Este cliente necesita a una persona. El bot está en pausa: respóndele desde aquí.</div>':c.modo==='humano'?'<div class="banner">Estás atendiendo manualmente. El bot no responderá hasta que se lo devuelvas.</div>':'';
+}
+function bubbles(customerView){
+  let h=S.msgs.map(m=>{
+    if(m.rol==='sistema') return `<div class="b sistema">${esc(m.texto)}</div>`;
+    const lbl=customerView?'':m.rol==='bot'?'<span class="lbl">🤖 Bot</span>':m.rol==='agente'?'<span class="lbl">🧑‍💼 Agente</span>':'';
+    return `<div class="b ${m.rol}">${lbl}${esc(m.texto)}<small>${m.tmp?'Enviando…':fmtTime(m.created_at)}</small></div>`; }).join('');
+  if(S.typing&&S.typing===S.msgsConv) h+=`<div class="b bot">${customerView?'':'<span class="lbl">🤖 Bot</span>'}<span class="typing"><i></i><i></i><i></i></span></div>`;
+  return h;
+}
+function renderMsgs(force){
+  const el=$('#msgs'); if(!el) return;
+  const bottom=el.scrollHeight-el.scrollTop-el.clientHeight<90;
+  const cust=S.view==='test';
+  el.innerHTML=bubbles(cust)||(cust?'<div class="empty" style="margin:auto">Escribe como si fueras un cliente 👇</div>':'');
+  if(force||bottom) el.scrollTop=el.scrollHeight;
+  if(cust) renderSimStatus();
+}
+async function setMode(modo){ const c=S.convs.find(x=>x.id===S.openConv); if(!c) return;
+  const upd={modo}; if(modo==='bot'&&c.estado==='atencion') upd.estado='abierta';
+  Object.assign(c,upd); renderThreadHead(); renderConvList();
+  const {error}=await sb.from('bot_conversaciones').update(upd).eq('id',c.id); if(error) toast(error.message);
+  await sb.from('bot_mensajes').insert({conversacion_id:c.id,rol:'sistema',texto:modo==='bot'?'Conversación devuelta al bot.':'Un agente tomó el control.'}); }
+async function setEstado(estado){ const c=S.convs.find(x=>x.id===S.openConv); if(!c) return; Object.assign(c,{estado}); renderThreadHead(); renderConvList();
+  const {error}=await sb.from('bot_conversaciones').update({estado}).eq('id',c.id); if(error) toast(error.message); else toast(estado==='cerrada'?'Marcada como resuelta':'Reabierta'); }
+async function delConv(){ if(!await ask('¿Borrar esta conversación y sus mensajes?','Borrar')) return; const id=S.openConv;
+  const {error}=await sb.from('bot_conversaciones').delete().eq('id',id); if(error) return toast(error.message);
+  S.convs=S.convs.filter(c=>c.id!==id); delete S.att[id]; closeConv(); renderNav(); }
+async function agentSend(){
+  const ta=$('#agentmsg'), t=ta.value.trim(); if(!t) return; const id=S.openConv; ta.value=''; $('#sendbtn').disabled=true;
+  S.msgs.push({tmp:1,rol:'agente',texto:t}); renderMsgs(true);
+  try{ const r=await call('enviar',id,t); if(!r.ok) toast('Guardado, pero no se entregó: '+(r.error||'')); }
+  catch(e){ toast(e.message); ta.value=t; }
+  $('#sendbtn')&&($('#sendbtn').disabled=false);
+  if(S.msgsConv===id){ await loadMsgs(id); renderMsgs(true); }
+}
+async function suggest(btn){ btn.disabled=true; btn.textContent='…';
+  try{ const r=await call('sugerir',S.openConv); const ta=$('#agentmsg'); if(ta){ ta.value=r.texto||''; ta.focus(); } }catch(e){ toast(e.message); }
+  btn.disabled=false; btn.textContent='✨ Sugerir'; }
+
+/* ======================= Pedidos ======================= */
+function renderPedidos(){
+  const el=$('#pedidos'); if(!el) return; const b=biz();
+  const fl=S.pfilter||'activos';
+  const list=S.pedidos.filter(p=>fl==='todos'||(fl==='activos'?['nuevo','confirmado'].includes(p.estado):p.estado===fl));
+  const totalHoy=S.pedidos.filter(p=>p.estado!=='cancelado'&&new Date(p.created_at).toDateString()===new Date().toDateString()).reduce((s,p)=>s+Number(p.total||0),0);
+  el.innerHTML=`<h1>Pedidos y citas</h1><p class="sub">Todo lo que el bot registra en WhatsApp, Facebook o pruebas aparece aquí en tiempo real. Hoy: <b>${money(totalHoy)}</b></p>
+   <div class="filters" style="margin-bottom:16px">${[['activos','Activos'],['nuevo','Nuevos'],['confirmado','Confirmados'],['entregado','Entregados'],['cancelado','Cancelados'],['todos','Todos']].map(([k,l])=>`<button class="chip ${fl===k?'on':''}" onclick="S.pfilter='${k}';renderPedidos()">${l}</button>`).join('')}</div>
+   ${list.length?`<div class="ogrid">${list.map(p=>{ const c=S.convs.find(x=>x.id===p.conversacion_id);
+     return `<div class="ocard"><div class="hd"><b>${{pedido:'🛒 Pedido',cita:'📅 Cita',reservacion:'📅 Reservación',cotizacion:'📝 Cotización'}[p.tipo]||'🛒 Pedido'} #${p.id}</b><span class="est ${p.estado}">${p.estado}</span></div>
+      <div class="meta"><b style="color:var(--ink)">${esc(p.cliente_nombre||'Cliente')}</b>${p.cliente_contacto?' · '+esc(p.cliente_contacto):''}<br>${fmtTime(p.created_at)}${c?' · '+CANAL[c.canal][1]:''}${p.fecha_solicitada?'<br>📆 '+esc(p.fecha_solicitada):''}</div>
+      ${(p.items||[]).length?`<ul>${p.items.map(i=>`<li>${esc(i.cantidad||1)} × ${esc(i.producto)}${i.precio?' — '+money(i.precio):''}</li>`).join('')}</ul>`:''}
+      ${p.notas?`<div class="meta">📝 ${esc(p.notas)}</div>`:''}
+      <div class="hd">${Number(p.total)?`<span class="tot">${money(p.total)}</span>`:'<span></span>'}
+       <span style="display:flex;gap:6px">${c?`<button class="btn sm" onclick="goConv('${c.id}')">Ver chat</button>`:''}
+       <select class="inp" style="width:auto;padding:6px 8px" onchange="setPedido(${p.id},this.value)">${['nuevo','confirmado','entregado','cancelado'].map(e=>`<option ${e===p.estado?'selected':''}>${e}</option>`).join('')}</select></span></div></div>`; }).join('')}</div>`
+   :`<div class="card empty">${S.pedidos.length?'No hay pedidos con este filtro.':`Aún no hay ${b.modo==='citas'?'citas':'pedidos'}. Cuando un cliente confirme por chat, el bot lo registrará aquí.`}</div>`}`;
+}
+async function setPedido(id,estado){ const p=S.pedidos.find(x=>x.id===id); if(p) p.estado=estado;
+  const {error}=await sb.from('bot_pedidos').update({estado}).eq('id',id); if(error) toast(error.message); renderPedidos(); renderNav(); }
+function goConv(id){ S.view='inbox'; render(); openConv(id); }
+
+/* ======================= Productos ======================= */
+function viewProductos(){
+  const b=biz();
+  return `<div class="pad"><h1>${b.modo==='ventas'?'Productos':'Servicios'} y precios</h1><p class="sub">El bot solo ofrece lo que esté aquí y marcado como disponible. Los cambios aplican al instante.</p>
+   ${S.productos.length?`<table class="ptable"><tr><th>Nombre</th><th style="width:120px">Precio</th><th class="hide-m">Descripción</th><th style="width:90px">Disponible</th><th style="width:40px"></th></tr>
+   ${S.productos.map(p=>`<tr><td><input class="inp" value="${esc(p.nombre)}" onchange="updProd('${p.id}','nombre',this.value)"></td>
+    <td><input class="inp" type="number" min="0" step="0.01" value="${p.precio}" onchange="updProd('${p.id}','precio',this.value)"></td>
+    <td class="hide-m"><input class="inp" value="${esc(p.descripcion)}" placeholder="Talla, color, detalles…" onchange="updProd('${p.id}','descripcion',this.value)"></td>
+    <td style="text-align:center"><input type="checkbox" ${p.disponible?'checked':''} onchange="updProd('${p.id}','disponible',this.checked)" style="width:20px;height:20px;accent-color:var(--acc)"></td>
+    <td><button class="btn sm red" onclick="delProd('${p.id}')">✕</button></td></tr>`).join('')}</table>`:'<div class="card empty">Aún no hay productos. Agrega el primero abajo.</div>'}
+   <form class="addrow" onsubmit="event.preventDefault();addProd()"><input class="inp" id="np_n" placeholder="Nombre del producto o servicio" required><input class="inp" id="np_p" type="number" min="0" step="0.01" placeholder="Precio" required><input class="inp" id="np_d" placeholder="Descripción (opcional)"><button class="btn pri">+ Agregar</button></form></div>`;
+}
+async function addProd(){ const nombre=$('#np_n').value.trim(), precio=Number($('#np_p').value), descripcion=$('#np_d').value.trim(); if(!nombre) return;
+  const {data,error}=await sb.from('bot_productos').insert({negocio_id:S.sel,nombre,precio,descripcion}).select('*').single();
+  if(error) return toast(error.message); S.productos.push(data); render(); $('#np_n')?.focus(); }
+async function updProd(id,k,v){ if(k==='precio') v=Number(v)||0; const p=S.productos.find(x=>x.id===id); if(p) p[k]=v;
+  const {error}=await sb.from('bot_productos').update({[k]:v}).eq('id',id); toast(error?error.message:'Guardado'); }
+async function delProd(id){ if(!await ask('¿Eliminar este producto?','Eliminar')) return; const {error}=await sb.from('bot_productos').delete().eq('id',id); if(error) return toast(error.message);
+  S.productos=S.productos.filter(p=>p.id!==id); render(); }
+
+/* ======================= Probar ======================= */
+async function prepTest(){
+  if(S.testConv&&S.convs.some(c=>c.id===S.testConv)){ if(S.msgsConv!==S.testConv) await loadMsgs(S.testConv); return; }
+  const ex=S.convs.find(c=>c.canal==='prueba'); if(ex){ S.testConv=ex.id; await loadMsgs(ex.id); return; }
+  S.testConv=null; S.msgs=[]; S.msgsConv=null;
+}
+async function newTest(){
+  const {data,error}=await sb.from('bot_conversaciones').insert({negocio_id:S.sel,canal:'prueba',cliente_id:'prueba-'+Date.now(),cliente_nombre:'Cliente de prueba',no_leido:false}).select('*').single();
+  if(error){ toast(error.message); return null; }
+  S.convs.unshift(data); S.testConv=data.id; S.msgsConv=data.id; S.msgs=[];
+  const b=biz(); if(b.bienvenida){ const {data:m}=await sb.from('bot_mensajes').insert({conversacion_id:data.id,rol:'bot',texto:b.bienvenida}).select('*').single(); if(m&&!S.msgs.some(x=>x.id===m.id)) S.msgs.push(m); }
+  renderMsgs(true); return data.id;
+}
+function viewTest(){
+  const b=biz();
+  const quick={ventas:['¿Qué productos tienen?','¿Hacen envíos?','Quiero comprar'],citas:['¿Qué servicios tienen?','Quiero agendar una cita','¿Cuál es su horario?'],informacion:['¿Qué servicios ofrecen?','Quiero una cotización','¿Dónde están?']}[b.modo]||[];
+  return `<div class="pad"><h1>Probar el bot</h1><p class="sub">Escribe como cliente. El bot usa la misma IA, productos y reglas que en WhatsApp y Facebook; si cierras una compra o cita verás el registro en <b>Pedidos</b>.</p>
+  <div class="simwrap"><div><div class="phone">
+   <div class="phead"><span class="av">${esc(initials(b.nombre))}</span><div style="flex:1"><b>${esc(b.nombre)}</b><small id="simstatus">En línea</small></div>
+    <button class="btn sm" style="background:rgba(255,255,255,.2);color:#fff;border:0" onclick="resetTest()">Reiniciar</button></div>
+   <div class="msgs" id="msgs"></div>
+   <form class="comp" onsubmit="event.preventDefault();simSend()"><input id="simin" placeholder="Escribe un mensaje…" autocomplete="off"><button class="send">➤</button></form>
+  </div></div>
+  <div class="card"><h2>Ideas para probar</h2>
+   <ul class="tips" style="padding-left:18px;margin:12px 0">
+    <li><b>Pregunta precios</b> y disponibilidad: responde con tu catálogo real.</li>
+    <li><b>Haz un pedido completo</b> (producto, nombre, teléfono): el bot lo registra en Pedidos.</li>
+    <li><b>Pide hablar con una persona</b>: el bot se pausa y te avisa en Conversaciones.</li>
+    <li><b>Pregunta algo que no sabe</b>: no inventa, ofrece pasarte con alguien.</li></ul>
+   <b style="font-size:13px">Mensajes rápidos</b><div class="qs">${[...quick,'Quiero hablar con una persona'].map(q=>`<button onclick="simQuick(this)">${esc(q)}</button>`).join('')}</div>
+   ${!b.activo?'<div class="note" style="margin-top:14px">El bot de este negocio está <b>apagado</b>. Actívalo en Configurar para que responda.</div>':''}
+  </div></div></div>`;
+}
+function renderSimStatus(){ const s=$('#simstatus'); if(!s) return; const c=S.convs.find(x=>x.id===S.testConv);
+  s.textContent=S.typing&&S.typing===S.testConv?'Escribiendo…':c&&c.modo==='humano'?'Atendido por una persona':'En línea'; }
+async function resetTest(){ if(S.testConv){ await sb.from('bot_conversaciones').delete().eq('id',S.testConv); S.convs=S.convs.filter(c=>c.id!==S.testConv); delete S.att[S.testConv]; }
+  S.testConv=null; S.msgs=[]; S.msgsConv=null; await newTest(); renderNav(); }
+async function simSend(){
+  const i=$('#simin'), t=i.value.trim(); if(!t) return;
+  if(S.typing){ toast('Espera a que el bot responda'); return; }
+  i.value='';
+  let id=S.testConv; if(!id){ id=await newTest(); if(!id) return; }
+  S.msgs.push({tmp:1,rol:'cliente',texto:t});
+  const c=S.convs.find(x=>x.id===id); if(c&&c.modo==='bot'&&biz().activo) S.typing=id;
+  renderMsgs(true);
+  try{ await call('probar',id,t); }catch(e){ toast(e.message); }
+  S.typing=null;
+  if(S.msgsConv===id){ await loadMsgs(id); renderMsgs(true); }
+}
+function simQuick(b){ $('#simin').value=b.textContent; simSend(); }
+
+/* ======================= Configurar ======================= */
+function viewConfig(){
+  const b=biz();
+  const fld=(k,label,hint,rows,ph='')=>`<label class="f">${label}${hint?`<small>${hint}</small>`:''}${!rows?`<input class="inp" id="f_${k}" value="${esc(b[k])}" placeholder="${esc(ph)}">`:`<textarea class="inp" id="f_${k}" rows="${rows}" placeholder="${esc(ph)}">${esc(b[k])}</textarea>`}</label>`;
+  return `<div class="pad"><h1>Configurar bot</h1><p class="sub">Lo que escribas aquí es lo que el bot sabe y cómo se comporta. Los productos se editan en <b>Productos</b>.</p>
+  <div class="card form">
+   <label class="switch"><input type="checkbox" id="f_activo" ${b.activo?'checked':''}> Bot encendido (responde automáticamente)</label>
+   <div class="sec">Identidad</div>
+   <div class="row2">${fld('nombre','Nombre del negocio')}${fld('giro','Giro','', 0,'Ej. Venta de pompones, restaurante…')}</div>
+   <div class="row2"><label class="f">¿Qué debe hacer el bot?<small>Cambia su objetivo principal.</small><select class="inp" id="f_modo">${Object.entries(MODOS).map(([k,l])=>`<option value="${k}" ${k===b.modo?'selected':''}>${l}</option>`).join('')}</select></label>
+    <label class="f">Tono de voz<small>&nbsp;</small><select class="inp" id="f_tono">${TONES.map(t=>`<option ${t===b.tono?'selected':''}>${t}</option>`).join('')}${TONES.includes(b.tono)?'':`<option selected>${esc(b.tono)}</option>`}</select></label></div>
+   <label class="f">Color de marca<div class="colors" id="colors">${COLORS.map(c=>`<button type="button" class="sw ${c===b.color?'on':''}" data-c="${c}" style="background:${c}" onclick="pickColor('${c}')"></button>`).join('')}<input type="color" id="f_color" value="${esc(b.color)}" oninput="pickColor(this.value)" style="width:34px;height:30px;border:0;background:none"></div></label>
+   ${fld('bienvenida','Mensaje de bienvenida','Se usa en las pruebas; en WhatsApp y Facebook el bot saluda de forma natural.',2)}
+   <div class="sec">Información del negocio</div>
+   <div class="row2">${fld('horario','Horario','',0,'Lun–Sáb 10:00–19:00')}${fld('contacto','Ubicación y contacto','',0,'Dirección, teléfono, web')}</div>
+   <div class="row2">${fld('envio','Envíos o entrega','',2,'Zonas, costos, tiempos')}${fld('pagos','Formas de pago','',2,'Transferencia, efectivo…')}</div>
+   ${fld('faqs','Preguntas frecuentes','Pregunta y respuesta, una por línea.',5,'¿Pregunta? Respuesta.')}
+   <div class="sec">Comportamiento</div>
+   ${fld('reglas','Reglas especiales','Qué debe o no hacer, cuándo pasar con una persona.',3)}
+   ${fld('datos_pedido','Datos que debe pedir para cerrar un pedido o cita','',0,'nombre, teléfono, dirección…')}
+  </div>
+  <div class="actions"><button class="btn red" onclick="delBiz()">Eliminar negocio</button><div style="display:flex;gap:8px"><button class="btn" onclick="saveConfig(true)">Guardar y probar</button><button class="btn pri" onclick="saveConfig()">Guardar cambios</button></div></div></div>`;
+}
+function pickColor(c){ document.documentElement.style.setProperty('--acc',c); $('#f_color').value=c; document.querySelectorAll('#colors .sw').forEach(s=>s.classList.toggle('on',s.dataset.c===c)); }
+async function saveConfig(thenTest){
+  const upd={}; ['nombre','giro','modo','tono','bienvenida','horario','contacto','envio','pagos','faqs','reglas','datos_pedido','color'].forEach(k=>{ const el=$('#f_'+k); if(el) upd[k]=el.value.trim(); });
+  upd.activo=$('#f_activo').checked;
+  if(!upd.nombre) return toast('El negocio necesita un nombre');
+  const {data,error}=await sb.from('bot_negocios').update(upd).eq('id',S.sel).select('*').single();
+  if(error) return toast(error.message);
+  Object.assign(biz(),data); toast('Cambios guardados');
+  if(thenTest) go('test'); else render();
+}
+async function delBiz(){ const b=biz(); if(!await ask(`¿Eliminar "${b.nombre}" con todas sus conversaciones, pedidos y productos? No se puede deshacer.`,'Eliminar')) return;
+  const {error}=await sb.from('bot_negocios').delete().eq('id',b.id); if(error) return toast(error.message);
+  S.negocios=S.negocios.filter(n=>n.id!==b.id); Object.keys(S.att).forEach(k=>{ if(S.att[k]===b.id) delete S.att[k]; });
+  S.sel=S.negocios[0]?.id||null; if(S.sel){ await loadBiz(); S.view='inbox'; } else S.view='new'; render(); toast('Negocio eliminado'); }
+
+/* ======================= Conectar WhatsApp / Facebook ======================= */
+function viewConnect(){
+  const b=biz(); const waOn=!!(b.wa_phone_id&&S.cred.wa), fbOn=!!(b.fb_page_id&&S.cred.fb);
+  const tokenPh=on=>on?'•••••••• guardado (escribe uno nuevo para reemplazarlo)':'Pega aquí el token de acceso';
+  return `<div class="pad"><h1>Conectar canales</h1><p class="sub">Conecta el WhatsApp Business y la página de Facebook de <b>${esc(b.nombre)}</b>. Cada negocio usa su propio número y página; todos llegan a este panel.</p>
+  <div class="card" style="margin-bottom:18px"><h2>Datos del webhook (los mismos para todos tus negocios)</h2>
+   <p class="sub" style="margin:4px 0 12px">Pégalos en tu app de Meta for Developers, tanto en WhatsApp como en Messenger.</p>
+   <div class="form"><label class="f">URL de devolución de llamada (Callback URL)<div class="code"><span>${WEBHOOK_URL}</span><button onclick="copyText('${WEBHOOK_URL}',this)">Copiar</button></div></label>
+   <label class="f">Token de verificación (Verify token)<small>Es la palabra secreta que guardaste como <b>META_VERIFY_TOKEN</b> en Supabase. Escríbela exactamente igual en Meta.</small></label></div></div>
+  <div class="conn">
+   <div class="card"><div class="chead"><span class="cicon" style="background:var(--wa)">W</span><div><h2>WhatsApp Business</h2><small style="color:var(--mute)">WhatsApp Cloud API</small></div><span class="status ${waOn?'on':'off'}">${waOn?'Conectado':'Sin conectar'}</span></div>
+    <div class="form"><label class="f">Phone number ID<small>Meta for Developers → tu app → WhatsApp → Configuración de la API.</small><input class="inp" id="c_wa_id" value="${esc(b.wa_phone_id)}" placeholder="Ej. 123456789012345"></label>
+    <label class="f">Token de acceso permanente<small>Créalo con un usuario del sistema en Business Manager con el permiso whatsapp_business_messaging.</small><input class="inp" id="c_wa_tok" type="password" placeholder="${tokenPh(S.cred.wa)}" autocomplete="off"></label>
+    <div style="display:flex;gap:8px"><button class="btn pri" onclick="saveConn('wa')">Guardar WhatsApp</button>${waOn?`<button class="btn red" onclick="disconnect('wa')">Desconectar</button>`:''}</div></div>
+    <ol class="steps"><li>En la app de Meta agrega el producto <b>WhatsApp</b>.</li><li>En <b>Configuración → Webhook</b> pega la URL y el token de verificación de arriba.</li><li>Suscríbete al campo <b>messages</b>.</li><li>Guarda aquí el Phone number ID y el token.</li></ol></div>
+   <div class="card"><div class="chead"><span class="cicon" style="background:var(--fb)">f</span><div><h2>Facebook Messenger</h2><small style="color:var(--mute)">Mensajes de tu página</small></div><span class="status ${fbOn?'on':'off'}">${fbOn?'Conectado':'Sin conectar'}</span></div>
+    <div class="form"><label class="f">ID de la página<small>Facebook → tu página → Información → ID de la página.</small><input class="inp" id="c_fb_id" value="${esc(b.fb_page_id)}" placeholder="Ej. 104857392847561"></label>
+    <label class="f">Token de acceso de la página<small>Meta for Developers → Messenger → Configuración de la API → Generar token.</small><input class="inp" id="c_fb_tok" type="password" placeholder="${tokenPh(S.cred.fb)}" autocomplete="off"></label>
+    <div style="display:flex;gap:8px"><button class="btn pri" onclick="saveConn('fb')">Guardar Facebook</button>${fbOn?`<button class="btn red" onclick="disconnect('fb')">Desconectar</button>`:''}</div></div>
+    <ol class="steps"><li>En la app de Meta agrega el producto <b>Messenger</b> y vincula tu página.</li><li>Configura el webhook con la URL y el token de arriba.</li><li>Suscribe la página a <b>messages</b>.</li><li>Guarda aquí el ID de la página y su token.</li></ol></div>
+  </div>
+  <div class="note" style="margin-top:18px">Mientras tu app de Meta esté en <b>modo desarrollo</b>, solo te escribirán los números o cuentas de prueba que agregues ahí. Para atender a cualquier cliente, publica la app y verifica tu negocio en Meta.</div></div>`;
+}
+async function saveConn(k){
+  const b=biz(); const idv=$('#c_'+k+'_id').value.trim(), tok=$('#c_'+k+'_tok').value.trim();
+  const col=k==='wa'?'wa_phone_id':'fb_page_id';
+  if(!idv) return toast(k==='wa'?'Falta el Phone number ID':'Falta el ID de la página');
+  if(!tok&&!S.cred[k]) return toast('Falta el token de acceso');
+  const {error:e1}=await sb.from('bot_negocios').update({[col]:idv}).eq('id',b.id);
+  if(e1) return toast(e1.code==='23505'?'Ese ID ya está conectado a otro negocio':e1.message);
+  b[col]=idv;
+  if(tok){ const {error:e2}=await sb.from('bot_credenciales').upsert({negocio_id:b.id,[k==='wa'?'wa_token':'fb_token']:tok,updated_at:new Date().toISOString()},{onConflict:'negocio_id'});
+    if(e2) return toast(e2.message); S.cred[k]=true; }
+  toast((k==='wa'?'WhatsApp':'Facebook')+' guardado'); render();
+}
+async function disconnect(k){ if(!await ask('¿Desconectar este canal? El bot dejará de recibir mensajes por ahí.','Desconectar')) return; const b=biz();
+  const col=k==='wa'?'wa_phone_id':'fb_page_id';
+  await sb.from('bot_negocios').update({[col]:null}).eq('id',b.id); b[col]=null;
+  await sb.from('bot_credenciales').update({[k==='wa'?'wa_token':'fb_token']:null}).eq('negocio_id',b.id); S.cred[k]=false; render(); }
+
+function newPassword(){
+  const m=$('#modal');
+  m.innerHTML=`<div class="mbox"><h2>Nueva contraseña</h2><p class="sub" style="margin:6px 0 14px">Escribe tu nueva contraseña (mínimo 6 caracteres).</p>
+   <form id="npform" class="form"><input class="inp" type="password" id="np_pass" minlength="6" required autocomplete="new-password"><div class="act"><button class="btn pri">Guardar</button></div></form></div>`;
+  m.classList.add('on'); m.onclick=null;
+  $('#npform').onsubmit=async e=>{ e.preventDefault(); const {error}=await sb.auth.updateUser({password:$('#np_pass').value});
+    if(error) return toast(error.message); m.classList.remove('on'); toast('Contraseña actualizada'); };
+}
+
+/* ======================= Inicio ======================= */
+sb.auth.onAuthStateChange((ev,session)=>{
+  if(session?.user && !S.user) setTimeout(()=>startApp(session.user),0);
+  if(ev==='SIGNED_OUT'){ S.user=null; S.negocios=[]; S.sel=null; S.authMode='login'; S.authMsg=null; renderAuth(); }
+  if(ev==='PASSWORD_RECOVERY') setTimeout(newPassword,300);
+});
+sb.auth.getSession().then(({data})=>{ if(!data.session) renderAuth(); });
+</script>
+</body>
+</html>
