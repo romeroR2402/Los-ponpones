@@ -2,7 +2,8 @@
 // Usa Supabase si está configurado en config.js; si no, MODO DEMO con datos en este navegador.
 (function () {
   const CFG = window.TIENDA || {};
-  const sb = CFG.url && window.supabase ? window.supabase.createClient(CFG.url, CFG.key) : null;
+  // storageKey propio: así el login de la tienda no se mezcla con BotHub ni Los Ponpones (mismo sitio)
+  const sb = CFG.url && window.supabase ? window.supabase.createClient(CFG.url, CFG.key, { auth: { storageKey: 'tienda-admin-auth' } }) : null;
 
   const CATEGORIAS = ['Playeras', 'Sudaderas', 'Suéteres', 'Pantalones', 'Bolsas'];
   const ESTADOS = ['pendiente', 'pagado', 'enviado', 'entregado', 'cancelado'];
