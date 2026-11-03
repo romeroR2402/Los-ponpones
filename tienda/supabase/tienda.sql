@@ -8,8 +8,8 @@
 create table if not exists tienda_admins (
   email text primary key
 );
--- CAMBIA este correo por el de tu usuario en Supabase > Authentication > Users
-insert into tienda_admins(email) values ('dueno@ponpones.com') on conflict do nothing;
+-- Correo del usuario administrador (Supabase > Authentication > Users)
+insert into tienda_admins(email) values ('romerorayo2402@gmail.com') on conflict do nothing;
 
 create or replace function tienda_es_admin() returns boolean
 language sql stable security definer set search_path = public as $$
@@ -30,9 +30,12 @@ create table if not exists tienda_productos (
   detalle      text default '',                    -- ej. "Algodón 100% · Serigrafía 1 tinta"
   destacado    boolean default false,              -- aparece en "Más vendidos"
   activo       boolean default true,               -- visible en la tienda
+  agotado      boolean default false,              -- se ve pero no se puede comprar
   orden        int default 0,
   creado       timestamptz default now()
 );
+
+alter table tienda_productos add column if not exists agotado boolean default false;
 
 -- ---------- 3. Ajustes (datos bancarios, WhatsApp, textos) ----------
 create table if not exists tienda_ajustes (
@@ -108,7 +111,7 @@ begin
     raise exception 'El carrito está vacío';
   end if;
   for it in select * from jsonb_array_elements(p_items) loop
-    select * into prod from tienda_productos where id = (it->>'id')::uuid and activo;
+    select * into prod from tienda_productos where id = (it->>'id')::uuid and activo and not coalesce(agotado,false);
     if not found then raise exception 'Un producto ya no está disponible'; end if;
     cant := greatest(1, least(99, coalesce((it->>'cant')::int, 1)));
     sub := sub + prod.precio * cant;
@@ -140,6 +143,9 @@ grant execute on function tienda_ver_pedido(text,text) to anon, authenticated;
 -- ---------- 7. Almacenamiento de imágenes ----------
 insert into storage.buckets (id, name, public) values ('productos', 'productos', true)  on conflict do nothing;
 insert into storage.buckets (id, name, public) values ('comprobantes', 'comprobantes', false) on conflict do nothing;
+-- Límites: fotos de máx. 10 MB y solo imágenes/PDF
+update storage.buckets set file_size_limit = 10485760, allowed_mime_types = array['image/jpeg','image/png','image/webp','image/heic','application/pdf'] where id = 'comprobantes';
+update storage.buckets set file_size_limit = 10485760, allowed_mime_types = array['image/jpeg','image/png','image/webp'] where id = 'productos';
 
 drop policy if exists "fotos productos publicas" on storage.objects;
 create policy "fotos productos publicas" on storage.objects for select using (bucket_id = 'productos');

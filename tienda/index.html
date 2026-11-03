@@ -66,7 +66,7 @@ function card(p) {
   const cols = p.colores || [];
   return `<article class="card" onclick="go('producto/${p.id}')">
     <div class="im">${ph(p)}</div>
-    ${pct(p) ? `<span class="off">-${pct(p)}%</span>` : ''}
+    ${p.agotado ? '<span class="off" style="background:#b42318">Agotado</span>' : pct(p) ? `<span class="off">-${pct(p)}%</span>` : ''}
     <button class="fav ${favs.includes(p.id) ? 'on' : ''}" aria-label="Favorito" onclick="event.stopPropagation();toggleFav('${p.id}',this)">${I('heart')}</button>
     <div class="bd"><h4>${esc(p.nombre)}</h4><div class="dt">${esc(p.detalle || p.categoria)}</div>
       <div class="price"><b>${money(p.precio)}</b>${p.precio_antes > p.precio ? `<s>${money(p.precio_antes)}</s>` : ''}</div>
@@ -117,12 +117,15 @@ function inicio() {
     </section>
     <div class="perks"><div>${I('print')}Serigrafía de calidad</div><div>${I('swap')}Cambios fáciles</div><div>${I('card')}Pago por transferencia</div></div>
     <div class="sec"><h3>Comprar por categoría</h3><button onclick="go('tienda')">Ver todo</button></div>
-    <div class="cats">${DB.CATEGORIAS.map(c => { const p = PRODS.find(x => x.categoria === c);
+    <div class="cats">${CATS().map(c => { const p = PRODS.find(x => x.categoria === c);
       return `<button class="cat" onclick="go('tienda/${c}')"><span class="ph">${p && p.imagenes[0] ? `<img src="${esc(p.imagenes[0])}" alt="">` : DB.prendaSVG(c, catColor(c))}</span>${c}</button>`; }).join('')}</div>
     ${dest.length ? `<div class="sec"><h3>Más vendidos</h3><button onclick="go('tienda')">Ver todo</button></div><div class="row">${dest.map(card).join('')}</div>` : ''}
     <div class="sec"><h3>Novedades</h3></div>
     <div class="grid">${PRODS.slice(0, 8).map(card).join('') || '<p class="empty">Pronto publicaremos productos.</p>'}</div>`;
 }
+// Categorías: solo las que tienen prendas publicadas (incluye las nuevas que crees en el panel)
+const CATS = () => { const usadas = new Set(PRODS.map(p => p.categoria));
+  return [...DB.CATEGORIAS.filter(c => usadas.has(c)), ...[...usadas].filter(c => !DB.CATEGORIAS.includes(c))]; };
 const catColor = c => ({Playeras: '#a9c4ec', Sudaderas: '#9aae8a', Suéteres: '#d8c7ab', Pantalones: '#3d4f6e', Bolsas: '#e8dcc4'}[c]);
 
 // ---------- Catálogo ----------
@@ -131,7 +134,7 @@ function tienda(cat) {
   const t = q.trim().toLowerCase();
   const lista = PRODS.filter(p => (!cat || p.categoria === cat) && (!t || (p.nombre + ' ' + p.categoria + ' ' + p.detalle + ' ' + p.descripcion).toLowerCase().includes(t)));
   $('#view').innerHTML = `
-    <div class="tabs">${['', ...DB.CATEGORIAS].map(c => `<button class="${(cat || '') === c ? 'on' : ''}" onclick="go('tienda${c ? '/' + c : ''}')">${c || 'Todo'}</button>`).join('')}</div>
+    <div class="tabs">${['', ...CATS()].map(c => `<button class="${(cat || '') === c ? 'on' : ''}" onclick="go('tienda${c ? '/' + c : ''}')">${c || 'Todo'}</button>`).join('')}</div>
     ${t ? `<p class="note">Resultados para “${esc(q)}” · <a href="#" onclick="q='';render();return false">quitar</a></p>` : ''}
     ${lista.length ? `<div class="grid">${lista.map(card).join('')}</div>` : `<div class="empty">${I('search')}<p>No hay productos aquí todavía.</p></div>`}`;
 }
@@ -161,7 +164,8 @@ function producto(id) {
       <div class="lbl">Cantidad</div>
       <div class="qty"><button onclick="sel.cant=Math.max(1,sel.cant-1);render()">−</button><span>${sel.cant}</span><button onclick="sel.cant=Math.min(99,sel.cant+1);render()">+</button></div>
       ${p.descripcion ? `<p class="desc">${esc(p.descripcion)}</p>` : ''}
-      <div class="buy"><button class="btn out lg" onclick="agregar(false)">${I('cart')} Agregar</button><button class="btn lg" onclick="agregar(true)">Comprar ahora</button></div>
+      ${p.agotado ? `<div class="buy" style="grid-template-columns:1fr"><button class="btn lg" disabled>Agotado por ahora</button></div>`
+        : `<div class="buy"><button class="btn out lg" onclick="agregar(false)">${I('cart')} Agregar</button><button class="btn lg" onclick="agregar(true)">Comprar ahora</button></div>`}
     </div></div>`;
 }
 function agregar(comprar) {
@@ -179,7 +183,7 @@ function compartir() {
 
 // ---------- Carrito ----------
 function lineas() {
-  return cart.map(i => ({...i, p: PRODS.find(p => p.id === i.id)})).filter(i => i.p);
+  return cart.map(i => ({...i, p: PRODS.find(p => p.id === i.id)})).filter(i => i.p && !i.p.agotado);
 }
 function totales() {
   const sub = lineas().reduce((s, i) => s + i.p.precio * i.cant, 0), env = Number(AJ.envio) || 0;

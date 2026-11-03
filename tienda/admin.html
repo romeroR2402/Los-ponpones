@@ -37,6 +37,17 @@
 .ord select{border:1.5px solid var(--line);border-radius:10px;padding:8px;background:var(--card)}
 .login{max-width:380px;margin:8vh auto;text-align:center}
 .login h2{font:400 26px var(--serif)}
+.edl{display:grid;gap:24px}
+@media(min-width:900px){.edl{grid-template-columns:1fr 300px;align-items:start}.prev{position:sticky;top:76px}}
+.prev .card{max-width:260px}
+.fotos .pt{left:4px;right:auto;width:auto;padding:0 6px;border-radius:6px;font-size:11px}
+.fotos span.pt{position:absolute;top:4px;background:var(--brand);color:var(--brand-ink);height:20px;line-height:20px;font-weight:700}
+.grp{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.grp button{border:1px dashed var(--line);background:none;border-radius:8px;padding:5px 10px;font-size:12px;color:var(--mute)}
+.quick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.quick button{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--card);border-radius:99px;padding:5px 10px 5px 6px;font-size:12px}
+.quick button.on{border-color:var(--ink);font-weight:600}
+.quick i{width:16px;height:16px;border-radius:50%;border:1px solid rgba(0,0,0,.15)}
 </style>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -65,13 +76,14 @@ async function inicio() {
 }
 function login() {
   $('#view').innerHTML = `<form class="login" onsubmit="entrar(event)"><h2>Bienvenido</h2><p class="note">Entra para publicar productos y revisar pagos.</p>
-    <label class="f" style="text-align:left">Correo<input name="e" type="email" required autocomplete="username"></label>
-    <label class="f" style="text-align:left">Contraseña<input name="p" type="password" ${DB.demo ? '' : 'required'} autocomplete="current-password"></label>
+    <label class="f" style="text-align:left">Usuario (correo)<input name="e" type="email" required autocomplete="username" value="${esc((window.TIENDA || {}).email || '')}"></label>
+    <label class="f" style="text-align:left">Contraseña<input name="p" type="password" ${DB.demo ? '' : 'required'} autocomplete="current-password" ${(window.TIENDA || {}).email ? 'autofocus' : ''}></label>
     <button class="btn lg">Entrar</button></form>`;
 }
 async function entrar(e) {
   e.preventDefault();
-  try { await DB.entrar(e.target.e.value, e.target.p.value); inicio(); } catch (err) { toast('No se pudo entrar: ' + err.message); }
+  try { await DB.entrar(e.target.e.value.trim(), e.target.p.value); inicio(); }
+  catch (err) { toast(/invalid/i.test(err.message) ? 'Usuario o contraseña incorrectos' : 'No se pudo entrar: ' + err.message); }
 }
 async function cargar() {
   [PRODS, PEDS, AJ] = await Promise.all([DB.productos(), DB.pedidos(), DB.ajustes()]);
@@ -80,7 +92,7 @@ function pintar() {
   const pend = PEDS.filter(p => p.estado === 'pendiente').length;
   $('#view').innerHTML = `<div class="tbar">
     <button class="${tab === 'pedidos' ? 'on' : ''}" onclick="tab='pedidos';pintar()">Pedidos${pend ? ` (${pend})` : ''}</button>
-    <button class="${tab === 'productos' ? 'on' : ''}" onclick="tab='productos';ed=null;pintar()">Productos (${PRODS.length})</button>
+    <button class="${tab === 'productos' ? 'on' : ''}" onclick="tab='productos';ed=null;pintar()">Prendas (${PRODS.length})</button>
     <button class="${tab === 'ajustes' ? 'on' : ''}" onclick="tab='ajustes';pintar()">Datos bancarios</button></div><div id="tabv"></div>`;
   ({pedidos: vPedidos, productos: ed ? vEditor : vProductos, ajustes: vAjustes})[tab]();
 }
@@ -121,46 +133,104 @@ async function estado(id, s) {
 
 // ===================== Productos =====================
 function vProductos() {
-  $('#tabv').innerHTML = `<button class="btn lg" style="margin-bottom:16px" onclick="editar()">+ Publicar producto nuevo</button>
+  $('#tabv').innerHTML = `<button class="btn lg" style="margin-bottom:16px" onclick="editar()">+ Publicar prenda nueva</button>
+    ${PRODS.length ? '' : '<div class="empty"><p>Aún no tienes prendas. Toca “Publicar prenda nueva”.</p></div>'}
     ${PRODS.map(p => `<div class="pr"><div class="ph">${p.imagenes && p.imagenes[0] ? `<img src="${esc(p.imagenes[0])}" alt="">` : DB.prendaSVG(p.categoria, p.colores && p.colores[0] && p.colores[0].hex)}</div>
-      <div><h4>${esc(p.nombre)}${p.activo ? '' : '<span class="chip">Oculto</span>'}${p.destacado ? '<span class="chip">★ Destacado</span>' : ''}</h4><small>${esc(p.categoria)} · ${money(p.precio)}</small></div>
-      <button class="btn out" onclick="editar('${p.id}')">Editar</button></div>`).join('')}`;
+      <div><h4>${esc(p.nombre)}${p.activo ? '' : '<span class="chip">Oculto</span>'}${p.agotado ? '<span class="chip">Agotado</span>' : ''}${p.destacado ? '<span class="chip">★</span>' : ''}</h4>
+        <small>${esc(p.categoria)} · ${money(p.precio)} · ${(p.colores || []).length} color(es)</small></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><button class="btn out" onclick="editar('${p.id}')">Editar</button><button class="btn out" style="padding:6px 10px;font-size:11px" onclick="editar('${p.id}',true)">Duplicar</button></div></div>`).join('')}`;
 }
-function editar(id) {
+// Tallas sugeridas por tipo de prenda
+const GRUPOS_TALLAS = {
+  'Niño': ['2', '4', '6', '8', '10', '12', '14'],
+  'Adulto': ['CH', 'M', 'G', 'XG', 'XXG'],
+  'Pantalón': ['28', '30', '32', '34', '36', '38'],
+  'Unitalla': ['Unitalla']
+};
+const TALLAS_POR_CATEGORIA = {Playeras: ['CH', 'M', 'G', 'XG'], Sudaderas: ['CH', 'M', 'G', 'XG'], 'Suéteres': ['CH', 'M', 'G', 'XG'], Pantalones: ['28', '30', '32', '34', '36'], Bolsas: []};
+const COLORES_RAPIDOS = [['Negro', '#1d1d1f'], ['Blanco', '#f4f4f2'], ['Gris', '#9a9a9e'], ['Rojo', '#c8283c'], ['Rosa', '#e8318a'], ['Naranja', '#f07a1a'],
+  ['Amarillo', '#f5c518'], ['Verde', '#2f8f4e'], ['Verde limón', '#7ed321'], ['Azul rey', '#2453c7'], ['Azul cielo', '#a9c4ec'], ['Marino', '#1f2c4c'], ['Morado', '#6a2bc4'], ['Café', '#6b4423'], ['Beige', '#d9c7a7']];
+const ORDEN_TALLAS = Object.values(GRUPOS_TALLAS).flat();
+const ordenarTallas = l => [...l].sort((a, b) => (ORDEN_TALLAS.indexOf(a) + 1 || 99) - (ORDEN_TALLAS.indexOf(b) + 1 || 99));
+const categorias = () => [...new Set([...DB.CATEGORIAS, ...PRODS.map(p => p.categoria).filter(Boolean)])];
+
+function editar(id, duplicar) {
   const p = PRODS.find(x => x.id === id);
   ed = p ? JSON.parse(JSON.stringify(p)) : {nombre: '', categoria: 'Playeras', descripcion: '', detalle: 'Algodón 100% · Serigrafía', precio: '', precio_antes: '',
-    tallas: ['CH', 'M', 'G', 'XG'], colores: [{nombre: 'Negro', hex: '#1d1d1f'}], imagenes: [], destacado: false, activo: true, orden: 0};
+    tallas: ['CH', 'M', 'G', 'XG'], colores: [], imagenes: [], destacado: false, activo: true, agotado: false, orden: 0};
+  if (duplicar) { delete ed.id; delete ed.creado; ed.nombre += ' (copia)'; }
   ed.tallas = ed.tallas || []; ed.colores = ed.colores || []; ed.imagenes = ed.imagenes || [];
   pintar(); scrollTo(0, 0);
 }
-const TALLAS = ['2', '4', '6', '8', '10', '12', '14', 'XCH', 'CH', 'M', 'G', 'XG', 'XXG', 'Unitalla', '28', '30', '32', '34', '36'];
 function vEditor() {
-  $('#tabv').innerHTML = `<form id="fe" onsubmit="guardar(event)">
-    <div class="lbl" style="margin-top:0">Fotos <span>La primera es la portada</span></div>
-    <div class="fotos">${ed.imagenes.map((u, i) => `<div><img src="${esc(u)}" alt=""><button type="button" aria-label="Quitar" onclick="ed.imagenes.splice(${i},1);vEditor()">×</button></div>`).join('')}
+  const nueva = !ed.id;
+  $('#tabv').innerHTML = `<div class="edl"><form id="fe" onsubmit="guardar(event)" oninput="leer();vista()" onchange="leer();vista()">
+    <h3 style="margin:0 0 12px">${nueva ? 'Publicar prenda nueva' : 'Editar prenda'}</h3>
+
+    <div class="lbl" style="margin-top:0">1. Fotos <span>La primera es la portada</span></div>
+    <div class="fotos">${ed.imagenes.map((u, i) => `<div><img src="${esc(u)}" alt="">${i ? `<button type="button" class="pt" title="Hacer portada" onclick="ed.imagenes.unshift(...ed.imagenes.splice(${i},1));vEditor()">★</button>` : '<span class="pt on">Portada</span>'}<button type="button" aria-label="Quitar" onclick="ed.imagenes.splice(${i},1);vEditor()">×</button></div>`).join('')}
       <label>+ Agregar<br>fotos<input type="file" accept="image/*" multiple onchange="subir(this.files)"></label></div>
-    <div id="subiendo" class="note"></div>
-    <label class="f">Nombre<input name="nombre" required maxlength="80" value="${esc(ed.nombre)}"></label>
-    <div class="two"><label class="f">Categoría<select name="categoria">${DB.CATEGORIAS.map(c => `<option ${c === ed.categoria ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+    <div id="subiendo" class="note">Tip: sube una foto por color, en el mismo orden que los colores, y al elegir color cambia la foto.</div>
+
+    <div class="lbl">2. Datos de la prenda</div>
+    <label class="f">Nombre<input name="nombre" required maxlength="80" value="${esc(ed.nombre)}" placeholder="Ej. Playera Catrina"></label>
+    <div class="two"><label class="f">Tipo de prenda<input name="categoria" list="lcats" required maxlength="30" value="${esc(ed.categoria)}" onchange="sugerirTallas(this.value)"></label>
       <label class="f">Detalle corto<input name="detalle" maxlength="60" value="${esc(ed.detalle)}" placeholder="Algodón · Serigrafía"></label></div>
-    <div class="two"><label class="f">Precio<input name="precio" type="number" min="0" step="0.01" required inputmode="decimal" value="${esc(ed.precio)}"></label>
-      <label class="f">Precio antes (opcional)<input name="precio_antes" type="number" min="0" step="0.01" inputmode="decimal" value="${esc(ed.precio_antes ?? '')}"></label></div>
-    <label class="f">Descripción<textarea name="descripcion" rows="3" maxlength="800">${esc(ed.descripcion)}</textarea></label>
-    <div class="lbl">Tallas <span>Déjalas vacías para bolsas</span></div>
-    <div class="sizes">${TALLAS.map(t => `<button type="button" class="${ed.tallas.includes(t) ? 'on' : ''}" onclick="leer();ed.tallas=ed.tallas.includes('${t}')?ed.tallas.filter(x=>x!=='${t}'):TALLAS.filter(x=>ed.tallas.includes(x)||x==='${t}');vEditor()">${t}</button>`).join('')}</div>
-    <div class="lbl">Colores disponibles</div>
-    <div id="cols">${ed.colores.map((c, i) => `<div class="crow"><input type="color" value="${esc(c.hex)}" oninput="ed.colores[${i}].hex=this.value"><input type="text" value="${esc(c.nombre)}" placeholder="Nombre del color" oninput="ed.colores[${i}].nombre=this.value"><button type="button" aria-label="Quitar" onclick="leer();ed.colores.splice(${i},1);vEditor()">✕</button></div>`).join('')}</div>
-    <button type="button" class="btn out" onclick="leer();ed.colores.push({nombre:'',hex:'#ffffff'});vEditor()">+ Color</button>
-    <label class="chk" style="margin-top:18px"><input type="checkbox" name="destacado" ${ed.destacado ? 'checked' : ''}> Mostrar en “Más vendidos”</label>
+    <datalist id="lcats">${categorias().map(c => `<option value="${esc(c)}">`).join('')}</datalist>
+    <label class="f">Descripción <small style="font-weight:400;color:var(--mute)">(material, diseño, cuidados, tiempo de entrega…)</small><textarea name="descripcion" rows="5" maxlength="1500" placeholder="Ej. Playera 100% algodón, estampado en serigrafía a 2 tintas. Lavar al revés con agua fría. Entrega en 3 días.">${esc(ed.descripcion)}</textarea></label>
+
+    <div class="lbl">3. Precio</div>
+    <div class="two"><label class="f">Precio de venta $<input name="precio" type="number" min="0" step="0.01" required inputmode="decimal" value="${esc(ed.precio)}"></label>
+      <label class="f">Precio antes $ <small style="font-weight:400;color:var(--mute)">(para mostrar descuento)</small><input name="precio_antes" type="number" min="0" step="0.01" inputmode="decimal" value="${esc(ed.precio_antes ?? '')}"></label></div>
+
+    <div class="lbl">4. Tallas <span>Toca para activar o quitar</span></div>
+    <div class="grp">${Object.keys(GRUPOS_TALLAS).map(g => `<button type="button" onclick="grupo('${g}')">+ ${g}</button>`).join('')}<button type="button" onclick="leer();ed.tallas=[];vEditor()">Quitar todas</button></div>
+    <div class="sizes">${ordenarTallas([...new Set([...ORDEN_TALLAS, ...ed.tallas])]).map(t => `<button type="button" class="${ed.tallas.includes(t) ? 'on' : ''}" onclick="talla('${esc(t)}')">${esc(t)}</button>`).join('')}</div>
+    <div class="crow" style="grid-template-columns:1fr auto;margin-top:10px"><input type="text" id="tnueva" placeholder="Otra talla (ej. 16, 3XL)" maxlength="10"><button type="button" class="btn out" onclick="otraTalla()">Agregar</button></div>
+
+    <div class="lbl">5. Colores <span>${ed.colores.length} elegido(s)</span></div>
+    <div class="quick">${COLORES_RAPIDOS.map(([n, h]) => `<button type="button" title="${n}" class="${ed.colores.some(c => c.nombre === n) ? 'on' : ''}" onclick="colorRapido('${n}','${h}')"><i style="background:${h}"></i>${n}</button>`).join('')}</div>
+    <div id="cols">${ed.colores.map((c, i) => `<div class="crow"><input type="color" value="${esc(c.hex)}" oninput="ed.colores[${i}].hex=this.value;vista()"><input type="text" value="${esc(c.nombre)}" placeholder="Nombre del color" oninput="ed.colores[${i}].nombre=this.value;vista()"><button type="button" aria-label="Quitar" onclick="leer();ed.colores.splice(${i},1);vEditor()">✕</button></div>`).join('')}</div>
+    <button type="button" class="btn out" onclick="leer();ed.colores.push({nombre:'',hex:'#888888'});vEditor()">+ Color personalizado</button>
+
+    <div class="lbl">6. Publicación</div>
     <label class="chk"><input type="checkbox" name="activo" ${ed.activo ? 'checked' : ''}> Visible en la tienda</label>
-    <div class="buy"><button type="button" class="btn out lg" onclick="${ed.id ? 'borrar()' : 'ed=null;pintar()'}">${ed.id ? 'Eliminar' : 'Cancelar'}</button><button class="btn lg" id="bG">${ed.id ? 'Guardar cambios' : 'Publicar'}</button></div>
-  </form>`;
+    <label class="chk"><input type="checkbox" name="destacado" ${ed.destacado ? 'checked' : ''}> Mostrar en “Más vendidos”</label>
+    <label class="chk"><input type="checkbox" name="agotado" ${ed.agotado ? 'checked' : ''}> Agotado (se ve, pero no se puede comprar)</label>
+
+    <div class="buy"><button type="button" class="btn out lg" onclick="${nueva ? 'ed=null;pintar()' : 'borrar()'}">${nueva ? 'Cancelar' : 'Eliminar'}</button><button class="btn lg" id="bG">${nueva ? 'Publicar' : 'Guardar cambios'}</button></div>
+  </form>
+  <aside class="prev"><div class="lbl" style="margin-top:0">Así se verá en la tienda</div><div id="vista"></div></aside></div>`;
+  vista();
+}
+// Tarjeta de vista previa, igual a la de la tienda
+function vista() {
+  const v = $('#vista'); if (!v || !ed) return;
+  const p = ed, cols = p.colores.filter(c => c.nombre.trim());
+  const pct = p.precio_antes > +p.precio ? Math.round((1 - p.precio / p.precio_antes) * 100) : 0;
+  v.innerHTML = `<article class="card" style="cursor:default"><div class="im">${p.imagenes[0] ? `<img src="${esc(p.imagenes[0])}" alt="">` : DB.prendaSVG(p.categoria, cols[0] && cols[0].hex)}</div>
+    ${pct ? `<span class="off">-${pct}%</span>` : ''}${p.agotado ? '<span class="off" style="left:auto;right:8px;background:#b42318">Agotado</span>' : ''}
+    <div class="bd"><h4>${esc(p.nombre || 'Nombre de la prenda')}</h4><div class="dt">${esc(p.detalle || p.categoria)}</div>
+      <div class="price"><b>${money(p.precio)}</b>${pct ? `<s>${money(p.precio_antes)}</s>` : ''}</div>
+      ${cols.length ? `<div class="dots">${cols.map(c => `<i style="background:${esc(c.hex)}" title="${esc(c.nombre)}"></i>`).join('')}</div>` : ''}
+      ${p.tallas.length ? `<div class="dt" style="margin-top:6px">Tallas: ${esc(ordenarTallas(p.tallas).join(', '))}</div>` : ''}</div></article>
+    ${p.descripcion ? `<p class="desc">${esc(p.descripcion)}</p>` : ''}${p.activo ? '' : '<p class="note">⚠️ Oculta: no aparece en la tienda.</p>'}`;
 }
 function leer() {
   const f = $('#fe'); if (!f) return;
   const d = new FormData(f);
-  Object.assign(ed, {nombre: d.get('nombre').trim(), categoria: d.get('categoria'), detalle: d.get('detalle').trim(), descripcion: d.get('descripcion').trim(),
-    precio: d.get('precio'), precio_antes: d.get('precio_antes'), destacado: d.has('destacado'), activo: d.has('activo')});
+  Object.assign(ed, {nombre: d.get('nombre').trim(), categoria: d.get('categoria').trim(), detalle: d.get('detalle').trim(), descripcion: d.get('descripcion').trim(),
+    precio: d.get('precio'), precio_antes: d.get('precio_antes'), destacado: d.has('destacado'), activo: d.has('activo'), agotado: d.has('agotado')});
+}
+function talla(t) { leer(); ed.tallas = ed.tallas.includes(t) ? ed.tallas.filter(x => x !== t) : ordenarTallas([...ed.tallas, t]); vEditor(); }
+function grupo(g) { leer(); ed.tallas = ordenarTallas([...new Set([...ed.tallas, ...GRUPOS_TALLAS[g]])]); vEditor(); }
+function otraTalla() { const i = $('#tnueva'), t = i.value.trim().toUpperCase(); if (!t) return; leer(); if (!ed.tallas.includes(t)) ed.tallas.push(t); vEditor(); }
+function sugerirTallas(cat) { if (!ed.id && TALLAS_POR_CATEGORIA[cat]) { leer(); ed.tallas = [...TALLAS_POR_CATEGORIA[cat]]; setTimeout(vEditor); } }
+function colorRapido(n, h) {
+  leer();
+  const i = ed.colores.findIndex(c => c.nombre === n);
+  if (i >= 0) ed.colores.splice(i, 1); else ed.colores.push({nombre: n, hex: h});
+  vEditor();
 }
 async function subir(files) {
   leer();
@@ -173,13 +243,14 @@ async function subir(files) {
 }
 async function guardar(e) {
   e.preventDefault(); leer();
-  const b = $('#bG'); b.disabled = true; b.innerHTML = '<span class="spin"></span>';
+  if (!(Number(ed.precio) > 0)) return toast('Pon el precio de venta');
+  const b = $('#bG'), txt = b.textContent; b.disabled = true; b.innerHTML = '<span class="spin"></span>';
   try {
     await DB.guardarProducto({...ed, precio: Number(ed.precio), precio_antes: ed.precio_antes ? Number(ed.precio_antes) : null,
-      colores: ed.colores.filter(c => c.nombre.trim())});
-    toast(ed.id ? 'Cambios guardados' : '¡Producto publicado!');
+      tallas: ordenarTallas(ed.tallas), colores: ed.colores.filter(c => c.nombre.trim())});
+    toast(ed.id ? 'Cambios guardados' : '¡Prenda publicada!');
     ed = null; PRODS = await DB.productos(); pintar();
-  } catch (err) { toast('No se pudo guardar: ' + err.message); b.disabled = false; b.textContent = 'Guardar'; }
+  } catch (err) { toast('No se pudo guardar: ' + err.message); b.disabled = false; b.textContent = txt; }
 }
 async function borrar() {
   if (!confirm('¿Eliminar "' + ed.nombre + '"? No se puede deshacer.')) return;
