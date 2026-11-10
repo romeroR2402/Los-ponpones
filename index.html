@@ -286,6 +286,14 @@ html[data-tema="halloween"] #garl{display:block;background-image:url("data:image
 .web{position:absolute;top:0;right:0;width:120px;height:120px;color:var(--ink);opacity:.18}
 @media(prefers-reduced-motion:reduce){.sn,.bt{display:none}}
 .hint{font-weight:500;color:var(--mute);font-size:12px;margin-left:6px}
+/* Aviso para clientes */
+.aviso{background:var(--card);border:2px solid var(--acc);border-radius:22px;padding:14px 16px;margin:10px 0 14px}
+.aviso b{display:block;font-size:15px;margin-bottom:4px}
+.aviso p{margin:0 0 10px;font-size:14px;line-height:1.45}
+.wa-r{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.wa-r small{display:block;color:var(--mute);font-size:12px}
+.wa-r .btn{flex:none}
+.wa-r.ok .btn{opacity:.55}
 </style>
 </head>
 <body>
@@ -304,7 +312,7 @@ var FL=["Cajeta","Lechera","Maple","Chocolate de avellana","Mermelada de fresa"]
 var FLF=["Pumpkin","Café","Chocolate","Moca","Cajeta","Mazapán","Nuez"];
 var FLC=["Americano","Pumpkin"];
 var FR=["Fresa","Plátano","Fruta de temporada","Jamón","Queso Philadelphia"];
-var DEF={m:25,mf:30,w:35,wf:40,f:35,c:25,x:5};
+var DEF={m:30,mf:35,w:35,wf:40,f:35,c:25,x:5};
 var P={m:{n:"Marquesita",k:"m",kf:"mf",c:"var(--red)",e:"🌯"},w:{n:"Waffle",k:"w",kf:"wf",c:"var(--pur)",e:"🧇"},f:{n:"Frape",k:"f",c:"var(--teal)",e:"🥤"},c:{n:"Café",ag:"Café caliente",k:"c",c:"var(--teal)",e:"☕"}};
 function agoP(k){return ago(P[k].ag||P[k].n)}
 var mem={};
@@ -438,8 +446,8 @@ var AGG=[["Productos",["Marquesita","Waffle","Frape","Café caliente"]],["Sabore
 function ago(x){return !!x&&shop.agotado.indexOf(x)>-1}
 function closedNow(){return !admin&&shopOk&&!shop.abierta}
 async function loadShop(){if(!sbOn())return;
-  try{var r=await sbFetch("/rest/v1/tienda?id=eq.1&select=abierta,agotado,precios,tema",{},admin);
-    if(r&&r[0]){var n={abierta:!!r[0].abierta,agotado:r[0].agotado||[],precios:r[0].precios||{},tema:r[0].tema||"original"},ch=!shopOk||JSON.stringify(n)!==JSON.stringify(shop);shop=n;shopOk=true;if(Object.keys(n.precios).length){PR=Object.assign({},DEF,n.precios);sv("pp_prices",PR)}if(ch)draw()}}catch(e){}}
+  try{var r=await sbFetch("/rest/v1/tienda?id=eq.1&select=abierta,agotado,precios,tema,aviso,aviso_id",{},admin);
+    if(r&&r[0]){var n={abierta:!!r[0].abierta,agotado:r[0].agotado||[],precios:r[0].precios||{},tema:r[0].tema||"original",aviso:r[0].aviso||"",aviso_id:r[0].aviso_id||0},ch=!shopOk||JSON.stringify(n)!==JSON.stringify(shop);shop=n;shopOk=true;if(Object.keys(n.precios).length){PR=Object.assign({},DEF,n.precios);sv("pp_prices",PR)}if(ch)draw()}}catch(e){}}
 async function saveShop(p){var old=JSON.stringify(shop);Object.assign(shop,p);shopErr="";draw();
   try{var r=await sbFetch("/rest/v1/tienda?id=eq.1",{method:"PATCH",headers:Object.assign(sbH(true),{Prefer:"return=representation"}),body:JSON.stringify(Object.assign({updated_at:new Date().toISOString()},p))},true);
     if(!r||!r.length)throw new Error("sin permiso");shopOk=true}
@@ -452,7 +460,7 @@ function askOpen(){document.getElementById("ov").innerHTML='<div class="ov" oncl
 function shopHtml(){if(!sbOn())return "";var o=shop.abierta,i=0;
   var h='<div class="shop"><div class="oh"><b>Tienda</b><span class="stt'+(o?"":" off")+'"><i></i>'+(o?"Abierta":"Cerrada")+'</span></div><p class="l" style="margin:6px 0 0">'+(!shopOk?"Falta conectar: corre el SQL de la tienda en Supabase.":o?"Los clientes pueden hacer pedidos.":"Los clientes ven el menú, pero no pueden pedir.")+'</p>'+
    '<div class="acts"><button class="btn grow'+(o?" alt":"")+'" onclick="setOpen('+!o+')">'+(o?"Cerrar tienda":"Abrir tienda")+'</button></div>';
-  h+=temaHtml();
+  h+=temaHtml()+avisoEdit();
   h+=AGG.map(function(g){return '<p class="l">'+g[0]+'</p><div class="chips">'+g[1].map(function(x){var k=i++;return '<button class="chip'+(ago(x)?" out":"")+'" onclick="tAgo('+k+')">'+esc(x)+(ago(x)?" · agotado":"")+'</button>'}).join("")+'</div>'}).join("");
   return h+'<p class="l" style="font-size:13px">Toca un producto o ingrediente para marcarlo como agotado. Tócalo otra vez cuando vuelva a haber.</p>'+(shopErr?'<div class="change" style="color:var(--red);font-size:14px">'+esc(shopErr)+'</div>':'')+'</div>'}
 function payHtml(){return '<div class="pay"><b>Pago por transferencia · '+PAGO.banco+'</b><small>A nombre de '+PAGO.titular+'</small>'+
@@ -598,6 +606,19 @@ function opsHtml(){if(!sbOn())return "";var h='<h2 style="margin:24px 0 6px">Opi
   var si=ops.filter(function(o){return o.gusto}).length,no=ops.length-si;
   h+='<div class="kpis"><div class="kpi"><span>Les gustó</span><b>👍 '+si+'</b><em>'+Math.round(si/ops.length*100)+'% de '+ops.length+(ops.length===1?' opinión':' opiniones')+'</em></div><div class="kpi"><span>No les gustó</span><b>👎 '+no+'</b></div></div>';
   return h+ops.slice(0,20).map(function(o){return '<div class="op"><div class="oh"><b>'+(o.gusto?"👍 ":"👎 ")+esc(o.nombre||"Cliente")+'</b><span>'+cuando(o.calificado_at)+' · #'+o.id+'</span></div>'+(o.comentario?'<p>“'+esc(o.comentario)+'”</p>':'')+'<small>'+esc((o.items||[]).join(" · "))+'</small></div>'}).join("")}
+var avisoVisto=ld("pp_aviso",0),waMsg=null,waHechos=ld("pp_wa_hechos",{});
+function avisoHtml(){if(admin||!shop.aviso||+avisoVisto===+shop.aviso_id)return "";
+  return '<div class="aviso" role="status"><b>📢 Aviso de Los Ponpones</b><p>'+esc(shop.aviso)+'</p><button class="btn alt sm" onclick="avisoOk()">Entendido</button></div>'}
+function avisoOk(){avisoVisto=shop.aviso_id;sv("pp_aviso",avisoVisto);draw()}
+function avisoEdit(){return '<p class="l">Aviso para clientes (sale arriba del menú)</p><textarea id="av_t" rows="4" maxlength="600" placeholder="Ej. Hoy cerramos temprano a las 6 pm">'+esc(shop.aviso||"")+'</textarea><div class="acts"><button class="btn grow" onclick="avisoSave()">Publicar aviso</button>'+(shop.aviso?'<button class="btn alt sm" onclick="saveShop({aviso:null,aviso_id:null})">Quitar aviso</button>':'')+'</div>'}
+function avisoSave(){var t=document.getElementById("av_t").value.trim();if(!t)return;saveShop({aviso:t.slice(0,600),aviso_id:Date.now()})}
+function waTxt(c){var f=(c.n||"").trim().split(/\s+/)[0]||"";return (waMsg||"").replace(/\{nombre\}/g,f)}
+function waOpen(){if(waMsg===null)waMsg="¡Hola {nombre}! 👋 Te escribimos de Casa de Los Ponpones.\n\n"+(shop.aviso||"")+"\n\n¡Gracias por tu preferencia! 🌯";waDraw()}
+function waDraw(){var cs=clients.filter(function(c){return (c.d||"").length>=10}),key=String(waMsg.length)+waMsg.slice(0,40),hechos=waHechos[key]||[],n=cs.filter(function(c){return hechos.indexOf(c.id)>-1}).length;
+  var h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Avisar por WhatsApp</h2><p class="l" style="margin-top:0">Escribe <b>{nombre}</b> y se cambia por el nombre de cada cliente. Toca <b>Enviar</b> en cada uno: se abre WhatsApp con el mensaje listo y solo pulsas enviar.</p><textarea id="wa_t" rows="7" maxlength="1000" oninput="waMsg=this.value" onchange="waDraw()">'+esc(waMsg)+'</textarea><p class="l">Enviados: '+n+' de '+cs.length+'</p>';
+  h+=cs.map(function(c){var ok=hechos.indexOf(c.id)>-1,d=c.d.length===10?"52"+c.d:c.d;return '<div class="wa-r'+(ok?" ok":"")+'"><span><b>'+esc(c.n)+'</b><small>'+esc(c.tel)+(ok?' · ✓ enviado':'')+'</small></span><a class="btn sm'+(ok?" alt":"")+'" href="https://wa.me/'+d+'?text='+encodeURIComponent(waTxt(c))+'" target="_blank" rel="noopener" onclick="waHecho('+c.id+')">'+(ok?"Reenviar":"Enviar 💬")+'</a></div>'}).join("");
+  document.getElementById("ov").innerHTML=h+'<button class="btn big alt" onclick="closeS()">Cerrar</button></div></div>'}
+function waHecho(id){var key=String(waMsg.length)+waMsg.slice(0,40),a=waHechos[key]=waHechos[key]||[];if(a.indexOf(id)<0)a.push(id);sv("pp_wa_hechos",waHechos);setTimeout(waDraw,300)}
 function rmMine(c){my=my.filter(function(x){return x.c!==c});sv("pp_my",my);if(!my.length)view=1;draw()}
 function itemLines(){return cart.map(function(i){return i.q+" x "+name(i)+(det(i)?" ("+det(i)+")":"")+" - $"+(i.u*i.q)})}
 function addOrder(o){if(sbOn()&&tok)sbIns({tipo:o.t,nombre:o.n,telefono:o.tel||"",direccion:o.dir||"",items:o.items,total:o.total,nota:o.nota||null},true).then(pull).catch(function(){});var no=orders.reduce(function(a,x){return Math.max(a,x.no)},0)+1;orders.push({id:Date.now(),no:no,t:o.t,n:o.n,tel:o.tel,dir:o.dir,nota:o.nota||"",items:o.items,total:o.total,st:"pen",at:Date.now()});sv("pp_orders",orders)}
@@ -639,7 +660,7 @@ function ac(){var a=document.getElementById("cn"),b=document.getElementById("ct"
   if(t.replace(/\D/g,"").length<10){b.style.borderColor="var(--red)";bad=true}
   if(bad)return;upC(n,t,d,0);draw()}
 function clientsHtml(){
-  var h='<h2 style="margin-top:28px">Clientes ('+clients.length+')</h2>';
+  var h='<h2 style="margin-top:28px">Clientes ('+clients.length+')</h2>'+(clients.some(function(c){return (c.d||"").length>=10})?'<button class="btn" style="margin:4px 0 6px" onclick="waOpen()">📣 Avisar a mis clientes por WhatsApp</button>':'');
   h+=clients.length?clients.slice().reverse().map(function(c){
     var w=c.d?'<a class="x" href="https://wa.me/'+(c.d.length===10?"52":"")+c.d+'" target="_blank" rel="noopener" aria-label="WhatsApp">💬</a> ':"";
     return '<div class="row"><span><b>'+esc(c.n)+'</b><small>'+esc([c.tel,c.dir].filter(Boolean).join(" · "))+'</small><small>'+c.k+(c.k===1?" pedido":" pedidos")+'</small></span><span>'+w+'<button class="x" aria-label="Borrar cliente" onclick="dc('+c.id+')">✕</button></span></div>'}).join(""):'<p class="empty">Aún no hay clientes. Se guardan cuando alguien hace un pedido desde este teléfono, o los puedes agregar aquí.</p>';
@@ -651,7 +672,7 @@ function promoP(){openP("f");if(cur&&cur.p==="f"&&document.getElementById("ab")&
 var CATS=[["all","Todo"],["m","Marquesitas"],["w","Waffles"],["f","Frapes"],["c","Cafés"]];
 function sc(i){cat=CATS[i][0];draw()}
 var mainKey="";
-function mk(){var k=view+"|"+cat+"|"+admin+"|"+shopOk+JSON.stringify(shop);if(mainKey===k)return false;mainKey=k;return true}
+function mk(){var k=view+"|"+cat+"|"+admin+"|"+shopOk+JSON.stringify(shop)+"|"+avisoVisto;if(mainKey===k)return false;mainKey=k;return true}
 var WA="525521532208";
 function msg(){return "Pedido Los Ponpones:\n"+cart.map(function(i){return i.q+" x "+name(i)+(det(i)?" ("+det(i)+")":"")+" - $"+(i.u*i.q)}).join("\n")+"\nTotal: $"+tot()}
 function wa(){return "https://wa.me/"+WA+"?text="+encodeURIComponent(msg())}
@@ -689,7 +710,7 @@ function draw(){applyTema();
   if((view==2||view==3||view==5)&&!admin||view==4&&admin)view=1;
   var m=document.getElementById("main"),b=document.getElementById("bar");
   if(view==1){
-    if(mk())m.innerHTML=(closedNow()?'<div class="closed"><div style="font-size:40px">🌙</div><h2>Estamos cerrados</h2><p class="l" style="margin:0">Puedes ver el menú, pero por ahora no recibimos pedidos. ¡Vuelve pronto!</p></div>':!ago("Pumpkin")&&!ago("Frape")?'<div class="promo fall">'+PKBG+'<div><span class="tag">Nuevo de temporada</span><h2><small>Frape</small>Pumpkin</h2><p class="sub">De Halloween a Navidad</p><div class="pk-row"><button class="pill" onclick="promoP()">Pedir ahora</button><b class="pk-price">'+$(PR.f)+'</b></div></div><div class="pe">'+PUMPKIN+'</div></div>':'<div class="promo"><div><small>Hoy en Los Ponpones</small><h2>Marquesitas desde '+$(PR.m)+'</h2><span class="pill">Elige tu favorito</span></div><div class="pe"><img decoding="sync" alt="" src="'+IMG.m+'"></div></div>')+'<div class="cats">'+CATS.map(function(c,i){return '<button class="cat'+(cat===c[0]?" on":"")+'" onclick="sc('+i+')">'+c[1]+'</button>'}).join("")+'</div><div class="grid">'+["m","w","f","c"].filter(function(k){return cat==="all"||cat===k}).map(function(k){var p=P[k];
+    if(mk())m.innerHTML=avisoHtml()+(closedNow()?'<div class="closed"><div style="font-size:40px">🌙</div><h2>Estamos cerrados</h2><p class="l" style="margin:0">Puedes ver el menú, pero por ahora no recibimos pedidos. ¡Vuelve pronto!</p></div>':!ago("Pumpkin")&&!ago("Frape")?'<div class="promo fall">'+PKBG+'<div><span class="tag">Nuevo de temporada</span><h2><small>Frape</small>Pumpkin</h2><p class="sub">De Halloween a Navidad</p><div class="pk-row"><button class="pill" onclick="promoP()">Pedir ahora</button><b class="pk-price">'+$(PR.f)+'</b></div></div><div class="pe">'+PUMPKIN+'</div></div>':'<div class="promo"><div><small>Hoy en Los Ponpones</small><h2>Marquesitas desde '+$(PR.m)+'</h2><span class="pill">Elige tu favorito</span></div><div class="pe"><img decoding="sync" alt="" src="'+IMG.m+'"></div></div>')+'<div class="cats">'+CATS.map(function(c,i){return '<button class="cat'+(cat===c[0]?" on":"")+'" onclick="sc('+i+')">'+c[1]+'</button>'}).join("")+'</div><div class="grid">'+["m","w","f","c"].filter(function(k){return cat==="all"||cat===k}).map(function(k){var p=P[k];
       var sub=(k==="f"||k==="c"?"":"Desde ")+$(PR[p.k]);
       return '<button class="prod'+(agoP(k)?" off":"")+'" style="--c:'+p.c+'" onclick="openP(\''+k+'\')">'+(agoP(k)?'<span class="ag">Agotado</span>':'')+'<span class="it"><img decoding="sync" alt="'+p.n+'" src="'+IMG[k]+'"></span><h2>'+p.n+'</h2><p>'+sub+'</p><span class="add">'+CART+'</span></button>'}).join("")+'</div>';
     var t=cart.reduce(function(a,i){return a+i.u*i.q},0),n=cart.reduce(function(a,i){return a+i.q},0);
