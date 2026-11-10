@@ -285,6 +285,7 @@ html[data-tema="halloween"] #garl{display:block;background-image:url("data:image
 @keyframes flap{to{transform:scaleY(.55)}}
 .web{position:absolute;top:0;right:0;width:120px;height:120px;color:var(--ink);opacity:.18}
 @media(prefers-reduced-motion:reduce){.sn,.bt{display:none}}
+.hint{font-weight:500;color:var(--mute);font-size:12px;margin-left:6px}
 </style>
 </head>
 <body>
@@ -303,7 +304,7 @@ var FL=["Cajeta","Lechera","Maple","Chocolate de avellana","Mermelada de fresa"]
 var FLF=["Pumpkin","Café","Chocolate","Moca","Cajeta","Mazapán","Nuez"];
 var FLC=["Americano","Pumpkin"];
 var FR=["Fresa","Plátano","Fruta de temporada","Jamón","Queso Philadelphia"];
-var DEF={m:25,mf:30,w:35,wf:40,f:35,c:25};
+var DEF={m:25,mf:30,w:35,wf:40,f:35,c:25,x:5};
 var P={m:{n:"Marquesita",k:"m",kf:"mf",c:"var(--red)",e:"🌯"},w:{n:"Waffle",k:"w",kf:"wf",c:"var(--pur)",e:"🧇"},f:{n:"Frape",k:"f",c:"var(--teal)",e:"🥤"},c:{n:"Café",ag:"Café caliente",k:"c",c:"var(--teal)",e:"☕"}};
 function agoP(k){return ago(P[k].ag||P[k].n)}
 var mem={};
@@ -338,7 +339,7 @@ function msgO(){var o=ORD,tipo={suc:"En sucursal",rec:"Para recoger",env:"Envío
 function upC(n,tel,dir,inc){var d=(tel||"").replace(/\D/g,""),k=null;clients.forEach(function(c){if((d&&c.d===d)||(!d&&c.n.toLowerCase()===n.toLowerCase()))k=c});
   if(k){k.n=n;if(tel){k.tel=tel;k.d=d}if(dir)k.dir=dir;k.k+=inc}else clients.push(k={id:newId(),n:n,tel:tel||"",d:d,dir:dir||"",k:inc});sv("pp_clients",clients);pushC(k)}
 function sendO(){var o=ORD,e="";
-  var bad=cart.filter(function(i){return agoP(i.p)||ago(i.fl)||(i.fr||[]).some(function(x){return ago(x)})})[0];
+  var bad=cart.filter(function(i){return agoP(i.p)||String(i.fl||"").split(" + ").some(function(x){return ago(x)})||(i.qx&&ago("Queso extra"))||(i.fr||[]).some(function(x){return ago(x)})})[0];
   if(closedNow())e="La tienda está cerrada. Por ahora no recibimos pedidos.";
   else if(bad)e="Se nos acabó algo de tu pedido: "+name(bad)+(det(bad)?" ("+det(bad)+")":"")+". Quítalo y vuelve a intentar.";
   else if(o.n.trim().split(/\s+/).length<2)e="Escribe tu nombre completo (nombre y apellido).";
@@ -433,7 +434,7 @@ function mcard(x){
    '<div class="acts"><a class="btn alt grow lnk" href="https://wa.me/'+WA+'?text='+q+'" target="_blank" rel="noopener">💬 Escribir por WhatsApp</a>'+(x.st!=="pen"?'<button class="btn alt sm" onclick="rmMine(\''+x.c+'\')">Quitar</button>':'')+'</div></div>'}
 var shop={abierta:true,agotado:[],tema:ld("pp_tema","original")},shopOk=false,shopErr="";
 var PAGO={banco:"Santander",titular:"JUAN CARLOS ROMERO SOLIS",clabe:"014180566660552364",cuenta:"56666055236"};
-var AGG=[["Productos",["Marquesita","Waffle","Frape","Café caliente"]],["Sabores",FL.concat(FLF.filter(function(x){return FL.indexOf(x)<0}),FLC.filter(function(x){return FL.indexOf(x)<0&&FLF.indexOf(x)<0}))],["Frutas y extras",FR]],AGL=[].concat.apply([],AGG.map(function(g){return g[1]}));
+var AGG=[["Productos",["Marquesita","Waffle","Frape","Café caliente"]],["Sabores",FL.concat(FLF.filter(function(x){return FL.indexOf(x)<0}),FLC.filter(function(x){return FL.indexOf(x)<0&&FLF.indexOf(x)<0}))],["Frutas y extras",FR.concat(["Queso extra"])]],AGL=[].concat.apply([],AGG.map(function(g){return g[1]}));
 function ago(x){return !!x&&shop.agotado.indexOf(x)>-1}
 function closedNow(){return !admin&&shopOk&&!shop.abierta}
 async function loadShop(){if(!sbOn())return;
@@ -516,8 +517,8 @@ function chartHtml(){var vals=repVals().vals,N=vals.length,mx=Math.max.apply(nul
   return g+'</svg><p class="readout">'+(mx>0?readout(vals[sel]):"Aún no hay ventas en estos días. Cuando cobres o despaches pedidos aparecerán aquí.")+'</p>'}
 function repPick(i){repSel=i;var c=document.getElementById("repc");if(c)c.innerHTML=chartHtml()}
 function itemsOf(x){return(x.items||[]).map(function(i){
-  if(typeof i==="string"){var m=i.match(/^(\d+)\s*x\s*(marquesita|waffle|frape|caf[eé])[^(]*(?:\((.*)\))?/i);if(!m)return null;return{n:/^caf/i.test(m[2])?"Café":m[2].charAt(0).toUpperCase()+m[2].slice(1).toLowerCase(),q:+m[1],f:(m[3]||"").split(/ · |, /)}}
-  return P[i.p]?{n:P[i.p].n,q:i.q||1,f:[i.fl].concat(i.fr||[])}:null}).filter(Boolean)}
+  if(typeof i==="string"){var m=i.match(/^(\d+)\s*x\s*(marquesita|waffle|frape|caf[eé])[^(]*(?:\((.*)\))?/i);if(!m)return null;return{n:/^caf/i.test(m[2])?"Café":m[2].charAt(0).toUpperCase()+m[2].slice(1).toLowerCase(),q:+m[1],f:(m[3]||"").split(/ · |, | \+ /)}}
+  return P[i.p]?{n:P[i.p].n,q:i.q||1,f:String(i.fl||"").split(" + ").concat(i.fr||[])}:null}).filter(Boolean)}
 function topHtml(){var since=repDaysArr()[0];since.setHours(0,0,0,0);var pc={},fc={},SAB=FL.concat(FLF.filter(function(x){return FL.indexOf(x)<0}));
   rep.v.concat(rep.o).forEach(function(x){if(x.t<since.getTime())return;itemsOf(x).forEach(function(i){pc[i.n]=(pc[i.n]||0)+i.q;i.f.forEach(function(f){if(SAB.indexOf(f)>-1)fc[f]=(fc[f]||0)+i.q})})});
   function bars(o,lim){var a=Object.keys(o).map(function(k){return[k,o[k]]}).sort(function(a,b){return b[1]-a[1]}).slice(0,lim),mm=a.length?a[0][1]:1;
@@ -646,7 +647,7 @@ function clientsHtml(){
   return h}
 var PKBG='<svg class="bg" viewBox="0 0 360 180" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><path d="M0 8Q42 28 87 12T174 12T261 12T360 10" fill="none" stroke="#1E0F14" stroke-width="1.6" opacity=".7"/><circle cx="24" cy="17" r="7" fill="#FF5A5F" opacity=".28"/><circle class="tw" cx="24" cy="17" r="3.6" fill="#FF5A5F"/><circle cx="66" cy="20" r="7" fill="#FFD166" opacity=".28"/><circle class="tw" cx="66" cy="20" r="3.6" fill="#FFD166"/><circle cx="108" cy="15" r="7" fill="#4CC38A" opacity=".28"/><circle class="tw" cx="108" cy="15" r="3.6" fill="#4CC38A"/><circle cx="150" cy="19" r="7" fill="#6EC6FF" opacity=".28"/><circle class="tw" cx="150" cy="19" r="3.6" fill="#6EC6FF"/><circle cx="192" cy="15" r="7" fill="#FF5A5F" opacity=".28"/><circle class="tw" cx="192" cy="15" r="3.6" fill="#FF5A5F"/><circle cx="234" cy="19" r="7" fill="#FFD166" opacity=".28"/><circle class="tw" cx="234" cy="19" r="3.6" fill="#FFD166"/><circle cx="276" cy="15" r="7" fill="#4CC38A" opacity=".28"/><circle class="tw" cx="276" cy="15" r="3.6" fill="#4CC38A"/><circle cx="318" cy="18" r="7" fill="#6EC6FF" opacity=".28"/><circle class="tw" cx="318" cy="18" r="3.6" fill="#6EC6FF"/><circle class="tw" cx="14" cy="60" r="1.6" fill="#FFFFFF" opacity=".7"/><circle class="tw" cx="40" cy="150" r="1.3" fill="#FFFFFF" opacity=".7"/><circle class="tw" cx="150" cy="46" r="1.4" fill="#FFFFFF" opacity=".7"/><circle class="tw" cx="176" cy="150" r="1.8" fill="#FFFFFF" opacity=".7"/><circle class="tw" cx="205" cy="92" r="1.2" fill="#FFFFFF" opacity=".7"/><circle class="tw" cx="120" cy="170" r="1.4" fill="#FFFFFF" opacity=".7"/><circle class="tw" cx="345" cy="62" r="1.5" fill="#FFFFFF" opacity=".7"/><circle class="tw" cx="232" cy="40" r="1.2" fill="#FFFFFF" opacity=".7"/><g transform="translate(196 44) scale(.9)"><path d="M0 0q5-7 10-2q2-4 4 0q2-4 4 0q5-5 10 2q-6 0-8 5q-2-2-4 0q-2-2-4 0q-2-5-8-5z" fill="#1A0B1E" opacity=".6"/></g><g transform="translate(226 62) scale(.6)"><path d="M0 0q5-7 10-2q2-4 4 0q2-4 4 0q5-5 10 2q-6 0-8 5q-2-2-4 0q-2-2-4 0q-2-5-8-5z" fill="#1A0B1E" opacity=".6"/></g></svg>';
 var PUMPKIN='<svg viewBox="0 0 140 160" role="img" aria-label="Frape Pumpkin con popote de bastón navideño y calabaza con gorro de Santa"><defs><linearGradient id="pkd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB45C"/><stop offset="1" stop-color="#D2621B"/></linearGradient><radialGradient id="pkp" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#FFB04A"/><stop offset="1" stop-color="#D9640F"/></radialGradient><pattern id="pkc" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(40)"><rect width="8" height="4" fill="#D62839"/></pattern></defs><g transform="rotate(18 92 40)"><rect x="88" y="2" width="8" height="70" rx="4" fill="#FFFFFF"/><rect x="88" y="2" width="8" height="70" rx="4" fill="url(#pkc)"/></g><path d="M44 66H124L114 152H54Z" fill="url(#pkd)"/><path d="M48 80q8 6 16 0t16 0t16 0t16 0t10 0" fill="none" stroke="#7A3510" stroke-width="3" stroke-linecap="round" opacity=".55"/><path d="M50 100q8 5 16 0t16 0t16 0t16 0" fill="none" stroke="#7A3510" stroke-width="2.5" stroke-linecap="round" opacity=".4"/><path d="M56 70L63 148" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" opacity=".28"/><rect x="40" y="60" width="88" height="10" rx="5" fill="#FFF4E3"/><g fill="#FFFDF7" stroke="#EAD7BF" stroke-width="1.2"><circle cx="64" cy="54" r="14"/><circle cx="104" cy="54" r="14"/><circle cx="84" cy="50" r="17"/><circle cx="74" cy="36" r="12"/><circle cx="95" cy="37" r="11"/><circle cx="84" cy="22" r="9"/></g><g fill="#9A4E1C"><circle cx="72" cy="44" r="1.4"/><circle cx="88" cy="40" r="1.3"/><circle cx="98" cy="50" r="1.4"/><circle cx="80" cy="54" r="1.2"/><circle cx="66" cy="52" r="1.2"/><circle cx="86" cy="26" r="1.2"/></g><g transform="translate(4 98)"><rect x="27" y="2" width="6" height="10" rx="2.5" fill="#4E7D3A"/><ellipse cx="18" cy="34" rx="15" ry="22" fill="url(#pkp)" stroke="#B5530C" stroke-width="1.5"/><ellipse cx="42" cy="34" rx="15" ry="22" fill="url(#pkp)" stroke="#B5530C" stroke-width="1.5"/><ellipse cx="30" cy="34" rx="15" ry="24" fill="url(#pkp)" stroke="#B5530C" stroke-width="1.5"/><path d="M19 30l6-7 6 7zM31 30l6-7 6 7z" fill="#3A1A0A"/><path d="M18 40q12 12 24 0q-3 3-6 2l-2 3-3-3-3 3-2-3q-5 1-8-2z" fill="#3A1A0A"/><path d="M12 12q2-20 32-16q10 2 16-5l-4 19z" fill="#D62839"/><circle cx="59" cy="-8" r="5.5" fill="#FFFFFF"/><rect x="9" y="8" width="44" height="8" rx="4" fill="#FFFFFF"/></g></svg>';
-function promoP(){openP("f");if(cur&&cur.p==="f"&&document.getElementById("ab")&&!ago("Pumpkin")){cur.fl="Pumpkin";cur.oth="";rs()}}
+function promoP(){openP("f");if(cur&&cur.p==="f"&&document.getElementById("ab")&&!ago("Pumpkin")){cur.fls=["Pumpkin"];cur.oth="";rs()}}
 var CATS=[["all","Todo"],["m","Marquesitas"],["w","Waffles"],["f","Frapes"],["c","Cafés"]];
 function sc(i){cat=CATS[i][0];draw()}
 var mainKey="";
@@ -656,9 +657,13 @@ function msg(){return "Pedido Los Ponpones:\n"+cart.map(function(i){return i.q+"
 function wa(){return "https://wa.me/"+WA+"?text="+encodeURIComponent(msg())}
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function $(n){return n.toFixed?"$"+n:n}
-function unit(c){return c.p==="f"||c.p==="c"?PR[c.p]:PR[c.fruit?P[c.p].kf:P[c.p].k]}
+function nFl(c){return c.fls?c.fls.length+((c.oth||"").trim()?1:0):(c.fl?String(c.fl).split(" + ").length:0)}
+function extras(c){return (c.p==="c"?0:Math.max(0,nFl(c)-1)+(c.fruit?Math.max(0,(c.fr||[]).length-1):0))+(c.qx?1:0)}
+function unit(c){var b=c.p==="f"||c.p==="c"?PR[c.p]:PR[c.fruit?P[c.p].kf:P[c.p].k];return b+extras(c)*(PR.x==null?5:PR.x)}
+function XH(t){return '<small class="hint">'+t+' · cada extra +'+$(PR.x==null?5:PR.x)+'</small>'}
+function upAB(){var b=document.getElementById("ab");if(b)b.textContent="Agregar "+$(unit(cur)*cur.q)}
 function name(it){return P[it.p].n+(it.fruit?(it.fr.every(function(x){return FR.indexOf(x)<3})?" con fruta":" con extras"):"")}
-function det(it){return [it.fl,it.fr&&it.fr.join(", ")].filter(Boolean).join(" · ")}
+function det(it){return [it.fl,it.fr&&it.fr.join(", "),it.qx?"Queso extra":""].filter(Boolean).join(" · ")}
 function tab(n){if((n==2||n==3||n==5)&&!admin){openLogin();return}view=n;armed=false;if(n==2){loadRep();loadOps();opsSeen()}if(n==4)loadHist();if(n==5)loadInv();draw()}
 var TEMAS=[["original","Original","🧁"],["navidad","Navidad","🎄"],["halloween","Halloween","🎃"]],temaOn=null;
 function temaHtml(){var t=shop.tema||"original";
@@ -692,26 +697,27 @@ function draw(){applyTema();
   }else{b.innerHTML="";mainKey="";view==5?drawInv(m):view==4?drawMine(m):view==3?drawOrders(m):drawSales(m)}
 }
 function chip(t,on,fn){var no=ago(t);return '<button class="chip'+(on&&!no?" on":"")+(no?" no":"")+'"'+(no?" disabled":' onclick="'+fn+'"')+'>'+esc(t)+(no?" · agotado":"")+'</button>'}
-function openP(k){if(closedNow()){note("Estamos cerrados","Por ahora no recibimos pedidos. ¡Vuelve pronto!");return}if(agoP(k)){note(P[k].n+" agotado","Se nos acabó por hoy. Prueba otro producto del menú.");return}cur={p:k,fruit:false,fl:"",fr:[],oth:"",q:1};rs()}
+function openP(k){if(closedNow()){note("Estamos cerrados","Por ahora no recibimos pedidos. ¡Vuelve pronto!");return}if(agoP(k)){note(P[k].n+" agotado","Se nos acabó por hoy. Prueba otro producto del menú.");return}cur={p:k,fruit:false,fls:[],fr:[],oth:"",qx:false,q:1};rs()}
 function rs(){
   var c=cur,p=P[c.p],h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><div class="hero"><img decoding="sync" alt="'+p.n+'" src="'+IMG[c.p]+'"></div><h2>'+p.n+'</h2>';
   if(c.p!=="f"&&c.p!=="c"){
     h+='<div class="seg"><button class="'+(c.fruit?"":"on")+'" onclick="sf(0)">Normal<b>'+$(PR[p.k])+'</b></button><button class="'+(c.fruit?"on":"")+'" onclick="sf(1)">Con fruta o extra<b>'+$(PR[p.kf])+'</b></button></div>';
-    h+='<p class="l">Sabor</p><div class="chips">'+FL.map(function(x,i){return chip(x,c.fl===x&&!c.oth,"sfl("+i+")")}).join("")+'</div><input placeholder="Otro sabor (opcional)" value="'+esc(c.oth)+'" oninput="cur.oth=this.value">';
-    if(c.fruit)h+='<p class="l">Frutas y extras</p><div class="chips">'+FR.map(function(x,i){return chip(x,c.fr.indexOf(x)>-1,"tfr("+i+")")}).join("")+'</div>';
-  }else h+='<p class="l">Sabor</p><div class="chips">'+(c.p==="c"?FLC:FLF).map(function(x,i){return chip(x,c.fl===x&&!c.oth,"sfl("+i+")")}).join("")+'</div><input placeholder="Otro sabor o nota (opcional)" value="'+esc(c.oth)+'" oninput="cur.oth=this.value">';
+    h+='<p class="l">Sabor'+XH("1 incluido")+'</p><div class="chips">'+FL.map(function(x,i){return chip(x,c.fls.indexOf(x)>-1,"sfl("+i+")")}).join("")+'</div><input placeholder="Otro sabor (opcional)" value="'+esc(c.oth)+'" oninput="cur.oth=this.value;upAB()">';
+    if(c.fruit)h+='<p class="l">Frutas y extras'+XH("1 incluida")+'</p><div class="chips">'+FR.map(function(x,i){return chip(x,c.fr.indexOf(x)>-1,"tfr("+i+")")}).join("")+'</div>';
+    h+='<p class="l">Extras</p><div class="chips">'+(ago("Queso extra")?'<button class="chip no" disabled>🧀 Queso extra · agotado</button>':'<button class="chip'+(c.qx?" on":"")+'" onclick="cur.qx=!cur.qx;rs()">🧀 Queso extra +'+$(PR.x==null?5:PR.x)+'</button>')+'</div>';
+  }else h+='<p class="l">Sabor'+(c.p==="c"?"":XH("1 incluido"))+'</p><div class="chips">'+(c.p==="c"?FLC:FLF).map(function(x,i){return chip(x,c.fls.indexOf(x)>-1,"sfl("+i+")")}).join("")+'</div><input placeholder="Otro sabor o nota (opcional)" value="'+esc(c.oth)+'" oninput="cur.oth=this.value;upAB()">';
   h+='<div class="qty"><button aria-label="Menos" onclick="qq(-1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14"/></svg></button><b id="qv">'+c.q+'</b><button aria-label="Más" onclick="qq(1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button></div>';
   h+='<button class="btn big" id="ab" onclick="addC()">Agregar '+$(unit(c)*c.q)+'</button><button class="btn big alt" onclick="closeS()" style="margin-top:8px">Cancelar</button></div></div>';
   document.getElementById("ov").innerHTML=h;
 }
 function sf(v){cur.fruit=!!v;if(!v)cur.fr=[];rs()}
-function sfl(i){var L=cur.p==="f"?FLF:cur.p==="c"?FLC:FL;cur.fl=cur.fl===L[i]?"":L[i];cur.oth="";rs()}
+function sfl(i){var L=cur.p==="f"?FLF:cur.p==="c"?FLC:FL,x=L[i],j=cur.fls.indexOf(x);if(cur.p==="c")cur.fls=j>-1?[]:[x];else j>-1?cur.fls.splice(j,1):cur.fls.push(x);rs()}
 function tfr(i){var x=FR[i],j=cur.fr.indexOf(x);j>-1?cur.fr.splice(j,1):cur.fr.push(x);rs()}
 function qq(d){cur.q=Math.max(1,cur.q+d);document.getElementById("qv").textContent=cur.q;document.getElementById("ab").textContent="Agregar "+$(unit(cur)*cur.q)}
 function closeS(){document.getElementById("ov").innerHTML=""}
 function addC(){
-  var c=cur,it={p:c.p,fruit:c.fruit,fl:(c.oth||"").trim()||c.fl,fr:c.fr.slice(),q:c.q,u:unit(c)};
-  var key=JSON.stringify([it.p,it.fruit,it.fl,it.fr,it.u]),f=cart.filter(function(x){return JSON.stringify([x.p,x.fruit,x.fl,x.fr,x.u])===key})[0];
+  var c=cur,o=(c.oth||"").trim(),it={p:c.p,fruit:c.fruit,fl:c.fls.concat(o?[o]:[]).join(" + "),fr:c.fr.slice(),qx:!!c.qx,q:c.q,u:unit(c)};
+  var key=JSON.stringify([it.p,it.fruit,it.fl,it.fr,it.qx,it.u]),f=cart.filter(function(x){return JSON.stringify([x.p,x.fruit,x.fl,x.fr,!!x.qx,x.u])===key})[0];
   f?f.q+=it.q:cart.push(it);closeS();draw();
 }
 function openCart(){
@@ -752,7 +758,7 @@ function drawSales(m){
   h+=ts.length?ts.slice().reverse().map(function(s){
     return '<div class="row"><span>'+new Date(s.t).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"})+'<small>'+esc(s.items.map(function(i){return i.q+" "+name(i)+(det(i)?" ("+det(i)+")":"")}).join(", "))+'</small></span><span><b>'+$(s.total)+'</b> <button class="x" aria-label="Borrar venta" onclick="ds('+s.id+')">✕</button></span></div>'}).join(""):'<p class="empty">Todavía no hay ventas hoy. Cuando cobres un pedido aparecerá aquí.</p>';
   h+=clientsHtml();
-  h+='<h2 style="margin-top:28px">Precios</h2><div class="pr">'+[["m","Marquesita normal"],["mf","Marquesita con fruta"],["w","Waffle normal"],["wf","Waffle con fruta"],["f","Frape"],["c","Café"]].map(function(a){
+  h+='<h2 style="margin-top:28px">Precios</h2><div class="pr">'+[["m","Marquesita normal"],["mf","Marquesita con fruta"],["w","Waffle normal"],["wf","Waffle con fruta"],["f","Frape"],["c","Café"],["x","Extra (queso, fruta o sabor)"]].map(function(a){
     return '<div><label>'+a[1]+'</label><input type="number" inputmode="decimal" value="'+PR[a[0]]+'" onchange="up(\''+a[0]+'\',this.value)"></div>'}).join("")+'</div>';
   h+='<p class="l" style="font-size:13px;margin-top:22px">'+(syncErr?'<span style="color:var(--red)">⚠️ '+esc(syncErr)+'</span>':sbOn()?"☁️ Pedidos, clientes, ventas y precios se guardan en la nube.":"Los datos se guardan solo en este teléfono.")+'</p><div class="acts"><button class="btn alt grow" onclick="backup()">Descargar respaldo</button><button class="btn" onclick="logout()">Cerrar sesión</button></div>';
   m.innerHTML=h;
