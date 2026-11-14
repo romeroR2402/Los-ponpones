@@ -358,6 +358,18 @@ select{font:inherit;width:100%;border:2px solid transparent;background:var(--til
 .cp-r small{display:block;color:var(--mute);font-size:12px}
 .cp-r b{font-variant-numeric:tabular-nums}
 .kpi.neg b{color:var(--red)}
+/* Lector de tickets */
+.tk-r{display:grid;grid-template-columns:1fr 84px 30px;gap:6px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.tk-r input,.tk-r select{margin:0;padding:8px 10px;font-size:14px;border-radius:12px}
+.tk-r select{grid-column:1/3;font-size:13px;color:var(--mute)}
+.tk-r .x{grid-row:1/3;grid-column:3}
+.tk-pv{max-height:180px;max-width:100%;border-radius:14px;display:block;margin:6px auto}
+.tk-bar{height:8px;border-radius:99px;background:var(--tile);overflow:hidden;margin:10px 0}
+.tk-bar i{display:block;height:100%;background:var(--acc);transition:width .3s}
+.tk-sum{display:flex;justify-content:space-between;font-weight:700;margin-top:10px;font-variant-numeric:tabular-nums}
+.tk-warn{color:var(--red);font-size:13px;margin:4px 0 0}
+details.tk-raw summary{cursor:pointer;color:var(--mute);font-size:13px;margin-top:10px}
+details.tk-raw pre{white-space:pre-wrap;font-size:12px;background:var(--tile);border-radius:12px;padding:10px;max-height:200px;overflow:auto}
 </style>
 </head>
 <body>
@@ -627,7 +639,7 @@ function drawInv(m){var h='<h2 style="margin:14px 0 2px">Inventario</h2><p class
   h+='<div class="inv-sum"><span>∞ '+c.inf+' sin límite</span><span>'+c.qty+' con cantidad</span><span'+(c.out?' class="out"':'')+'>'+c.out+(c.out===1?" se acabó":" se acabaron")+'</span></div>';
   h+=cats.map(function(cn){return '<div class="inv-g"><h3>'+esc(cn)+'</h3>'+inv.filter(function(it){return it.categoria===cn}).map(function(it){
     return '<button class="inv-r" onclick="openInv(\''+it.id+'\')"><span>'+esc(it.nombre)+'<small>'+(it.vinculo?'En el menú: '+esc(it.vinculo)+' · ':'')+'Actualizado '+cuando(it.updated_at)+'</small></span><span class="st '+invSt(it)+'">'+esc(invTxt(it))+'</span></button>'}).join("")+'</div>'}).join("");
-  h=h.replace('<div class="inv-g">','<div class="acts"><button class="btn grow" onclick="openCompra()">🧾 Registrar compra</button></div><div class="inv-g">');
+  h=h.replace('<div class="inv-g">','<div class="acts"><button class="btn grow" onclick="openCompra()">🧾 Registrar compra</button><button class="btn alt grow" onclick="tkOpen()">📷 Leer ticket</button></div><div class="inv-g">');
   h+=comprasHtml();
   h+='<h2 style="margin-top:26px">Agregar artículo</h2><input id="in_n" placeholder="Nombre (ej. Chispas de chocolate)" maxlength="60"><input id="in_c" list="in_cats" placeholder="Categoría (ej. Desechables)" maxlength="40"><datalist id="in_cats">'+cats.map(function(x){return '<option value="'+esc(x)+'">'}).join("")+'</datalist><input id="in_u" placeholder="Unidad (piezas, kg, frascos…)" maxlength="20"><div class="change" id="in_e" style="color:var(--red);font-size:14px"></div><button class="btn" onclick="addInv()">Agregar al inventario</button>';
   m.innerHTML=h}
@@ -649,6 +661,55 @@ function comprasHtml(){var h='<h2 style="margin-top:26px">Compras recientes</h2>
   var m0=new Date();m0.setDate(1);m0.setHours(0,0,0,0);h+='<p class="l" style="margin:0">Gastado este mes: <b>'+money(sumSince(comp,m0.getTime(),"costo"))+'</b></p>';
   if(!comp.length)return h+'<p class="empty">Aún no registras compras. Usa «🧾 Registrar compra» cuando compres algo.</p>';
   return h+comp.slice(0,25).map(function(c){return '<div class="cp-r"><span><b>'+esc(c.nombre)+'</b><small>'+cuando(c.created_at)+(c.cantidad?' · '+fmtN(c.cantidad)+' '+esc(c.unidad||""):'')+(c.nota?' · '+esc(c.nota):'')+'</small></span><span><b>'+money(+c.costo)+'</b> <button class="x" aria-label="Borrar compra" onclick="compDel('+c.id+')">'+(cpArm===c.id?"¿Borrar?":"✕")+'</button></span></div>'}).join("")}
+var tk=null;
+function nrm(x){return String(x||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()}
+function stem(w){return w.length>5&&/es$/.test(w)&&!/[aeiou]es$/.test(w)?w.slice(0,-2):w.length>4&&/s$/.test(w)?w.slice(0,-1):w}
+function tkMatch(name){var ws=nrm(name).split(/[^a-z0-9]+/).map(stem),best="",bs=0,GEN=["polvo","para","frape","caliente","temporada"];
+  inv.forEach(function(it){var mine=nrm(it.nombre).replace(/\(.*?\)/g,"").split(/[^a-z0-9]+/).filter(function(w){return w.length>=4&&GEN.indexOf(w)<0}).map(stem),hit=0;
+    mine.forEach(function(w){if(ws.indexOf(w)>-1)hit++});var sc=hit?hit+hit/mine.length:0;if(sc>bs){bs=sc;best=it.id}});return best}
+function m2(v){return "$"+(+v||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function parseTicket(t){var lines=String(t).split(/\n/).map(function(l){return l.replace(/\s+/g," ").trim()}).filter(Boolean),items=[],total=null,tienda="";
+  var SKIP=/(sub ?-?total|\biva\b|ieps|impuesto|cambio|efectivo|tarjeta|\bpago|debito|d[eé]bito|cr[eé]dito|ahorro|descuento|art[ií]culos|\brfc|folio|fecha|hora|cajer|ticket|gracias|tel[eé]fono|www|cliente|saldo|puntos|redondeo|propina|recibido|transacc|autoriz|aprob|referencia|vuelto|su compra|monedero)/i;
+  lines.forEach(function(l,i){if(!tienda&&i<4&&/[a-z]{3}/i.test(l)&&!/\d[.,]\d{2}\b/.test(l))tienda=l;
+    var m=l.match(/^(.*?)[\s$]*(\d{1,5}(?:,\d{3})*[.,]\d{2})\s*[A-Za-z*]{0,2}\s*$/);if(!m)return;
+    var pr=parseFloat(m[2].replace(/,(?=\d{3}\b)/g,"").replace(",","."));
+    if(/\btotal\b/i.test(l)&&!/sub/i.test(l)&&!/art/i.test(l)){if(total===null)total=pr;return}
+    if(SKIP.test(l)||!(pr>0))return;
+    var nm=m[1].replace(/^[\d\s.,x*#:-]{3,}/i,"").replace(/\b\d+\s*[x@]\s*\$?\s*\d+[.,]\d{2}\b/i,"").replace(/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü0-9 .\/%-]/g,"").replace(/\s+/g," ").trim();
+    if(nm.replace(/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü]/g,"").length<3)return;
+    nm=nm.toLowerCase().replace(/(^|\s)\S/g,function(c){return c.toUpperCase()});
+    items.push({n:nm.slice(0,60),c:pr,inv:tkMatch(nm)})});
+  return{items:items,total:total,tienda:tienda.slice(0,40)}}
+function loadTess(){return window.Tesseract?Promise.resolve():new Promise(function(ok,ko){var sc=document.createElement("script");sc.src="https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js";sc.onload=ok;sc.onerror=function(){ko(new Error("no se pudo descargar el lector; revisa tu internet"))};document.head.appendChild(sc)})}
+function tkImg(file){return new Promise(function(ok,ko){var im=new Image(),u=URL.createObjectURL(file);im.onload=function(){var k=Math.min(1,1800/Math.max(im.width,im.height)),c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+    var x=c.getContext("2d");x.drawImage(im,0,0,c.width,c.height);var d=x.getImageData(0,0,c.width,c.height),a=d.data;for(var i=0;i<a.length;i+=4){var v=.3*a[i]+.59*a[i+1]+.11*a[i+2];v=Math.max(0,Math.min(255,(v-128)*1.5+140));a[i]=a[i+1]=a[i+2]=v}x.putImageData(d,0,0);ok({c:c,u:u})};
+    im.onerror=function(){ko(new Error("no se pudo abrir la imagen"))};im.src=u})}
+function tkOpen(){tk={st:"pick"};tkDraw()}
+function tkDraw(){var t=tk,h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>📷 Leer ticket</h2>';
+  if(t.st==="pick")h+='<p class="l" style="margin-top:0">Toma una foto del ticket o elige una imagen. Que se vea <b>derecho, completo y con buena luz</b>.</p><label class="btn big" for="tk_f" style="display:block;text-align:center;cursor:pointer">📷 Tomar foto o elegir imagen</label><input type="file" id="tk_f" accept="image/*" hidden onchange="tkRead(this.files[0])">'+(t.err?'<div class="change" style="color:var(--red);font-size:14px">'+esc(t.err)+'</div>':'')+'<p class="l" style="font-size:12px">La primera vez tarda un poco más porque se descarga el lector (unos segundos con buen internet).</p>';
+  else if(t.st==="read")h+=(t.pv?'<img class="tk-pv" alt="Ticket" src="'+t.pv+'">':'')+'<p class="l" id="tk_m">'+esc(t.msg||"Preparando…")+'</p><div class="tk-bar"><i id="tk_b" style="width:'+(t.pct||3)+'%"></i></div>';
+  else{h+='<p class="l" style="margin-top:0">Esto es lo que encontré. <b>Corrige</b> nombres o precios, <b>quita con ✕</b> lo que no compraste y elige a qué artículo de tu inventario corresponde (opcional).</p>';
+    h+=t.items.length?t.items.map(function(r,i){return '<div class="tk-r"><input aria-label="Producto" value="'+esc(r.n)+'" oninput="tk.items['+i+'].n=this.value"><input aria-label="Precio" type="number" inputmode="decimal" step="any" min="0" value="'+r.c+'" oninput="tk.items['+i+'].c=parseFloat(this.value)||0;tkSum()"><button class="x" aria-label="Quitar" onclick="tk.items.splice('+i+',1);tkDraw()">✕</button><select aria-label="Artículo del inventario" onchange="tk.items['+i+'].inv=this.value"><option value="">Otro gasto (no está en mi inventario)</option>'+inv.map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===r.inv?" selected":"")+'>📦 '+esc(x.nombre)+'</option>'}).join("")+'</select></div>'}).join(""):'<p class="empty">No encontré productos con precio. Prueba con otra foto más clara, o agrégalos a mano.</p>';
+    h+='<button class="btn alt sm" style="margin-top:10px" onclick="tk.items.push({n:\'\',c:0,inv:\'\'});tkDraw()">+ Agregar renglón</button>';
+    h+='<div class="tk-sum"><span>Suma de lo que vas a guardar</span><span id="tk_s"></span></div><p class="tk-warn" id="tk_w"></p>';
+    h+='<p class="l">Nota (tienda o lugar)</p><input id="tk_n" maxlength="200" value="'+esc(t.nota||"")+'" oninput="tk.nota=this.value">';
+    h+='<details class="tk-raw"><summary>Ver el texto que leí del ticket</summary><pre>'+esc(t.raw||"")+'</pre></details>'+(t.err?'<div class="change" style="color:var(--red);font-size:14px">'+esc(t.err)+'</div>':'');
+    h+='<button class="btn big" id="tk_ok" onclick="tkSave()">Guardar '+t.items.length+(t.items.length===1?" compra":" compras")+'</button><button class="btn big alt" onclick="tkOpen()">Leer otro ticket</button>'}
+  document.getElementById("ov").innerHTML=h+'<button class="btn big alt" onclick="closeS()">Cancelar</button></div></div>';if(t.st==="review")tkSum()}
+function tkSum(){var s=tk.items.reduce(function(a,r){return a+(+r.c||0)},0),e=document.getElementById("tk_s"),w=document.getElementById("tk_w");if(e)e.textContent=m2(s);
+  if(w)w.textContent=tk.total!=null&&Math.abs(tk.total-s)>1?"El ticket dice TOTAL "+m2(tk.total)+". Revisa si falta o sobra algo (está bien si quitaste cosas que no eran tuyas).":""}
+async function tkRead(f){if(!f)return;tk={st:"read",msg:"Abriendo la foto…",pct:3};tkDraw();
+  var set=function(m,p){tk.msg=m;tk.pct=p;var a=document.getElementById("tk_m"),b=document.getElementById("tk_b");if(a)a.textContent=m;if(b)b.style.width=p+"%"};
+  try{var im=await tkImg(f);tk.pv=im.u;tkDraw();set("Preparando el lector… (la primera vez tarda más)",8);await loadTess();
+    var w=await Tesseract.createWorker("spa",1,{logger:function(m){if(m.status==="recognizing text")set("Leyendo el ticket… "+Math.round(m.progress*100)+"%",20+Math.round(m.progress*78));else if(/load/.test(m.status))set("Preparando el lector… (la primera vez tarda más)",Math.min(19,8+Math.round((m.progress||0)*11)))}});
+    var r=await w.recognize(im.c);await w.terminate();var pt=parseTicket(r.data.text);
+    tk={st:"review",items:pt.items,total:pt.total,raw:r.data.text,nota:pt.tienda?"Ticket "+pt.tienda:"Ticket"};tkDraw()}
+  catch(x){tk={st:"pick",err:"No se pudo leer: "+(x&&x.message||x)};tkDraw()}}
+async function tkSave(){var t=tk,rs=t.items.filter(function(r){return (r.n||"").trim()&&(+r.c||0)>0});if(!rs.length){t.err="No hay renglones con nombre y precio para guardar.";tkDraw();return}
+  var nota=(t.nota||"").trim().slice(0,200)||null,rows=rs.map(function(r){var it=inv.filter(function(x){return x.id===r.inv})[0];return{id:newId(),item_id:it?it.id:null,nombre:(it?it.nombre:r.n.trim()).slice(0,60),cantidad:null,unidad:null,costo:Math.round(r.c*100)/100,nota:nota}}),b=document.getElementById("tk_ok");if(b){b.disabled=true;b.textContent="Guardando…"}
+  try{await sbFetch("/rest/v1/compras",{method:"POST",headers:Object.assign(sbH(true),{Prefer:"return=minimal"}),body:JSON.stringify(rows)},true)}catch(x){t.err="No se pudo guardar ("+(x&&x.message)+").";tkDraw();return}
+  var now=new Date().toISOString();comp=comp||[];rows.slice().reverse().forEach(function(r){r.created_at=now;comp.unshift(r)});var tot=rows.reduce(function(a,r){return a+r.costo},0);tk=null;draw();
+  document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><div class="hero" style="font-size:64px">🧾</div><h2>Ticket guardado</h2><p class="l">Guardé '+rows.length+(rows.length===1?" compra":" compras")+' por <b>'+m2(tot)+'</b>. Ya cuentan en tu ganancia bruta.</p><button class="btn big" onclick="closeS()">Listo</button></div></div>'}
 function openCompra(id){cpEd={id:id||"",nombre:"",cant:"",costo:"",nota:""};rCompra()}
 function rCompra(err){var e=cpEd,it=inv.filter(function(x){return x.id===e.id})[0];
   var h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>🧾 Registrar compra</h2><p class="l" style="margin-top:0">Anota lo que pagaste para calcular tu ganancia.</p><p class="l">¿Qué compraste?</p><select id="cp_i" onchange="cpEd.id=this.value;rCompra()"><option value="">Otro gasto (escribir)</option>'+
