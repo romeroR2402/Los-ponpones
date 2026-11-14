@@ -343,6 +343,15 @@ nav{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .inst b{display:block;font-size:14px}
 .inst small{display:block;color:var(--mute);font-size:12px}
 @media(prefers-reduced-motion:reduce){.inst{animation:none}}
+/* Editar pedido */
+.ed-r{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ed-r .tx{flex:1;min-width:0;font-size:14px}
+.ed-r .tx small{display:block;color:var(--mute);font-size:12px}
+.ed-r .tx b{font-variant-numeric:tabular-nums}
+.ed-q{display:flex;align-items:center;gap:6px;flex:none}
+.ed-q button{width:30px;height:30px;border-radius:50%;border:0;background:var(--tile);color:var(--ink);font:inherit;font-weight:800;cursor:pointer}
+.ed-q b{min-width:18px;text-align:center}
+.oc .acts+.acts{margin-top:8px}
 </style>
 </head>
 <body>
@@ -428,7 +437,7 @@ async function pull(){
     firstPull=false;
     orders=rows.map(function(r){return{id:r.id,no:r.id,t:r.tipo,n:r.nombre,tel:r.telefono||"",dir:r.direccion||"",items:r.items||[],nota:r.nota||"",total:+r.total,st:r.estado==="pendiente"?"pen":"ok",at:Date.parse(r.created_at)}});
     draw()}catch(e){if(e&&e.message==="401")logout()}}
-setInterval(function(){pull();mine();loadShop();checkOps()},10000);
+setInterval(function(){pull();mine();loadShop();checkOps();if(!admin&&my.some(function(x){return x.st==="pen"}))loadHist()},10000);
 document.addEventListener("visibilitychange",function(){if(!document.hidden){mine();loadHist();loadShop().then(syncAll)}});
 async function sendDB(u){
   var o=ORD,bt=document.getElementById("sb");if(bt){bt.disabled=true;bt.textContent="Enviando…"}
@@ -481,7 +490,7 @@ function hcard(r){var d=new Date(r.created_at),pen=r.estado==="pendiente";
   return '<div class="oc"><div class="oh"><b>Pedido #'+r.id+'</b><span>'+fdate(d,{day:"numeric",month:"short"})+' · '+$(+r.total)+'</span></div><ul>'+(r.items||[]).map(function(l){return '<li>'+esc(l)+'</li>'}).join("")+'</ul>'+(r.nota?'<p class="l" style="margin:0 0 6px;font-size:13px">📝 '+esc(r.nota)+'</p>':'')+
    (pen?'<p class="ms" style="margin-top:4px">⏳ En preparación</p>':r.gusto==null?'<p class="ms" style="margin-top:4px">¿Te gustó?</p><div class="acts" style="margin-top:8px"><button class="btn alt grow" onclick="rateOpen('+r.id+',true)">👍 Sí, me gustó</button><button class="btn alt grow" onclick="rateOpen('+r.id+',false)">👎 No me gustó</button></div>'
    :'<div class="rated">'+(r.gusto?'👍 Te gustó':'👎 No te gustó')+(r.comentario?' · “'+esc(r.comentario)+'”':'')+'<button class="lnkb" onclick="rateOpen('+r.id+','+r.gusto+')">Cambiar</button></div>')+'</div>'}
-function mcard(x){
+function mcard(x){var hh=(hist||[]).filter(function(r){return r.id===x.id})[0];if(hh)x=Object.assign({},x,{items:hh.items||x.items,total:+hh.total});
   var tm=new Date(x.at).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"}),ok=x.st==="ok",gone=x.st==="gone",
    ms=ok?RDY[x.t]:gone?"La tienda cerró este pedido. Si tienes dudas, escríbenos.":x.lu==1?"¡Eres el siguiente! Ya casi está.":x.lu?"Preparando… vas en el lugar #"+x.lu+" de la fila.":"Recibimos tu pedido. Cargando…",
    q=encodeURIComponent("Hola, pregunto por mi pedido"+(x.id?" #"+x.id:"")+" de Los Ponpones");
@@ -703,7 +712,7 @@ function pasteO(){var o=parseO(document.getElementById("pt").value);
 function ocard(o,first){
   var tm=new Date(o.at).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"}),ok=o.st==="ok",can=o.t!=="suc"&&o.tel;
   var act='<div class="acts">'+(ok?(can?'<a class="btn alt grow lnk" href="'+nw(o)+'" target="_blank" rel="noopener">💬 Avisar otra vez</a>':'<span class="grow"></span>')
-   :'<button class="btn grow" onclick="dn('+o.id+')">'+LBL[o.t]+'</button>')+'<button class="btn alt sm" onclick="dq('+o.id+')">Quitar</button></div>';
+   :'<button class="btn grow" onclick="dn('+o.id+')">'+LBL[o.t]+'</button></div><div class="acts"><button class="btn alt grow" onclick="edOpen('+o.id+')">✏️ Editar pedido</button>')+'<button class="btn alt sm" onclick="dq('+o.id+')">Quitar</button></div>';
   return '<div class="oc'+(first?" first":"")+'"><div class="oh"><b>Pedido #'+o.no+'</b><span>'+TYN[o.t]+' · '+tm+'</span></div>'+(first?'<div class="nx">⭐ Este es el siguiente a preparar</div>':'')+
    '<div class="ob"><b>'+esc(o.n||"Sin nombre")+'</b>'+(o.tel?'<small>📞 '+esc(o.tel)+'</small>':'')+(o.dir?'<small>📍 '+esc(o.dir)+'</small>':'')+(o.nota?'<small>📝 '+esc(o.nota)+'</small>':'')+'</div><ul>'+o.items.map(function(l){return '<li>'+esc(l)+'</li>'}).join("")+'</ul><div class="tot sm"><span>Total</span><span>'+$(o.total)+'</span></div>'+act+'</div>'}
 function drawOrders(m){
@@ -741,7 +750,7 @@ function nFl(c){return c.fls?c.fls.length+((c.oth||"").trim()?1:0):(c.fl?String(
 function extras(c){return (c.p==="c"||c.p==="cp"?0:Math.max(0,nFl(c)-1)+(c.fruit?Math.max(0,(c.fr||[]).length-1):0))+(c.qx?1:0)}
 function unit(c){var b=c.p==="f"||c.p==="c"||c.p==="cp"?PR[c.p]:PR[c.fruit?P[c.p].kf:P[c.p].k];return b+extras(c)*(PR.x==null?5:PR.x)}
 function XH(t){return '<small class="hint">'+t+' · cada extra +'+$(PR.x==null?5:PR.x)+'</small>'}
-function upAB(){var b=document.getElementById("ab");if(b)b.textContent="Agregar "+$(unit(cur)*cur.q)}
+function upAB(){var b=document.getElementById("ab");if(b)b.textContent=(ed?(ed.i>=0?"Guardar cambio ":"Agregar al pedido "):"Agregar ")+$(unit(cur)*cur.q)}
 function name(it){return P[it.p].n+(it.fruit?(it.fr.every(function(x){return FR.indexOf(x)<3})?" con fruta":" con extras"):"")}
 function det(it){return [it.fl,it.fr&&it.fr.join(", "),it.qx?"Queso extra":""].filter(Boolean).join(" · ")}
 function vin(){var m=document.getElementById("main");m.classList.remove("vin");void m.offsetWidth;m.classList.add("vin")}
@@ -790,17 +799,53 @@ function rs(){
   }else if(c.p==="cp")h+='<p class="l">Nota (opcional)</p><input placeholder="Ej. con canela, leche deslactosada…" value="'+esc(c.oth)+'" oninput="cur.oth=this.value">';
   else h+='<p class="l">Sabor'+(c.p==="c"?"":XH("1 incluido"))+'</p><div class="chips">'+(c.p==="c"?FLC:FLF).map(function(x,i){return chip(x,c.fls.indexOf(x)>-1,"sfl("+i+")")}).join("")+'</div><input placeholder="Otro sabor o nota (opcional)" value="'+esc(c.oth)+'" oninput="cur.oth=this.value;upAB()">';
   h+='<div class="qty"><button aria-label="Menos" onclick="qq(-1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14"/></svg></button><b id="qv">'+c.q+'</b><button aria-label="Más" onclick="qq(1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button></div>';
-  h+='<button class="btn big" id="ab" onclick="addC()">Agregar '+$(unit(c)*c.q)+'</button><button class="btn big alt" onclick="closeS()" style="margin-top:8px">Cancelar</button></div></div>';
+  h+='<button class="btn big" id="ab" onclick="addC()">'+(ed?(ed.i>=0?"Guardar cambio ":"Agregar al pedido "):"Agregar ")+$(unit(c)*c.q)+'</button><button class="btn big alt" onclick="'+(ed?"edDraw()":"closeS()")+'" style="margin-top:8px">'+(ed?"Volver al pedido":"Cancelar")+'</button></div></div>';
   document.getElementById("ov").innerHTML=h;
 }
 function sf(v){cur.fruit=!!v;if(!v)cur.fr=[];rs()}
 function sfl(i){var L=cur.p==="f"?FLF:cur.p==="c"?FLC:FL,x=L[i],j=cur.fls.indexOf(x);if(cur.p==="c")cur.fls=j>-1?[]:[x];else j>-1?cur.fls.splice(j,1):cur.fls.push(x);rs()}
 function tfr(i){var x=FR[i],j=cur.fr.indexOf(x);j>-1?cur.fr.splice(j,1):cur.fr.push(x);rs()}
-function qq(d){cur.q=Math.max(1,cur.q+d);document.getElementById("qv").textContent=cur.q;document.getElementById("ab").textContent="Agregar "+$(unit(cur)*cur.q)}
-function closeS(){document.getElementById("ov").innerHTML=""}
+function qq(d){cur.q=Math.max(1,cur.q+d);document.getElementById("qv").textContent=cur.q;document.getElementById("ab").textContent=(ed?(ed.i>=0?"Guardar cambio ":"Agregar al pedido "):"Agregar ")+$(unit(cur)*cur.q)}
+function closeS(){document.getElementById("ov").innerHTML="";ed=null}
+var ed=null;
+function lineOf(i){return i.q+" x "+name(i)+(det(i)?" ("+det(i)+")":"")+" - $"+(i.u*i.q)}
+function parseLine(t){var m=String(t).match(/^(\d+)\s*x\s*(.+?)(?:\s*\((.*)\))?\s*-\s*\$\s*([\d.]+)\s*$/i);if(!m)return null;
+  var nm=m[2].toLowerCase(),k=/^marquesita/.test(nm)?"m":/^waffle/.test(nm)?"w":/^frape/.test(nm)?"f":/^cappuccino/.test(nm)?"cp":/^caf/.test(nm)?"c":null;if(!k)return null;
+  var q=+m[1]||1,it={p:k,fruit:/con (fruta|extras)/.test(nm),fl:"",fr:[],qx:false,q:q,u:Math.round(+m[4]/q*100)/100},fl=[];
+  (m[3]||"").split(" · ").forEach(function(part){part.split(/, | \+ /).forEach(function(x){x=x.trim();if(!x)return;
+    if(x==="Queso extra")it.qx=true;else if(it.fruit&&FR.indexOf(x)>-1)it.fr.push(x);else fl.push(x)})});
+  it.fl=fl.join(" + ");return it}
+function edOpen(id){var o=orders.filter(function(x){return x.id===id})[0];if(!o||o.st!=="pen")return;
+  ed={id:id,o:o,i:-1,nota:o.nota||"",err:"",lines:o.items.map(function(t){var it=parseLine(t);return it?{it:it}:{raw:t}})};edDraw()}
+function edTot(){return ed.lines.reduce(function(a,l){if(l.it)return a+l.it.u*l.it.q;var m=String(l.raw).match(/-\s*\$\s*([\d.]+)\s*$/);return a+(m?+m[1]:0)},0)}
+function edDraw(){var e=ed,h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Editar pedido #'+e.o.no+'</h2><p class="l" style="margin-top:0">'+esc(e.o.n||"Cliente")+' · '+TYN[e.o.t]+'. Cambia lo que te pidió antes de prepararlo o cobrarlo.</p>';
+  h+=e.lines.map(function(l,i){var it=l.it;
+    return '<div class="ed-r"><span class="tx">'+(it?'<b>'+esc(name(it))+'</b>'+(det(it)?'<small>'+esc(det(it))+'</small>':'')+'<small>'+$(it.u*it.q)+'</small>':esc(l.raw))+'</span>'+
+      (it?'<span class="ed-q"><button aria-label="Menos" onclick="edQ('+i+',-1)">−</button><b>'+it.q+'</b><button aria-label="Más" onclick="edQ('+i+',1)">+</button></span><button class="btn alt sm" onclick="edCh('+i+')">Cambiar</button>':'')+
+      '<button class="x" aria-label="Quitar producto" onclick="edDel('+i+')">✕</button></div>'}).join("");
+  h+='<p class="l">Agregar otro producto</p><div class="chips">'+["m","w","f","c","cp"].map(function(k){return '<button class="chip" onclick="edAdd(\''+k+'\')">+ '+P[k].n+'</button>'}).join("")+'</div>';
+  h+='<p class="l">Nota del pedido</p><textarea id="ed_n" rows="2" maxlength="200" oninput="ed.nota=this.value">'+esc(e.nota)+'</textarea>';
+  h+='<div class="tot"><span>Total</span><span>'+$(edTot())+'</span></div>'+(e.o.total!==edTot()?'<p class="l" style="margin:2px 0 0;font-size:13px">Antes: '+$(e.o.total)+'</p>':'')+
+    (e.err?'<div class="change" style="color:var(--red);font-size:14px">'+esc(e.err)+'</div>':'')+'<button class="btn big" id="ed_ok" onclick="edSave()">Guardar cambios</button><button class="btn big alt" onclick="closeS()">Cancelar</button></div></div>';
+  document.getElementById("ov").innerHTML=h}
+function edQ(i,d){var it=ed.lines[i].it;it.q=Math.max(1,it.q+d);edDraw()}
+function edDel(i){ed.lines.splice(i,1);edDraw()}
+function edAdd(k){ed.i=-1;var e=ed;openP(k);ed=e}
+function edCh(i){var it=ed.lines[i].it,e=ed;e.i=i;var L=it.p==="f"?FLF:it.p==="c"?FLC:FL,fs=String(it.fl||"").split(" + ").filter(Boolean);
+  cur={p:it.p,fruit:!!it.fruit,fls:fs.filter(function(x){return L.indexOf(x)>-1}),fr:(it.fr||[]).slice(),oth:fs.filter(function(x){return L.indexOf(x)<0}).join(", "),qx:!!it.qx,q:it.q};rs();ed=e}
+async function edSave(){var e=ed;if(!e.lines.length){e.err="Deja al menos un producto. Si ya no quiere nada, usa «Quitar».";edDraw();return}
+  var items=e.lines.map(function(l){return l.it?lineOf(l.it):l.raw}),total=edTot(),nota=(e.nota||"").trim(),b=document.getElementById("ed_ok");if(b){b.disabled=true;b.textContent="Guardando…"}
+  if(sbOn()&&tok){try{var r=await sbFetch("/rest/v1/orders?id=eq."+e.id+"&estado=eq.pendiente",{method:"PATCH",headers:Object.assign(sbH(true),{Prefer:"return=representation"}),body:JSON.stringify({items:items,total:total,nota:nota||null})},true);
+      if(!r||!r.length)throw new Error("este pedido ya fue despachado o quitado")}catch(x){e.err="No se pudo guardar ("+(x&&x.message)+").";edDraw();return}}
+  e.o.items=items;e.o.total=total;e.o.nota=nota;sv("pp_orders",orders);lastSig="";
+  var o=e.o,d=(o.tel||"").replace(/\D/g,""),msg="Hola "+((o.n||"").split(" ")[0]||"")+", actualizamos tu pedido #"+o.no+" de Los Ponpones:\n"+items.map(function(t){return "• "+t}).join("\n")+"\nTotal: $"+total+(nota?"\nNota: "+nota:"")+"\n¡Gracias!";
+  ed=null;draw();
+  document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><div class="hero" style="font-size:64px">✅</div><h2>Pedido #'+o.no+' actualizado</h2><p class="l">Nuevo total: <b>'+$(total)+'</b>. El cliente también lo ve en «Mis compras».</p>'+
+    (d.length>=10?'<a class="btn big lnk" href="https://wa.me/'+(d.length===10?"52":"")+d+'?text='+encodeURIComponent(msg)+'" target="_blank" rel="noopener">💬 Avisarle al cliente por WhatsApp</a>':'')+'<button class="btn big alt" onclick="closeS()">Listo</button></div></div>'}
 function addC(){
   var c=cur,o=(c.oth||"").trim(),it={p:c.p,fruit:c.fruit,fl:c.fls.concat(o?[o]:[]).join(" + "),fr:c.fr.slice(),qx:!!c.qx,q:c.q,u:unit(c)};
   var key=JSON.stringify([it.p,it.fruit,it.fl,it.fr,it.qx,it.u]),f=cart.filter(function(x){return JSON.stringify([x.p,x.fruit,x.fl,x.fr,!!x.qx,x.u])===key})[0];
+  if(ed){if(ed.i>=0)ed.lines[ed.i]={it:it};else ed.lines.push({it:it});edDraw();return}
   f?f.q+=it.q:cart.push(it);closeS();draw();
 }
 function openCart(){
