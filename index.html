@@ -352,6 +352,12 @@ nav{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .ed-q button{width:30px;height:30px;border-radius:50%;border:0;background:var(--tile);color:var(--ink);font:inherit;font-weight:800;cursor:pointer}
 .ed-q b{min-width:18px;text-align:center}
 .oc .acts+.acts{margin-top:8px}
+/* Compras y ganancia */
+select{font:inherit;width:100%;border:2px solid transparent;background:var(--tile);color:var(--ink);border-radius:16px;padding:10px 12px;margin-top:8px}
+.cp-r{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:14px}
+.cp-r small{display:block;color:var(--mute);font-size:12px}
+.cp-r b{font-variant-numeric:tabular-nums}
+.kpi.neg b{color:var(--red)}
 </style>
 </head>
 <body>
@@ -383,8 +389,8 @@ try{localStorage.removeItem("pp_admin");sessionStorage.clear()}catch(e){}
 var HASH="33a47409e796ed31bb5a7518ee4c9613583cfc0dee84df119a90061b25fb5dc6";
 async function sha(t){var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
 function openLogin(err){document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Acceso del dueño</h2><p class="l">Escribe tu contraseña para ver las ventas y cambiar precios.</p><input id="pw" type="password" autocomplete="off" placeholder="Contraseña" onkeydown="if(event.key===\'Enter\')login()"><div class="change" style="color:var(--red);font-size:16px">'+(err||"")+'</div><button class="btn big" onclick="login()">Entrar</button><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Cancelar</button></div></div>'}
-async function login(){var v=document.getElementById("pw").value,ok=false;try{if(sbOn()){var rr=await fetch(SB.url.replace(/\/$/,"")+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:SB.key,"Content-Type":"application/json"},body:JSON.stringify({email:SB.email,password:v})});var dd=await rr.json();if(rr.ok&&dd.access_token){tok=dd.access_token;ok=true}}else ok=(await sha(v))===HASH}catch(e){openLogin("No se pudo verificar. Revisa tu conexión y que la app esté en tu enlace seguro (https).");return}if(ok){admin=true;closeS();view=2;draw();pull();loadShop().then(function(){syncAll().then(function(){loadRep();loadInv();loadOps();opsSeen()});if(shopOk&&!shop.abierta)askOpen()})}else openLogin("Contraseña incorrecta")}
-function logout(){ops=null;opsNew=0;firstOps=true;rep=null;inv=[];invOk=false;admin=false;tok=null;lastSig="";firstPull=true;view=1;draw()}
+async function login(){var v=document.getElementById("pw").value,ok=false;try{if(sbOn()){var rr=await fetch(SB.url.replace(/\/$/,"")+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:SB.key,"Content-Type":"application/json"},body:JSON.stringify({email:SB.email,password:v})});var dd=await rr.json();if(rr.ok&&dd.access_token){tok=dd.access_token;ok=true}}else ok=(await sha(v))===HASH}catch(e){openLogin("No se pudo verificar. Revisa tu conexión y que la app esté en tu enlace seguro (https).");return}if(ok){admin=true;closeS();view=2;draw();pull();loadShop().then(function(){syncAll().then(function(){loadRep();loadInv();loadComp();loadOps();opsSeen()});if(shopOk&&!shop.abierta)askOpen()})}else openLogin("Contraseña incorrecta")}
+function logout(){comp=null;compErr="";ops=null;opsNew=0;firstOps=true;rep=null;inv=[];invOk=false;admin=false;tok=null;lastSig="";firstPull=true;view=1;draw()}
 var away=0;
 document.addEventListener("visibilitychange",function(){if(document.hidden)away=Date.now();else if(admin&&away&&Date.now()-away>60000)logout()});
 var ORD=ld("pp_me",{t:"rec",n:"",tel:"",dir:""}),clients=ld("pp_clients",[]),TY=[["suc","En sucursal"],["rec","Recoger"],["env","Envío"]];
@@ -597,7 +603,7 @@ function repHtml(){var h='<h2 style="margin:6px 0 8px">Resumen de ventas</h2>';
   for(i=1;i<=now.getDate();i++){d=new Date(now.getFullYear(),now.getMonth(),i,12);mes+=dt(d)}
   var dl=ayer>0?(hoy>=ayer?"▲ ":"▼ ")+Math.abs(Math.round((hoy-ayer)/ayer*100))+"% vs ayer":"";
   var k=function(t,v,e){return '<div class="kpi"><span>'+t+'</span><b>'+money(v)+'</b>'+(e?'<em>'+e+'</em>':'')+'</div>'};
-  h+='<div class="kpis">'+k("Hoy",hoy,dl)+k("Ayer",ayer)+k("Últimos 7 días",w)+k("Este mes",mes)+'</div>';
+  h+='<div class="kpis">'+k("Hoy",hoy,dl)+k("Ayer",ayer)+k("Últimos 7 días",w)+k("Este mes",mes)+'</div>'+ganHtml();
   h+='<div class="chart"><div class="oh"><h3>Ventas por día</h3><div class="chips">'+[7,30].map(function(n){return '<button class="chip sm'+(repDays===n?" on":"")+'" onclick="repDays='+n+';repSel=null;draw()">'+n+' días</button>'}).join("")+'</div></div>'+
     '<div class="leg"><span><i style="background:var(--s1)"></i>Caja</span><span><i style="background:var(--s2)"></i>Pedidos</span></div><div id="repc">'+chartHtml()+'</div>'+
     '<details class="tbl"><summary>Ver como tabla</summary><table><thead><tr><th>Día</th><th>Caja</th><th>Pedidos</th><th>Total</th></tr></thead><tbody>'+
@@ -621,8 +627,49 @@ function drawInv(m){var h='<h2 style="margin:14px 0 2px">Inventario</h2><p class
   h+='<div class="inv-sum"><span>∞ '+c.inf+' sin límite</span><span>'+c.qty+' con cantidad</span><span'+(c.out?' class="out"':'')+'>'+c.out+(c.out===1?" se acabó":" se acabaron")+'</span></div>';
   h+=cats.map(function(cn){return '<div class="inv-g"><h3>'+esc(cn)+'</h3>'+inv.filter(function(it){return it.categoria===cn}).map(function(it){
     return '<button class="inv-r" onclick="openInv(\''+it.id+'\')"><span>'+esc(it.nombre)+'<small>'+(it.vinculo?'En el menú: '+esc(it.vinculo)+' · ':'')+'Actualizado '+cuando(it.updated_at)+'</small></span><span class="st '+invSt(it)+'">'+esc(invTxt(it))+'</span></button>'}).join("")+'</div>'}).join("");
+  h=h.replace('<div class="inv-g">','<div class="acts"><button class="btn grow" onclick="openCompra()">🧾 Registrar compra</button></div><div class="inv-g">');
+  h+=comprasHtml();
   h+='<h2 style="margin-top:26px">Agregar artículo</h2><input id="in_n" placeholder="Nombre (ej. Chispas de chocolate)" maxlength="60"><input id="in_c" list="in_cats" placeholder="Categoría (ej. Desechables)" maxlength="40"><datalist id="in_cats">'+cats.map(function(x){return '<option value="'+esc(x)+'">'}).join("")+'</datalist><input id="in_u" placeholder="Unidad (piezas, kg, frascos…)" maxlength="20"><div class="change" id="in_e" style="color:var(--red);font-size:14px"></div><button class="btn" onclick="addInv()">Agregar al inventario</button>';
   m.innerHTML=h}
+var comp=null,compErr="",cpEd=null,cpArm=0;
+async function loadComp(){if(!(sbOn()&&admin&&tok))return;
+  try{var d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-120);comp=await allRows("/rest/v1/compras?select=*&created_at=gte."+encodeURIComponent(d.toISOString())+"&order=created_at.desc");compErr=""}
+  catch(e){comp=comp||[];compErr=e&&e.message==="404"?"Falta activar el registro de compras en la base de datos.":"No se pudieron cargar las compras ("+(e&&e.message)+")."}
+  if(view==2||view==5)draw()}
+function sumSince(arr,t0,f){return (arr||[]).reduce(function(a,x){var t=typeof x.t==="number"?x.t:Date.parse(x.created_at);return t>=t0?a+(+x[f]||0):a},0)}
+function ganHtml(){if(!sbOn())return "";var since=repDaysArr()[0];since.setHours(0,0,0,0);var t0=since.getTime();
+  var ven=sumSince(rep.v,t0,"total")+sumSince(rep.o,t0,"total"),gas=comp?sumSince(comp,t0,"costo"):0,g=ven-gas,mg=ven>0?Math.round(g/ven*100):0;
+  var k=function(t,v,e,c){return '<div class="kpi'+(c||"")+'"><span>'+t+'</span><b>'+(v<0?"−":"")+money(Math.abs(v))+'</b>'+(e?'<em>'+e+'</em>':'')+'</div>'};
+  return '<div class="chart"><div class="oh"><h3>💰 Ganancia bruta · últimos '+repDays+' días</h3></div>'+(compErr?'<p class="l" style="color:var(--red);font-size:13px">'+esc(compErr)+'</p>':'')+
+    '<div class="kpis" style="margin-top:8px">'+k("Ventas",ven)+k("Compras",gas,comp===null?"Cargando…":"")+k("Ganancia bruta",g,ven>0?mg+"% de lo vendido":"",g<0?" neg":"")+'</div>'+
+    '<p class="l" style="font-size:12px;margin:8px 0 0">Ventas cobradas menos lo que registraste como compras en esos días. Cambia el periodo con 7 o 30 días en la gráfica.</p></div>'}
+function comprasHtml(){var h='<h2 style="margin-top:26px">Compras recientes</h2>';
+  if(compErr)return h+'<p class="l" style="color:var(--red)">'+esc(compErr)+'</p>';
+  if(comp===null)return h+'<p class="empty">Cargando compras…</p>';
+  var m0=new Date();m0.setDate(1);m0.setHours(0,0,0,0);h+='<p class="l" style="margin:0">Gastado este mes: <b>'+money(sumSince(comp,m0.getTime(),"costo"))+'</b></p>';
+  if(!comp.length)return h+'<p class="empty">Aún no registras compras. Usa «🧾 Registrar compra» cuando compres algo.</p>';
+  return h+comp.slice(0,25).map(function(c){return '<div class="cp-r"><span><b>'+esc(c.nombre)+'</b><small>'+cuando(c.created_at)+(c.cantidad?' · '+fmtN(c.cantidad)+' '+esc(c.unidad||""):'')+(c.nota?' · '+esc(c.nota):'')+'</small></span><span><b>'+money(+c.costo)+'</b> <button class="x" aria-label="Borrar compra" onclick="compDel('+c.id+')">'+(cpArm===c.id?"¿Borrar?":"✕")+'</button></span></div>'}).join("")}
+function openCompra(id){cpEd={id:id||"",nombre:"",cant:"",costo:"",nota:""};rCompra()}
+function rCompra(err){var e=cpEd,it=inv.filter(function(x){return x.id===e.id})[0];
+  var h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>🧾 Registrar compra</h2><p class="l" style="margin-top:0">Anota lo que pagaste para calcular tu ganancia.</p><p class="l">¿Qué compraste?</p><select id="cp_i" onchange="cpEd.id=this.value;rCompra()"><option value="">Otro gasto (escribir)</option>'+
+    inv.map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===e.id?" selected":"")+'>'+esc(x.nombre)+'</option>'}).join("")+'</select>';
+  if(!it)h+='<input id="cp_n" maxlength="60" placeholder="Ej. Harina, gas, servilletas" value="'+esc(e.nombre)+'" oninput="cpEd.nombre=this.value">';
+  h+='<p class="l">¿Cuánto pagaste en total?</p><input id="cp_c" type="number" inputmode="decimal" min="0" step="any" placeholder="$ 0" value="'+esc(e.costo)+'" oninput="cpEd.costo=this.value">';
+  h+='<p class="l">¿Cuántos compraste? (opcional)</p><input id="cp_q" type="number" inputmode="decimal" min="0" step="any" placeholder="'+(it?esc(it.unidad):"cantidad")+'" value="'+esc(e.cant)+'" oninput="cpEd.cant=this.value">';
+  if(it&&it.cantidad!=null)h+='<p class="l" style="font-size:13px">Se sumará a tu inventario (hoy: '+esc(invTxt(it))+').</p>';
+  h+='<p class="l">Nota (opcional)</p><input id="cp_t" maxlength="200" placeholder="Ej. Tienda La Esperanza" value="'+esc(e.nota)+'" oninput="cpEd.nota=this.value">'+
+    (err?'<div class="change" style="color:var(--red);font-size:14px">'+esc(err)+'</div>':'')+'<button class="btn big" id="cp_ok" onclick="saveCompra()">Guardar compra</button><button class="btn big alt" onclick="closeS()">Cancelar</button></div></div>';
+  document.getElementById("ov").innerHTML=h}
+async function saveCompra(){var e=cpEd,it=inv.filter(function(x){return x.id===e.id})[0],c=parseFloat(String(e.costo).replace(",",".")),q=parseFloat(String(e.cant).replace(",","."));
+  var nm=it?it.nombre:(e.nombre||"").trim();if(!nm){rCompra("Escribe qué compraste.");return}if(!(c>=0)){rCompra("Escribe cuánto pagaste (un número).");return}
+  var row={id:newId(),item_id:it?it.id:null,nombre:nm,cantidad:q>0?q:null,unidad:it?it.unidad:null,costo:c,nota:(e.nota||"").trim()||null},b=document.getElementById("cp_ok");if(b){b.disabled=true;b.textContent="Guardando…"}
+  try{await sbFetch("/rest/v1/compras",{method:"POST",headers:Object.assign(sbH(true),{Prefer:"return=minimal"}),body:JSON.stringify(row)},true)}
+  catch(x){rCompra(x&&x.message==="404"?"Falta activar el registro de compras en la base de datos.":"No se pudo guardar ("+(x&&x.message)+").");return}
+  row.created_at=new Date().toISOString();comp=comp||[];comp.unshift(row);
+  if(it&&q>0&&it.cantidad!=null){var nc=+it.cantidad+q;try{var r=await sbFetch("/rest/v1/inventario?id=eq."+encodeURIComponent(it.id),{method:"PATCH",headers:Object.assign(sbH(true),{Prefer:"return=representation"}),body:JSON.stringify({cantidad:nc,updated_at:new Date().toISOString()})},true);if(r&&r[0])Object.assign(it,r[0]);invLink(it,nc)}catch(x){}}
+  closeS();draw()}
+async function compDel(id){if(cpArm!==id){cpArm=id;draw();return}cpArm=0;
+  try{await sbFetch("/rest/v1/compras?id=eq."+id,{method:"DELETE"},true);comp=comp.filter(function(c){return c.id!==id})}catch(x){compErr="No se pudo borrar ("+(x&&x.message)+")."}draw()}
 function invGet(){return inv.filter(function(x){return x.id===invEdit.id})[0]}
 function openInv(id){var it=inv.filter(function(x){return x.id===id})[0];if(!it)return;invEdit={id:id,modo:invSt(it),n:it.cantidad==null||+it.cantidad<=0?"":fmtN(it.cantidad),del:false};rInv()}
 function rInv(err){var e=invEdit,it=invGet();if(!it)return;
@@ -631,7 +678,7 @@ function rInv(err){var e=invEdit,it=invGet();if(!it)return;
   if(e.modo==="qty")h+='<div class="qty"><button aria-label="Menos" onclick="invStep(-1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14"/></svg></button><input id="in_q" type="number" inputmode="decimal" min="0" step="any" value="'+esc(e.n)+'" placeholder="0" oninput="invEdit.n=this.value"><button aria-label="Más" onclick="invStep(1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button></div><p class="l" style="text-align:center;margin-top:6px">'+esc(it.unidad)+'</p>';
   if(e.modo==="inf")h+='<p class="l" style="font-size:13px">No llevas la cuenta de este artículo; se toma como que nunca se acaba.</p>';
   if(it.vinculo)h+='<p class="l" style="font-size:13px">'+(e.modo==="out"?'Los clientes verán <b>'+esc(it.vinculo)+'</b> como agotado.':'Si marcas "Se acabó", los clientes verán '+esc(it.vinculo)+' como agotado.')+'</p>';
-  h+=(err?'<div class="change" style="color:var(--red);font-size:14px">'+esc(err)+'</div>':'')+'<button class="btn big" id="inv_ok" onclick="saveInv()">Guardar</button><button class="btn big alt" onclick="closeS()">Cancelar</button><button class="btn big alt" style="color:var(--red)" onclick="delInv()">'+(e.del?"¿Seguro? Toca otra vez para quitarlo":"Quitar del inventario")+'</button></div></div>';
+  h+=(err?'<div class="change" style="color:var(--red);font-size:14px">'+esc(err)+'</div>':'')+'<button class="btn big" id="inv_ok" onclick="saveInv()">Guardar</button><button class="btn big alt" style="color:var(--ink)" onclick="openCompra(\''+it.id+'\')">🧾 Registrar compra de este artículo</button><button class="btn big alt" onclick="closeS()">Cancelar</button><button class="btn big alt" style="color:var(--red)" onclick="delInv()">'+(e.del?"¿Seguro? Toca otra vez para borrarlo":"🗑 Borrar artículo")+'</button></div></div>';
   document.getElementById("ov").innerHTML=h}
 function invStep(d){var n=Math.max(0,(parseFloat(String(invEdit.n).replace(",","."))||0)+d);invEdit.n=fmtN(n);document.getElementById("in_q").value=invEdit.n}
 function invLink(it,c){if(!it.vinculo||!shopOk)return;var a=shop.agotado.slice(),j=a.indexOf(it.vinculo),out=c===0;
@@ -755,7 +802,7 @@ function name(it){return P[it.p].n+(it.fruit?(it.fr.every(function(x){return FR.
 function det(it){return [it.fl,it.fr&&it.fr.join(", "),it.qx?"Queso extra":""].filter(Boolean).join(" · ")}
 function vin(){var m=document.getElementById("main");m.classList.remove("vin");void m.offsetWidth;m.classList.add("vin")}
 var barN=0;
-function tab(n){if(n!==view&&!((n==2||n==3||n==5)&&!admin))vin();if((n==2||n==3||n==5)&&!admin){openLogin();return}view=n;armed=false;if(n==2){loadRep();loadOps();opsSeen()}if(n==4)loadHist();if(n==5)loadInv();draw()}
+function tab(n){if(n!==view&&!((n==2||n==3||n==5)&&!admin))vin();if((n==2||n==3||n==5)&&!admin){openLogin();return}view=n;armed=false;if(n==2){loadRep();loadComp();loadOps();opsSeen()}if(n==4)loadHist();if(n==5){loadInv();loadComp()}draw()}
 var TEMAS=[["original","Original","🧁"],["navidad","Navidad","🎄"],["halloween","Halloween","🎃"]],temaOn=null;
 function temaHtml(){var t=shop.tema||"original";
   return '<p class="l">Estilo de la app (lo ven todos tus clientes)</p><div class="chips">'+TEMAS.map(function(x){return '<button class="chip'+(t===x[0]?" on":"")+'" onclick="saveShop({tema:\''+x[0]+'\'})">'+x[2]+' '+x[1]+'</button>'}).join("")+'</div>'}
