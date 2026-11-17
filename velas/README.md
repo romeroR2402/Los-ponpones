@@ -41,3 +41,8 @@ agrega en **Redirect URLs**: `https://romeror2402.github.io/Los-ponpones/velas/*
 ## WhatsApp
 Los avisos por WhatsApp se envían con botones que abren WhatsApp con el mensaje ya escrito
 (cliente → tienda y tienda → cliente). El envío automático sin tocar nada requiere la API de WhatsApp Business de Meta (de pago) y no está incluido.
+
+## Fotos de los productos de ejemplo
+Las fotos de `img/*.jpg` son de [Unsplash](https://unsplash.com) (licencia Unsplash: uso comercial gratis, sin atribución obligatoria).
+Son fotos de referencia: cuando tengas fotos de tus propios productos, súbelas desde el panel → Productos.
+Categorías iniciales: Velas en vaso, Velas decorativas, Kits, Aromatizantes y Regalos (puedes crear más escribiendo una nueva al editar un producto).

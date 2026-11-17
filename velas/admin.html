@@ -284,7 +284,7 @@ function editar(p) {
   var nuevo = !p; p = p || { nombre: "", categoria: "Velas en vaso", descripcion: "", precio: "", precio_antes: "", presentacion: "", aromas: [], imagenes: [], destacado: false, activo: true, agotado: false, orden: 0 };
   var imgs = p.imagenes.slice(), cats = [];
   productos.forEach(function (x) { if (cats.indexOf(x.categoria) < 0) cats.push(x.categoria) });
-  ["Velas en vaso", "Velas de figura", "Aromaterapia", "Regalos"].forEach(function (c) { if (cats.indexOf(c) < 0) cats.push(c) });
+  ["Velas en vaso", "Velas decorativas", "Kits", "Aromatizantes", "Regalos"].forEach(function (c) { if (cats.indexOf(c) < 0) cats.push(c) });
   var m = modal('<div class="mhd"><h2 style="font-size:1.5rem">' + (nuevo ? "Nuevo producto" : "Editar producto") + '</h2><button class="ibtn" data-close>✕</button></div>' +
     '<form id="fp"><p class="small muted" style="margin:0 0 8px">Fotos (la primera es la portada)</p><div class="pics" id="pics"></div><input type="file" id="fimg" accept="image/*" multiple hidden>' +
     '<label class="f" style="margin-top:14px"><span>Nombre</span><input class="in" name="nombre" required value="' + esc(p.nombre) + '"></label>' +

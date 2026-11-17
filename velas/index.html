@@ -112,7 +112,7 @@ function categorias() { var s = []; productos.forEach(function (p) { if (s.index
 function vCatalogo(cat, q) {
   var cats = categorias(), buscar = q.get("buscar");
   app.innerHTML =
-    '<h1 class="title">' + (cat ? esc(cat) : "Velas<br>Aromáticas") + '</h1><p class="muted small" style="margin:0 0 16px">Cera de soya natural, mechas de algodón y aromas libres de tóxicos.</p>' +
+    '<h1 class="title">' + (cat ? esc(cat) : "Velas, kits<br>y aromas") + '</h1><p class="muted small" style="margin:0 0 16px">Velas de cera de soya, kits para regalar y aromatizantes para tu hogar.</p>' +
     '<div class="search" style="margin-bottom:14px"><label class="box">' + I.search + '<input id="q" placeholder="Buscar vela o aroma" value="' + esc(q.get("q") || "") + '"></label></div>' +
     '<div class="chips"><button class="chip ' + (!cat ? "on" : "") + '" data-c="">Todo</button>' +
     cats.map(function (c) { return '<button class="chip ' + (c === cat ? "on" : "") + '" data-c="' + esc(c) + '">' + esc(c) + "</button>" }).join("") + "</div>" +
