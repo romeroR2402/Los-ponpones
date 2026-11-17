@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Velas · Tienda</title>
+<meta name="description" content="Velas aromáticas hechas a mano. Compra en línea y paga por transferencia.">
+<meta name="theme-color" content="#FBF6F1">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Marcellus&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/velas.css">
+</head>
+<body>
+<header class="top" id="top">
+  <div class="wrap">
+    <a class="brand" href="#/" id="brand"></a>
+    <nav class="desk-nav" id="deskNav">
+      <a href="#/" data-r="inicio">Inicio</a><a href="#/catalogo" data-r="catalogo">Catálogo</a>
+      <a href="#/favoritos" data-r="favoritos">Favoritos</a><a href="#/cuenta" data-r="cuenta">Mi cuenta</a>
+    </nav>
+    <a class="ibtn" href="#/catalogo?buscar=1" aria-label="Buscar" data-i="search"></a>
+    <a class="ibtn" href="#/bolsa" aria-label="Bolsa"><span data-i="bag"></span><span class="badge" data-cart></span></a>
+  </div>
+</header>
+
+<main class="wrap" id="app"></main>
+
+<nav class="tabbar" id="tabbar">
+  <a href="#/" data-r="inicio"><span data-i="home"></span>Inicio</a>
+  <a href="#/catalogo" data-r="catalogo"><span data-i="grid"></span>Catálogo</a>
+  <a href="#/favoritos" data-r="favoritos"><span data-i="heart"></span>Favoritos</a>
+  <a href="#/bolsa" data-r="bolsa"><span data-i="bag"></span><span class="badge" data-cart></span>Bolsa</a>
+  <a href="#/cuenta" data-r="cuenta"><span data-i="user"></span>Cuenta</a>
+</nav>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="js/velas.js"></script>
+<script>
+(function () {
+var sb = V.sb, $ = V.$, $$ = V.$$, esc = V.esc, money = V.money;
+var app = $("#app");
+
+// ---------- Íconos ----------
+var I = {
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  bag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8Z"/><path d="M9 10V6.5a3 3 0 0 1 6 0V10"/></svg>',
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-4.5v-6h-5v6H5a1 1 0 0 1-1-1Z"/></svg>',
+  grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg>',
+  heart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20Z"/></svg>',
+  user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1.2-3.6 4-5.5 7.5-5.5s6.3 1.9 7.5 5.5"/></svg>',
+  arrow:'<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
+  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>',
+  x:'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  wa:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.4 14.1c-.2.6-1.3 1.2-1.8 1.2-.5.1-1 .2-3.3-.7-2.8-1.1-4.5-3.9-4.7-4.1-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.4.6-.4.4c-.1.1-.3.3-.1.6.2.3.7 1.2 1.6 1.9 1.1 1 2 1.3 2.3 1.4.3.2.4.1.6-.1l.8-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.2.1.7-.1 1.2Z"/></svg>'
+};
+function paintIcons(root) { $$("[data-i]", root).forEach(function (el) { el.innerHTML = I[el.dataset.i] || "" }) }
+paintIcons(document);
+
+// ---------- Estado ----------
+function load(k, d) { try { return JSON.parse(localStorage.getItem(k)) || d } catch (e) { return d } }
+function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)) } catch (e) {} }
+var cart = load("velas-cart", []), favs = load("velas-favs", []), mios = load("velas-mis-folios", []);
+var productos = [], rating = {}, user = null, perfil = null;
+
+function saveCart() { save("velas-cart", cart); var n = cart.reduce(function (a, c) { return a + c.cant }, 0); $$("[data-cart]").forEach(function (b) { b.textContent = n || "" }) }
+function prod(id) { return productos.find(function (p) { return p.id === id }) }
+function toggleFav(id) { var i = favs.indexOf(id); if (i < 0) favs.push(id); else favs.splice(i, 1); save("velas-favs", favs) }
+
+// ---------- Tarjeta de producto ----------
+function card(p, i) {
+  var r = rating[p.id];
+  return '<a class="card" href="#/p/' + p.id + '" style="animation-delay:' + ((i || 0) * 50) + 'ms">' +
+    '<div class="ph"><img loading="lazy" src="' + esc(V.img(p.imagenes[0])) + '" alt="">' +
+    (p.agotado ? '<span class="tag sold">Agotado</span>' : p.precio_antes ? '<span class="tag">Oferta</span>' : "") +
+    '<button class="fav ' + (favs.indexOf(p.id) >= 0 ? "on" : "") + '" data-fav="' + p.id + '" aria-label="Favorito">' + I.heart + "</button></div>" +
+    "<h3>" + esc(p.nombre) + "</h3>" +
+    '<div class="pr">' + (p.precio_antes ? "<s>" + money(p.precio_antes) + '</s><b class="sale">' : "<b>") + money(p.precio) + "</b></div>" +
+    (r ? '<div class="rate">★ ' + r.promedio + ' <span class="muted">(' + r.total + ")</span></div>" : "") + "</a>";
+}
+document.addEventListener("click", function (e) {
+  var f = e.target.closest("[data-fav]"); if (!f) return;
+  e.preventDefault(); e.stopPropagation(); toggleFav(f.dataset.fav); f.classList.toggle("on");
+  if (location.hash.indexOf("#/favoritos") === 0) render();
+});
+
+// ---------- Vistas ----------
+function vInicio() {
+  var a = V.ajustes, dest = productos.filter(function (p) { return p.destacado }), heroP = dest[0] || productos[0];
+  var cats = categorias();
+  var t = esc(a.hero_titulo || "Llena tu casa de aromas que abrazan").replace(/\s(\S+)$/, ' $1 <span class="spark">✦</span>');
+  app.innerHTML =
+    '<section class="hero"><div class="orbit"></div>' + (heroP ? '<img class="h-img" src="' + esc(V.img(heroP.imagenes[0])) + '" alt="">' : "") +
+    '<div class="h-in"><div><p class="small" style="letter-spacing:.14em;text-transform:uppercase;margin-bottom:12px">' + esc(a.lema || "") + "</p>" +
+    "<h1>" + t + '</h1></div><div style="display:flex;align-items:center;gap:16px"><a class="arrow-btn" href="#/catalogo" aria-label="Ver catálogo">' + I.arrow + '</a><span>Ver catálogo</span></div>' +
+    '<div class="dots"><i></i><i class="on"></i><i></i></div></div></section>' +
+    '<div class="sec"><h2>Colecciones</h2></div><div class="cols">' +
+    cats.map(function (c) { var p = productos.find(function (x) { return x.categoria === c }); return '<a class="col" href="#/catalogo/' + encodeURIComponent(c) + '"><img loading="lazy" src="' + esc(V.img(p && p.imagenes[0])) + '" alt=""><span>' + esc(c) + "</span></a>" }).join("") + "</div>" +
+    '<div class="sec"><h2>Favoritos de la casa</h2><a href="#/catalogo">Ver todo →</a></div>' +
+    '<div class="grid">' + (dest.length ? dest : productos).slice(0, 8).map(card).join("") + "</div>" +
+    '<div class="box" style="margin-top:30px;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap">' +
+    '<div><h3 style="font-size:1.3rem">Lleva la tienda en tu celular</h3><p class="muted small" style="margin:4px 0 0">Instálala como app y sigue tus pedidos.</p></div>' +
+    '<button class="btn" onclick="V.pedirInstalar()">Instalar app</button></div>' + footer();
+}
+function categorias() { var s = []; productos.forEach(function (p) { if (s.indexOf(p.categoria) < 0) s.push(p.categoria) }); return s }
+
+function vCatalogo(cat, q) {
+  var cats = categorias(), buscar = q.get("buscar");
+  app.innerHTML =
+    '<h1 class="title">' + (cat ? esc(cat) : "Velas<br>Aromáticas") + '</h1><p class="muted small" style="margin:0 0 16px">Cera de soya natural, mechas de algodón y aromas libres de tóxicos.</p>' +
+    '<div class="search" style="margin-bottom:14px"><label class="box">' + I.search + '<input id="q" placeholder="Buscar vela o aroma" value="' + esc(q.get("q") || "") + '"></label></div>' +
+    '<div class="chips"><button class="chip ' + (!cat ? "on" : "") + '" data-c="">Todo</button>' +
+    cats.map(function (c) { return '<button class="chip ' + (c === cat ? "on" : "") + '" data-c="' + esc(c) + '">' + esc(c) + "</button>" }).join("") + "</div>" +
+    '<div class="grid" id="list" style="margin-top:14px"></div>' + footer();
+  function draw() {
+    var t = $("#q").value.trim().toLowerCase();
+    var l = productos.filter(function (p) {
+      return (!cat || p.categoria === cat) && (!t || (p.nombre + " " + p.descripcion + " " + p.aromas.join(" ") + " " + p.categoria).toLowerCase().indexOf(t) >= 0);
+    });
+    $("#list").innerHTML = l.length ? l.map(card).join("") : '<div class="empty" style="grid-column:1/-1"><div class="big">🕯️</div>No encontramos velas con esa búsqueda.</div>';
+  }
+  $("#q").oninput = draw;
+  $$("[data-c]").forEach(function (b) { b.onclick = function () { location.hash = "#/catalogo" + (b.dataset.c ? "/" + encodeURIComponent(b.dataset.c) : "") } });
+  draw(); if (buscar) $("#q").focus();
+}
+
+function vFavoritos() {
+  var l = productos.filter(function (p) { return favs.indexOf(p.id) >= 0 });
+  app.innerHTML = '<h1 class="title">Favoritos</h1><p class="muted small" style="margin:0 0 18px">Las velas que marcaste con ♡.</p>' +
+    (l.length ? '<div class="grid">' + l.map(card).join("") + "</div>" : '<div class="empty"><div class="big">♡</div>Aún no tienes favoritos.<br><br><a class="btn" href="#/catalogo">Explorar velas</a></div>');
+}
+
+function vProducto(id) {
+  var p = prod(id);
+  if (!p) { app.innerHTML = '<div class="empty"><div class="big">🕯️</div>Este producto ya no está disponible.<br><br><a class="btn" href="#/catalogo">Ver catálogo</a></div>'; return }
+  var aroma = p.aromas[0] || "", cant = 1, r = rating[p.id];
+  app.innerHTML = '<div class="pd"><div class="gal"><div class="track" id="trk">' +
+    (p.imagenes.length ? p.imagenes : [""]).map(function (s) { return '<img src="' + esc(V.img(s)) + '" alt="">' }).join("") + "</div>" +
+    '<a class="ibtn back" href="javascript:history.back()" aria-label="Regresar">' + I.back + "</a>" +
+    '<button class="fav ' + (favs.indexOf(p.id) >= 0 ? "on" : "") + '" data-fav="' + p.id + '" style="top:14px;right:14px;width:42px;height:42px">' + I.heart + "</button>" +
+    (p.imagenes.length > 1 ? '<div class="gdots">' + p.imagenes.map(function (_, i) { return "<i" + (i ? "" : ' class="on"') + "></i>" }).join("") + "</div>" : "") + "</div>" +
+    '<div class="sheet"><div style="display:flex;justify-content:space-between;gap:14px;align-items:start">' +
+    '<div><p class="muted small" style="margin:0 0 4px">' + esc(p.categoria) + "</p><h1>" + esc(p.nombre) + '</h1><p class="muted small" style="margin:6px 0 0">' + esc(p.presentacion || "") +
+    (r ? ' · <span style="color:var(--accent)">★ ' + r.promedio + "</span> (" + r.total + ")" : "") + "</p></div>" +
+    '<div class="price-big">' + (p.precio_antes ? "<s>" + money(p.precio_antes) + "</s>" : "") + money(p.precio) + "</div></div>" +
+    '<p class="muted" style="margin:16px 0">' + esc(p.descripcion) + "</p>" +
+    (p.aromas.length ? '<p class="small" style="margin:0 0 8px">Aroma</p><div class="chips" id="aromas">' + p.aromas.map(function (a, i) { return '<button class="chip ' + (i ? "" : "on") + '" data-a="' + esc(a) + '">' + esc(a) + "</button>" }).join("") + "</div>" : "") +
+    '<div class="buy"><div class="qty"><button id="m">−</button><span id="n">1</span><button id="p">+</button></div>' +
+    '<button class="btn" id="add" ' + (p.agotado ? "disabled" : "") + ">" + I.bag + (p.agotado ? " Agotado" : " Agregar a la bolsa") + "</button></div>" +
+    '<div style="margin-top:28px"><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="font-size:1.35rem">Reseñas</h2><span class="muted small" id="rcount"></span></div><div id="revForm"></div><div id="revs"><p class="muted small">Cargando…</p></div></div>' +
+    "</div></div>";
+  var trk = $("#trk");
+  trk.onscroll = function () { var i = Math.round(trk.scrollLeft / trk.clientWidth); $$(".gdots i").forEach(function (d, j) { d.classList.toggle("on", i === j) }) };
+  $$("[data-a]").forEach(function (b) { b.onclick = function () { aroma = b.dataset.a; $$("[data-a]").forEach(function (x) { x.classList.toggle("on", x === b) }) } });
+  $("#m").onclick = function () { cant = Math.max(1, cant - 1); $("#n").textContent = cant };
+  $("#p").onclick = function () { cant = Math.min(50, cant + 1); $("#n").textContent = cant };
+  $("#add").onclick = function () {
+    var ex = cart.find(function (c) { return c.id === p.id && c.aroma === aroma });
+    if (ex) ex.cant += cant; else cart.push({ id: p.id, aroma: aroma, cant: cant });
+    saveCart(); V.toast("Agregado a tu bolsa ✦");
+  };
+  cargarResenas(p);
+}
+
+function cargarResenas(p) {
+  sb.from("velas_resenas").select("*").eq("producto_id", p.id).eq("visible", true).order("creado", { ascending: false }).then(function (r) {
+    var l = r.data || [];
+    $("#rcount") && ($("#rcount").textContent = l.length ? l.length + " opiniones" : "");
+    $("#revs") && ($("#revs").innerHTML = l.length ? l.map(function (x) {
+      return '<div class="rev"><div style="display:flex;justify-content:space-between"><b style="font-weight:500">' + esc(x.nombre || "Cliente") + '</b><span class="muted small">' + V.fecha(x.creado) + '</span></div><div class="st">' + V.stars(x.estrellas) + '</div><p style="margin:4px 0 0">' + esc(x.comentario) + "</p></div>";
+    }).join("") : '<p class="muted small">Todavía no hay reseñas. ¡Sé la primera persona en opinar!</p>');
+  });
+  if (!user) { $("#revForm").innerHTML = '<p class="small muted">¿Ya la compraste? <a href="#/cuenta">Entra a tu cuenta</a> para dejar tu reseña.</p>'; return }
+  sb.rpc("velas_puede_resenar", { p_producto: p.id }).then(function (r) {
+    if (!r.data) { $("#revForm").innerHTML = '<p class="small muted">Podrás dejar tu reseña cuando tu pedido con esta vela esté pagado.</p>'; return }
+    var est = 5;
+    $("#revForm").innerHTML = '<div class="box" style="margin:12px 0"><p style="margin:0 0 6px">Tu opinión</p><div class="star-pick" id="sp"></div>' +
+      '<textarea class="in" id="rc" placeholder="¿Qué te pareció el aroma, la duración…?" style="margin:10px 0"></textarea><button class="btn sm" id="rs">Publicar reseña</button></div>';
+    function pint() { $("#sp").innerHTML = [1, 2, 3, 4, 5].map(function (i) { return '<button data-s="' + i + '">' + (i <= est ? "★" : "☆") + "</button>" }).join(""); $$("[data-s]").forEach(function (b) { b.onclick = function () { est = +b.dataset.s; pint() } }) }
+    pint();
+    $("#rs").onclick = function () {
+      this.disabled = true;
+      sb.from("velas_resenas").upsert({ producto_id: p.id, user_id: user.id, nombre: (perfil && perfil.nombre) || user.email.split("@")[0], estrellas: est, comentario: $("#rc").value.trim().slice(0, 800), visto: false }, { onConflict: "producto_id,user_id" })
+        .then(function (r) { if (r.error) { V.toast("No se pudo publicar", "err"); $("#rs").disabled = false; return } V.toast("¡Gracias por tu reseña!"); cargarRatings().then(function () { cargarResenas(p) }) });
+    };
+  });
+}
+
+function totales() {
+  var sub = 0, a = V.ajustes;
+  cart.forEach(function (c) { var p = prod(c.id); if (p) sub += p.precio * c.cant });
+  var env = Number(a.envio || 0); if (Number(a.envio_gratis_desde) > 0 && sub >= Number(a.envio_gratis_desde)) env = 0;
+  return { sub: sub, env: cart.length ? env : 0, tot: sub + (cart.length ? env : 0) };
+}
+
+function vBolsa() {
+  cart = cart.filter(function (c) { var p = prod(c.id); return p && !p.agotado }); saveCart();
+  if (!cart.length) { app.innerHTML = '<h1 class="title">Mi bolsa</h1><div class="empty"><div class="big">🛍️</div>Tu bolsa está vacía.<br><br><a class="btn" href="#/catalogo">Ver velas</a></div>'; return }
+  var t = totales(), a = V.ajustes;
+  app.innerHTML = '<h1 class="title">Mi bolsa</h1><p class="muted small" style="margin:0 0 16px">' + cart.length + " producto(s)</p>" +
+    cart.map(function (c, i) {
+      var p = prod(c.id);
+      return '<div class="ci"><img src="' + esc(V.img(p.imagenes[0])) + '" alt=""><div class="t"><b>' + esc(p.nombre) + '</b><span class="muted small">' + esc(c.aroma || p.presentacion || "") + "</span>" +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><div class="qty sm"><button data-q="' + i + '" data-d="-1">−</button><span>' + c.cant + '</span><button data-q="' + i + '" data-d="1">+</button></div>' +
+        '<span class="price-tag">' + money(p.precio * c.cant) + '</span></div></div><button class="ibtn x" data-rm="' + i + '" aria-label="Quitar">' + I.x + "</button></div>";
+    }).join("") +
+    '<div class="box sum" style="margin-top:6px"><h3 style="font-size:1.3rem;margin-bottom:6px">Resumen</h3><div><span>Productos</span><span>' + money(t.sub) + "</span></div>" +
+    "<div><span>Envío</span><span>" + (t.env ? money(t.env) : "Gratis") + "</span></div>" +
+    (Number(a.envio_gratis_desde) > 0 && t.sub < a.envio_gratis_desde ? '<p class="small" style="margin:4px 0;color:var(--accent)">Te faltan ' + money(a.envio_gratis_desde - t.sub) + " para envío gratis ✦</p>" : "") +
+    '<div class="tot"><span>Total</span><span>' + money(t.tot) + '</span></div></div><a class="btn block" href="#/pagar" style="margin-top:16px;height:56px">Ir a pagar</a>';
+  $$("[data-q]").forEach(function (b) { b.onclick = function () { var c = cart[b.dataset.q]; c.cant = Math.max(1, Math.min(50, c.cant + +b.dataset.d)); saveCart(); vBolsa() } });
+  $$("[data-rm]").forEach(function (b) { b.onclick = function () { cart.splice(+b.dataset.rm, 1); saveCart(); vBolsa() } });
+}
+
+// ---------- Pago: datos → transferencia → comprobante ----------
+function vPagar() {
+  if (!cart.length) { location.hash = "#/bolsa"; return }
+  var t = totales(), d = load("velas-datos", {});
+  if (perfil) { d.nombre = d.nombre || perfil.nombre; d.telefono = d.telefono || perfil.telefono; d.direccion = d.direccion || perfil.direccion }
+  app.innerHTML = '<h1 class="title">Finalizar pedido</h1><div class="steps"><i class="on"></i><i></i><i></i></div>' +
+    (user ? "" : '<div class="box small" style="margin-bottom:14px">¿Quieres guardar tus pedidos? <a href="#/cuenta">Crea tu cuenta o entra</a>. También puedes comprar sin cuenta.</div>') +
+    '<form id="fd"><label class="f"><span>Nombre completo</span><input class="in" name="nombre" required value="' + esc(d.nombre || "") + '"></label>' +
+    '<label class="f"><span>WhatsApp / teléfono (10 dígitos)</span><input class="in" name="telefono" type="tel" inputmode="tel" required value="' + esc(d.telefono || "") + '"></label>' +
+    '<label class="f"><span>Correo (opcional)</span><input class="in" name="email" type="email" value="' + esc(d.email || (user ? user.email : "")) + '"></label>' +
+    '<label class="f"><span>Dirección de entrega</span><textarea class="in" name="direccion" placeholder="Calle, número, colonia, ciudad, C.P." required>' + esc(d.direccion || "") + "</textarea></label>" +
+    '<label class="f"><span>Notas (opcional)</span><input class="in" name="notas" placeholder="Ej. es para regalo" value=""></label>' +
+    '<div class="box sum"><div><span>Productos</span><span>' + money(t.sub) + "</span></div><div><span>Envío</span><span>" + (t.env ? money(t.env) : "Gratis") + '</span></div><div class="tot"><span>Total</span><span>' + money(t.tot) + "</span></div></div>" +
+    '<button class="btn block" style="margin-top:16px;height:56px">Continuar al pago</button></form>';
+  $("#fd").onsubmit = function (e) {
+    e.preventDefault(); var f = Object.fromEntries(new FormData(e.target));
+    if (V.digits(f.telefono).length < 10) { V.toast("Escribe un teléfono de 10 dígitos", "err"); return }
+    save("velas-datos", { nombre: f.nombre, telefono: f.telefono, email: f.email, direccion: f.direccion });
+    var b = e.target.querySelector("button"); b.disabled = true; b.textContent = "Creando pedido…";
+    sb.rpc("velas_crear_pedido", { p_cliente: f.nombre, p_telefono: f.telefono, p_email: f.email, p_direccion: f.direccion, p_notas: f.notas, p_items: cart })
+      .then(function (r) {
+        if (r.error) { V.toast(r.error.message || "No se pudo crear el pedido", "err"); b.disabled = false; b.textContent = "Continuar al pago"; return }
+        var resumen = { folio: r.data, telefono: f.telefono, nombre: f.nombre, direccion: f.direccion, total: t.tot,
+          items: cart.map(function (c) { var p = prod(c.id); return { nombre: p.nombre, cant: c.cant, aroma: c.aroma, precio: p.precio } }) };
+        mios.unshift({ folio: r.data, telefono: f.telefono }); save("velas-mis-folios", mios.slice(0, 30));
+        save("velas-ultimo", resumen); cart = []; saveCart();
+        location.hash = "#/pago/" + r.data;
+      });
+  };
+}
+
+function waTienda(o, conComprobante) {
+  var a = V.ajustes;
+  var txt = "¡Hola " + (a.nombre || "") + "! 🕯️ Hice el pedido *" + o.folio + "*\n" +
+    (o.items || []).map(function (i) { return "• " + i.cant + "× " + i.nombre + (i.aroma ? " (" + i.aroma + ")" : "") }).join("\n") +
+    "\nTotal: *" + money(o.total) + "*\nNombre: " + (o.nombre || "") + "\nEntrega: " + (o.direccion || "") +
+    (conComprobante ? "\n✅ Ya subí mi comprobante de transferencia." : "\nEn un momento envío mi comprobante de transferencia.");
+  return V.wa(a.whatsapp, txt);
+}
+
+function vPago(folio) {
+  var o = load("velas-ultimo", {}); if (o.folio !== folio) o = mios.find(function (m) { return m.folio === folio }) || { folio: folio };
+  var a = V.ajustes;
+  function fila(l, v) { return v ? '<div class="l">' + l + '</div><div class="v"><span>' + esc(v) + '</span><button data-copy="' + esc(v) + '">Copiar</button></div>' : "" }
+  app.innerHTML = '<h1 class="title">Paga por transferencia</h1><div class="steps"><i class="on"></i><i class="on"></i><i></i></div>' +
+    '<p class="muted" style="margin:0 0 14px">Pedido <b style="color:var(--ink)">' + esc(folio) + "</b>" + (o.total ? " · Total <b style=\"color:var(--ink)\">" + money(o.total) + "</b>" : "") + "</p>" +
+    '<div class="bank"><div style="font-family:var(--serif);font-size:1.3rem">' + esc(a.banco || "Banco") + "</div>" +
+    fila("Titular", a.titular) + fila("CLABE", a.clabe) + fila("Cuenta", a.cuenta) + fila("Tarjeta", a.tarjeta) +
+    (o.total ? fila("Monto", money(o.total).replace("$", "")) : "") + fila("Concepto", folio) + "</div>" +
+    '<p class="small muted" style="margin:14px 4px">' + esc(a.nota_pago || "") + "</p>" +
+    '<label class="drop" id="drop"><input type="file" accept="image/*,application/pdf" id="file" hidden><b>📎 Subir foto del comprobante</b><br><span class="small muted">Toca aquí para elegir la captura de tu transferencia</span><div id="prev"></div></label>' +
+    '<button class="btn block" id="send" style="margin-top:14px;height:56px" disabled>Enviar comprobante</button>' +
+    (a.whatsapp ? '<a class="btn wa block" style="margin-top:10px" target="_blank" rel="noopener" href="' + waTienda(o, false) + '">' + I.wa + " Avisar por WhatsApp</a>" : "") +
+    '<p class="center small muted" style="margin-top:14px">Puedes subirlo después desde <a href="#/cuenta">Mi cuenta → Pedidos</a>.</p>';
+  $$("[data-copy]").forEach(function (b) { b.onclick = function () { V.copy(b.dataset.copy) } });
+  var file = null;
+  $("#file").onchange = function () {
+    file = this.files[0]; if (!file) return; $("#send").disabled = false;
+    $("#prev").innerHTML = /^image/.test(file.type) ? '<img src="' + URL.createObjectURL(file) + '" alt="">' : '<p class="small">' + esc(file.name) + "</p>";
+  };
+  $("#send").onclick = function () {
+    var b = this; b.disabled = true; b.textContent = "Subiendo…";
+    subirComprobante(folio, o.telefono || (mios.find(function (m) { return m.folio === folio }) || {}).telefono, file).then(function (ok) {
+      if (!ok) { b.disabled = false; b.textContent = "Enviar comprobante"; return }
+      vListo(folio, o);
+    });
+  };
+}
+
+function subirComprobante(folio, tel, file) {
+  return V.comprimir(file, 1800).then(function (f) {
+    var ext = (f.name.split(".").pop() || "jpg").toLowerCase().slice(0, 4);
+    var path = "pedidos/" + folio + "-" + Date.now() + "." + ext;
+    return sb.storage.from("velas-comprobantes").upload(path, f, { contentType: f.type }).then(function (r) {
+      if (r.error) throw r.error;
+      return sb.rpc("velas_adjuntar_comprobante", { p_folio: folio, p_telefono: tel, p_ruta: path });
+    }).then(function (r) {
+      if (r.error || !r.data) throw r.error || new Error("No encontramos el pedido");
+      V.toast("Comprobante enviado ✓"); return true;
+    });
+  }).catch(function (e) { V.toast((e && e.message) || "No se pudo subir", "err"); return false });
+}
+
+function vListo(folio, o) {
+  var a = V.ajustes;
+  app.innerHTML = '<div class="steps"><i class="on"></i><i class="on"></i><i class="on"></i></div><div class="done"><div class="ic">✓</div>' +
+    '<h1 class="title" style="margin-top:0">¡Gracias por tu compra!</h1><p class="muted">Recibimos tu comprobante del pedido <b style="color:var(--ink)">' + esc(folio) + "</b>.<br>Te avisaremos en cuanto lo confirmemos.</p>" +
+    (a.whatsapp ? '<a class="btn wa block" style="margin:18px 0 10px" target="_blank" rel="noopener" href="' + waTienda(o, true) + '">' + I.wa + " Avisar a la tienda por WhatsApp</a>" : "") +
+    '<a class="btn line block" href="#/cuenta">Ver mis pedidos</a><br><a class="small muted" href="#/">Volver al inicio</a></div>';
+}
+
+// ---------- Cuenta y pedidos ----------
+function vCuenta(q) {
+  if (!user) return vLogin(q.get("modo") === "registro");
+  app.innerHTML = '<h1 class="title">Hola, ' + esc(((perfil && perfil.nombre) || user.email).split(" ")[0]) + " ✦</h1>" +
+    '<p class="muted small" style="margin:0 0 16px">' + esc(user.email) + "</p>" +
+    '<div class="chips" style="margin-bottom:14px"><button class="chip on" data-t="ped">Mis pedidos</button><button class="chip" data-t="dat">Mis datos</button><button class="chip install" onclick="V.pedirInstalar()">Instalar app</button></div><div id="tab"></div>' +
+    '<button class="btn line block" id="out" style="margin-top:24px">Cerrar sesión</button>';
+  $$("[data-t]").forEach(function (b) { b.onclick = function () { $$("[data-t]").forEach(function (x) { x.classList.toggle("on", x === b) }); b.dataset.t === "ped" ? misPedidos() : misDatos() } });
+  $("#out").onclick = function () { sb.auth.signOut().then(function () { location.hash = "#/" }) };
+  misPedidos();
+}
+function pedidoHtml(o) {
+  var pasos = ["pendiente", "por_revisar", "pagado", "enviado", "entregado"], k = pasos.indexOf(o.estado);
+  return '<div class="order"><div class="hd"><div><b>' + esc(o.folio) + '</b><div class="muted small">' + V.fecha(o.creado) + "</div></div>" + V.chip(o.estado) + "</div>" +
+    (o.estado !== "cancelado" ? '<div class="track-line">' + pasos.map(function (_, i) { return "<i" + (i <= k ? ' class="on"' : "") + "></i>" }).join("") + "</div>" : "") +
+    '<div class="thumbs">' + (o.items || []).map(function (i) { return '<img src="' + esc(V.img(i.imagen)) + '" alt="" title="' + esc(i.nombre) + '">' }).join("") + "</div>" +
+    '<div class="small">' + (o.items || []).map(function (i) { return i.cant + "× " + esc(i.nombre) + (i.aroma ? " · " + esc(i.aroma) : "") }).join("<br>") + "</div>" +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:10px"><b>' + money(o.total) + "</b>" +
+    (o.estado === "pendiente" ? '<a class="btn sm accent" href="#/pago/' + esc(o.folio) + '">Pagar / subir comprobante</a>' : "") + "</div></div>";
+}
+function misPedidos() {
+  $("#tab").innerHTML = '<div class="skeleton" style="height:140px"></div>';
+  sb.from("velas_pedidos").select("*").eq("user_id", user.id).order("creado", { ascending: false }).then(function (r) {
+    var l = r.data || [];
+    l.forEach(function (o) { if (!mios.find(function (m) { return m.folio === o.folio })) mios.push({ folio: o.folio, telefono: o.telefono }) }); save("velas-mis-folios", mios);
+    $("#tab").innerHTML = l.length ? l.map(pedidoHtml).join("") : '<div class="empty"><div class="big">🕯️</div>Aún no tienes pedidos.<br><br><a class="btn" href="#/catalogo">Comprar</a></div>';
+  });
+}
+function misDatos() {
+  var p = perfil || {};
+  $("#tab").innerHTML = '<form id="fp" class="box"><label class="f"><span>Nombre</span><input class="in" name="nombre" value="' + esc(p.nombre || "") + '"></label>' +
+    '<label class="f"><span>Teléfono</span><input class="in" name="telefono" type="tel" value="' + esc(p.telefono || "") + '"></label>' +
+    '<label class="f"><span>Dirección</span><textarea class="in" name="direccion">' + esc(p.direccion || "") + '</textarea></label><button class="btn block">Guardar</button></form>';
+  $("#fp").onsubmit = function (e) {
+    e.preventDefault(); var f = Object.fromEntries(new FormData(e.target));
+    sb.from("velas_clientes").upsert({ id: user.id, email: user.email, nombre: f.nombre, telefono: f.telefono, direccion: f.direccion }).then(function (r) {
+      if (r.error) return V.toast("No se pudo guardar", "err"); perfil = Object.assign(perfil || {}, f); V.toast("Datos guardados ✓");
+    });
+  };
+}
+
+function vLogin(registro) {
+  app.innerHTML = '<div style="max-width:440px;margin:0 auto"><h1 class="title">' + (registro ? "Crea tu cuenta" : "Entra a tu cuenta") + "</h1>" +
+    '<p class="muted small" style="margin:0 0 18px">' + (registro ? "Guarda tus pedidos, tus datos de envío y deja reseñas." : "Para ver tus pedidos y comprar más rápido.") + "</p>" +
+    '<form id="fl" class="box">' +
+    (registro ? '<label class="f"><span>Nombre</span><input class="in" name="nombre" required></label><label class="f"><span>WhatsApp / teléfono</span><input class="in" name="telefono" type="tel" required></label>' : "") +
+    '<label class="f"><span>Correo</span><input class="in" name="email" type="email" required autocomplete="email"></label>' +
+    '<label class="f"><span>Contraseña</span><input class="in" name="password" type="password" minlength="6" required autocomplete="' + (registro ? "new-password" : "current-password") + '"></label>' +
+    '<button class="btn block">' + (registro ? "Crear cuenta" : "Entrar") + "</button>" +
+    (registro ? "" : '<p class="center small" style="margin:12px 0 0"><a href="#" id="olv">Olvidé mi contraseña</a></p>') + "</form>" +
+    '<p class="center" style="margin-top:16px">' + (registro ? '¿Ya tienes cuenta? <a href="#/cuenta">Entrar</a>' : '¿Nueva por aquí? <a href="#/cuenta?modo=registro">Crear cuenta</a>') + "</p>" +
+    '<div class="box" style="margin-top:22px"><h3 style="font-size:1.15rem;margin-bottom:10px">¿Compraste sin cuenta?</h3><form id="fr" class="row"><input class="in" name="folio" placeholder="Folio V-…" required><input class="in" name="tel" placeholder="Teléfono" required></form>' +
+    '<button class="btn sm block" form="fr" style="margin-top:10px">Ver mi pedido</button><div id="res" style="margin-top:12px"></div></div></div>';
+  $("#fl").onsubmit = function (e) {
+    e.preventDefault(); var f = Object.fromEntries(new FormData(e.target)), b = e.target.querySelector("button"); b.disabled = true;
+    var p = registro
+      ? sb.auth.signUp({ email: f.email.trim(), password: f.password, options: { data: { app: "velas", nombre: f.nombre, telefono: f.telefono }, emailRedirectTo: location.href.split("#")[0] + "#/cuenta" } })
+      : sb.auth.signInWithPassword({ email: f.email.trim(), password: f.password });
+    p.then(function (r) {
+      b.disabled = false;
+      if (r.error) return V.toast(/Invalid login/i.test(r.error.message) ? "Correo o contraseña incorrectos" : /confirm/i.test(r.error.message) ? "Confirma tu correo antes de entrar" : r.error.message, "err");
+      if (registro && !r.data.session) { app.innerHTML = '<div class="done"><div class="ic">✉</div><h1 class="title">Revisa tu correo</h1><p class="muted">Te enviamos un enlace para confirmar tu cuenta.</p></div>'; return }
+      V.toast("¡Bienvenida/o! ✦");
+    });
+  };
+  $("#olv") && ($("#olv").onclick = function (e) {
+    e.preventDefault(); var m = $("[name=email]").value.trim(); if (!m) return V.toast("Escribe tu correo arriba", "err");
+    sb.auth.resetPasswordForEmail(m, { redirectTo: location.href.split("#")[0] + "#/cuenta" }).then(function () { V.toast("Te enviamos un correo para cambiarla") });
+  });
+  $("#fr").onsubmit = function (e) {
+    e.preventDefault(); var f = Object.fromEntries(new FormData(e.target));
+    sb.rpc("velas_ver_pedido", { p_folio: f.folio, p_telefono: f.tel }).then(function (r) {
+      var o = r.data && r.data[0];
+      if (!o) { $("#res").innerHTML = '<p class="small muted">No encontramos ese pedido. Revisa el folio y el teléfono.</p>'; return }
+      if (!mios.find(function (m) { return m.folio === o.folio })) { mios.unshift({ folio: o.folio, telefono: f.tel }); save("velas-mis-folios", mios) }
+      $("#res").innerHTML = pedidoHtml(o);
+    });
+  };
+}
+
+function footer() {
+  var a = V.ajustes;
+  return '<footer class="foot"><div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:8px;color:var(--ink)">' + V.marca(a) + "</div>" +
+    esc(a.lema || "") + "<br>" + (a.instagram ? '<a href="https://instagram.com/' + esc(a.instagram.replace("@", "")) + '" target="_blank" rel="noopener">Instagram ' + esc(a.instagram) + "</a> · " : "") +
+    (a.whatsapp ? '<a href="' + V.wa(a.whatsapp, "¡Hola! Tengo una pregunta sobre sus velas 🕯️") + '" target="_blank" rel="noopener">WhatsApp</a> · ' : "") +
+    '<a href="#/cuenta">Mi cuenta</a></footer>';
+}
+
+// ---------- Rutas ----------
+function render() {
+  var h = location.hash.slice(1) || "/", qs = h.indexOf("?"), q = new URLSearchParams(qs >= 0 ? h.slice(qs + 1) : "");
+  var parts = (qs >= 0 ? h.slice(0, qs) : h).split("/").filter(Boolean), r = parts[0] || "inicio";
+  $$("[data-r]").forEach(function (a) { a.classList.toggle("on", a.dataset.r === r) });
+  document.body.classList.toggle("no-tab", ["p", "pagar", "pago"].indexOf(r) >= 0);
+  window.scrollTo(0, 0);
+  if (r === "inicio") vInicio();
+  else if (r === "catalogo") vCatalogo(parts[1] ? decodeURIComponent(parts[1]) : "", q);
+  else if (r === "favoritos") vFavoritos();
+  else if (r === "p") vProducto(parts[1]);
+  else if (r === "bolsa") vBolsa();
+  else if (r === "pagar") vPagar();
+  else if (r === "pago") vPago(decodeURIComponent(parts[1] || ""));
+  else if (r === "cuenta") vCuenta(q);
+  else vInicio();
+}
+window.addEventListener("hashchange", render);
+window.addEventListener("scroll", function () { $("#top").classList.toggle("scrolled", scrollY > 8) }, { passive: true });
+
+function cargarRatings() {
+  return sb.from("velas_calificaciones").select("*").then(function (r) { rating = {}; (r.data || []).forEach(function (x) { rating[x.producto_id] = x }) });
+}
+function cargarPerfil() {
+  if (!user) { perfil = null; return Promise.resolve() }
+  return sb.from("velas_clientes").select("*").eq("id", user.id).maybeSingle().then(function (r) {
+    perfil = r.data;
+    if (!perfil) { // cuenta que ya existía (ej. creada en otra app): se crea su ficha de cliente
+      var m = user.user_metadata || {};
+      return sb.from("velas_clientes").insert({ id: user.id, email: user.email, nombre: m.nombre || "", telefono: m.telefono || "" }).select().maybeSingle().then(function (x) { perfil = x.data });
+    }
+  });
+}
+
+app.innerHTML = '<div class="skeleton" style="height:420px;margin-top:8px;border-radius:32px"></div><div class="grid" style="margin-top:24px"><div class="skeleton" style="aspect-ratio:4/5"></div><div class="skeleton" style="aspect-ratio:4/5"></div></div>';
+saveCart();
+Promise.all([
+  V.cargarAjustes(),
+  sb.from("velas_productos").select("*").eq("activo", true).order("orden").order("creado", { ascending: false }).then(function (r) { productos = r.data || [] }),
+  cargarRatings(),
+  sb.auth.getSession().then(function (r) { user = r.data.session && r.data.session.user; return cargarPerfil() })
+]).then(function () {
+  var a = V.ajustes; $("#brand").innerHTML = V.marca(a); document.title = (a.nombre || "Velas") + " · Velas aromáticas";
+  render();
+  sb.auth.onAuthStateChange(function (ev, s) {
+    var nu = s && s.user; if ((nu && nu.id) === (user && user.id)) return;
+    user = nu; cargarPerfil().then(function () { if (/^#\/(cuenta|p\/|pagar)/.test(location.hash) || !location.hash) render() });
+  });
+}).catch(function () { app.innerHTML = '<div class="empty"><div class="big">📶</div>No pudimos cargar la tienda. Revisa tu conexión.<br><br><button class="btn" onclick="location.reload()">Reintentar</button></div>' });
+})();
+</script>
+</body>
+</html>

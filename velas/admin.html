@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Panel · Tienda de velas</title>
+<meta name="theme-color" content="#1E1612">
+<meta name="robots" content="noindex">
+<link rel="manifest" href="admin.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Marcellus&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/velas.css">
+<style>
+.adm{display:grid;gap:0}
+@media(min-width:860px){.adm{grid-template-columns:230px 1fr;gap:28px}.side{display:flex!important}}
+.side{display:none;flex-direction:column;gap:4px;position:sticky;top:80px;align-self:start;margin-top:18px}
+.side a,.tabbar a{cursor:pointer}
+.side a{padding:11px 14px;border-radius:14px;text-decoration:none;color:var(--ink2);display:flex;justify-content:space-between;align-items:center}
+.side a.on{background:var(--ink);color:#fff}
+.side .badge,.tabbar .badge{position:static;margin-left:6px}
+.tabbar .badge{position:absolute;top:0;right:calc(50% - 22px)}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media(min-width:700px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{background:var(--card);border-radius:22px;padding:16px;box-shadow:var(--shadow2)}
+.stat b{display:block;font-family:var(--serif);font-size:1.7rem;font-weight:400}
+.stat.dark{background:var(--ink);color:#fff}.stat.dark .muted{color:#B8A99E}
+.ord{background:var(--card);border-radius:20px;padding:14px;box-shadow:var(--shadow2);margin-bottom:10px;cursor:pointer;display:flex;gap:12px;align-items:center;position:relative}
+.ord.new::before{content:"";position:absolute;left:-4px;top:18px;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.ord img{width:52px;height:58px;border-radius:14px;object-fit:cover;background:var(--sand);flex:none}
+.ord .t{flex:1;min-width:0}.ord .t b{font-weight:500}
+.prow{display:flex;gap:12px;align-items:center;background:var(--card);border-radius:20px;padding:10px;box-shadow:var(--shadow2);margin-bottom:10px}
+.prow img{width:60px;height:70px;border-radius:14px;object-fit:cover;background:var(--sand);flex:none}
+.prow .t{flex:1;min-width:0}
+.pics{display:flex;gap:8px;flex-wrap:wrap}
+.pics .pic{position:relative;width:84px;height:100px;border-radius:14px;overflow:hidden;background:var(--sand)}
+.pics .pic img{width:100%;height:100%;object-fit:cover}
+.pics .pic button{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;cursor:pointer;font-size:12px}
+.pics .add{width:84px;height:100px;border-radius:14px;border:2px dashed var(--line);display:grid;place-items:center;cursor:pointer;color:var(--muted);font-size:1.6rem}
+.sw{display:flex;align-items:center;gap:10px;margin:0 0 12px;cursor:pointer}
+.sw input{width:20px;height:20px;accent-color:var(--accent)}
+.logo-box{display:flex;gap:14px;align-items:center}
+.logo-box .lp{width:84px;height:84px;border-radius:22px;background:var(--bg2);display:grid;place-items:center;overflow:hidden;flex:none;border:2px dashed var(--line)}
+.logo-box .lp img{width:100%;height:100%;object-fit:contain}
+.cl{background:var(--card);border-radius:20px;padding:14px;box-shadow:var(--shadow2);margin-bottom:10px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.alert{background:var(--soft);border-radius:18px;padding:12px 14px;margin:14px 0;display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.items-t{width:100%;border-collapse:collapse;font-size:.92rem}.items-t td{padding:7px 0;border-bottom:1px solid var(--line)}
+.estados{display:flex;flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+<header class="top" id="top"><div class="wrap">
+  <a class="brand" href="index.html" target="_blank" id="brand" title="Ver tienda"></a>
+  <span class="state s-ink" style="margin-right:4px">Admin</span>
+  <button class="ibtn hide" id="bell" aria-label="Activar avisos" title="Activar avisos">🔔</button>
+</div></header>
+
+<main class="wrap" id="app"></main>
+<nav class="tabbar hide" id="tabbar"></nav>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="js/velas.js"></script>
+<script>
+(function () {
+var sb = V.sb, $ = V.$, $$ = V.$$, esc = V.esc, money = V.money, app = $("#app");
+var user = null, pedidos = [], productos = [], clientes = [], resenas = [], tab = "inicio", filtro = "activos";
+
+var TABS = [
+  ["inicio", "Inicio", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z"/></svg>'],
+  ["pedidos", "Pedidos", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8Z"/><path d="M9 10V6.5a3 3 0 0 1 6 0V10"/></svg>'],
+  ["productos", "Productos", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 2.5c1.6 1.8 2 3.2 0 5-2-1.8-1.6-3.2 0-5Z"/><rect x="7" y="10" width="10" height="11.5" rx="2.5"/></svg>'],
+  ["clientes", "Clientes", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M3 20c.9-3.2 3.2-5 6-5s5.1 1.8 6 5"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 15c1.6.6 2.6 2.2 3 5"/></svg>'],
+  ["resenas", "Reseñas", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.6l1-5.8-4.3-4.1 5.9-.9Z"/></svg>'],
+  ["tienda", "Mi tienda", '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 3.6 15H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 10 5.1V5a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg>']
+];
+
+// ---------- Entrar ----------
+function vLogin(msg) {
+  $("#tabbar").classList.add("hide");
+  app.innerHTML = '<div style="max-width:420px;margin:40px auto"><h1 class="title">Panel de la tienda</h1><p class="muted" style="margin:0 0 18px">Entra con tu correo de administrador.</p>' +
+    (msg ? '<div class="alert">' + esc(msg) + "</div>" : "") +
+    '<form id="fl" class="box"><label class="f"><span>Correo</span><input class="in" name="email" type="email" required autocomplete="email" value="' + esc(localStorage.getItem("velas-admin-mail") || "") + '"></label>' +
+    '<label class="f"><span>Contraseña</span><input class="in" name="password" type="password" required autocomplete="current-password"></label><button class="btn block">Entrar</button>' +
+    '<p class="center small" style="margin:12px 0 0"><a href="#" id="olv">Olvidé mi contraseña</a></p></form></div>';
+  $("#fl").onsubmit = function (e) {
+    e.preventDefault(); var f = Object.fromEntries(new FormData(e.target));
+    try { localStorage.setItem("velas-admin-mail", f.email.trim()) } catch (x) {}
+    sb.auth.signInWithPassword({ email: f.email.trim(), password: f.password }).then(function (r) {
+      if (r.error) return V.toast("Correo o contraseña incorrectos", "err"); iniciar(r.data.user);
+    });
+  };
+  $("#olv").onclick = function (e) {
+    e.preventDefault(); var m = $("[name=email]").value.trim(); if (!m) return V.toast("Escribe tu correo", "err");
+    sb.auth.resetPasswordForEmail(m, { redirectTo: location.href.split("#")[0] }).then(function () { V.toast("Te enviamos un correo") });
+  };
+}
+
+function iniciar(u) {
+  user = u;
+  sb.rpc("velas_es_admin").then(function (r) {
+    if (!r.data) { sb.auth.signOut(); vLogin("Esta cuenta no es administradora de la tienda."); return }
+    nav(); cargarTodo().then(function () { ir(location.hash.slice(2) || "inicio") }); escuchar();
+    if ("Notification" in window && Notification.permission === "default") $("#bell").classList.remove("hide");
+  });
+}
+
+function nav() {
+  var h = TABS.map(function (t) { return '<a data-tab="' + t[0] + '">' + t[2] + t[1] + '<span class="badge" data-b="' + t[0] + '"></span></a>' }).join("");
+  $("#tabbar").innerHTML = TABS.filter(function (t) { return t[0] !== "clientes" }).map(function (t) { return '<a data-tab="' + t[0] + '">' + t[2] + '<span class="badge" data-b="' + t[0] + '"></span>' + t[1].replace("Mi tienda", "Tienda") + "</a>" }).join("");
+  $("#tabbar").classList.remove("hide");
+  app.innerHTML = '<div class="adm"><nav class="side" id="side">' + TABS.map(function (t) { return '<a data-tab="' + t[0] + '"><span>' + t[1] + '</span><span class="badge" data-b="' + t[0] + '"></span></a>' }).join("") +
+    '<a href="index.html" target="_blank" style="margin-top:14px">Ver tienda ↗</a><a id="salir">Cerrar sesión</a></nav><section id="view"></section></div>';
+  $$("[data-tab]").forEach(function (a) { a.onclick = function () { ir(a.dataset.tab) } });
+  $("#salir").onclick = salir;
+}
+function salir() { sb.auth.signOut().then(function () { location.hash = ""; vLogin() }) }
+function ir(t) {
+  if (!TABS.some(function (x) { return x[0] === t })) t = "inicio";
+  tab = t; history.replaceState(null, "", "#/" + t);
+  $$("[data-tab]").forEach(function (a) { a.classList.toggle("on", a.dataset.tab === t) });
+  window.scrollTo(0, 0); pintar();
+}
+function pintar() {
+  var v = $("#view"); if (!v) return;
+  ({ inicio: vInicio, pedidos: vPedidos, productos: vProductos, clientes: vClientes, resenas: vResenas, tienda: vTienda })[tab](v);
+  badges();
+}
+function badges() {
+  var np = pedidos.filter(function (p) { return !p.visto || p.estado === "por_revisar" }).length;
+  var nr = resenas.filter(function (r) { return !r.visto }).length;
+  $$('[data-b="pedidos"]').forEach(function (b) { b.textContent = np || "" });
+  $$('[data-b="resenas"]').forEach(function (b) { b.textContent = nr || "" });
+  document.title = (np + nr ? "(" + (np + nr) + ") " : "") + "Panel · " + ((V.ajustes && V.ajustes.nombre) || "Tienda");
+  if (navigator.setAppBadge) (np + nr ? navigator.setAppBadge(np + nr) : navigator.clearAppBadge()).catch(function () {});
+}
+
+function cargarTodo() {
+  return Promise.all([
+    V.cargarAjustes().then(function (a) { $("#brand").innerHTML = V.marca(a) }),
+    sb.from("velas_pedidos").select("*").order("creado", { ascending: false }).limit(500).then(function (r) { pedidos = r.data || [] }),
+    sb.from("velas_productos").select("*").order("orden").order("creado", { ascending: false }).then(function (r) { productos = r.data || [] }),
+    sb.from("velas_clientes").select("*").order("creado", { ascending: false }).then(function (r) { clientes = r.data || [] }),
+    sb.from("velas_resenas").select("*").order("creado", { ascending: false }).then(function (r) { resenas = r.data || [] })
+  ]);
+}
+
+// ---------- Avisos en tiempo real ----------
+function sonar() {
+  try {
+    var c = new (window.AudioContext || window.webkitAudioContext)();
+    [880, 1320].forEach(function (f, i) { var o = c.createOscillator(), g = c.createGain(); o.frequency.value = f; o.connect(g); g.connect(c.destination);
+      g.gain.setValueAtTime(.0001, c.currentTime + i * .18); g.gain.exponentialRampToValueAtTime(.25, c.currentTime + i * .18 + .02); g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + i * .18 + .35);
+      o.start(c.currentTime + i * .18); o.stop(c.currentTime + i * .18 + .4) });
+  } catch (e) {}
+  if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
+}
+function avisar(titulo, cuerpo) {
+  sonar(); V.toast(titulo + " · " + cuerpo);
+  if ("Notification" in window && Notification.permission === "granted") {
+    var op = { body: cuerpo, icon: "icons/icon-192.png", badge: "icons/icon-192.png", tag: "velas-" + Date.now() };
+    navigator.serviceWorker && navigator.serviceWorker.ready ? navigator.serviceWorker.ready.then(function (r) { r.showNotification(titulo, op) }).catch(function () { new Notification(titulo, op) }) : new Notification(titulo, op);
+  }
+}
+$("#bell").onclick = function () { Notification.requestPermission().then(function (p) { if (p === "granted") { $("#bell").classList.add("hide"); V.toast("Avisos activados ✓") } }) };
+function escuchar() {
+  sb.channel("velas-admin")
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "velas_pedidos" }, function (e) {
+      pedidos.unshift(e.new); avisar("🛍️ Nuevo pedido " + e.new.folio, e.new.cliente + " · " + money(e.new.total)); pintar();
+    })
+    .on("postgres_changes", { event: "UPDATE", schema: "public", table: "velas_pedidos" }, function (e) {
+      var i = pedidos.findIndex(function (p) { return p.id === e.new.id }), old = pedidos[i];
+      if (i >= 0) pedidos[i] = e.new; else pedidos.unshift(e.new);
+      if (e.new.estado === "por_revisar" && (!old || old.estado !== "por_revisar")) avisar("💸 Comprobante recibido", e.new.folio + " · " + e.new.cliente);
+      pintar();
+    })
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "velas_resenas" }, function (e) {
+      resenas.unshift(e.new); avisar("⭐ Nueva reseña", e.new.nombre + " · " + e.new.estrellas + " estrellas"); pintar();
+    })
+    .subscribe();
+  // Si la app estuvo en segundo plano, refresca al volver
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) cargarTodo().then(pintar) });
+}
+
+// ---------- Inicio ----------
+function vInicio(v) {
+  var hoy = new Date(), mes = pedidos.filter(function (p) { var d = new Date(p.creado); return d.getMonth() === hoy.getMonth() && d.getFullYear() === hoy.getFullYear() && ["pagado", "enviado", "entregado"].indexOf(p.estado) >= 0 });
+  var rev = pedidos.filter(function (p) { return p.estado === "por_revisar" }), pend = pedidos.filter(function (p) { return p.estado === "pendiente" });
+  var a = V.ajustes, falta = [];
+  if (!a.clabe && !a.cuenta && !a.tarjeta) falta.push("tu cuenta bancaria"); if (!a.whatsapp) falta.push("tu WhatsApp"); if (!a.logo_url) falta.push("tu logo");
+  v.innerHTML = '<h1 class="title">Hola ✦</h1><p class="muted" style="margin:0 0 16px">Así va ' + esc(a.nombre) + " hoy.</p>" +
+    (falta.length ? '<div class="alert"><span>Falta agregar ' + falta.join(", ") + ' en Mi tienda.</span><button class="btn sm" data-go="tienda">Completar</button></div>' : "") +
+    '<div class="stats"><div class="stat dark" data-go="pedidos" data-fil="pagado"><span class="muted small">Ventas del mes</span><b>' + money(mes.reduce(function (s, p) { return s + Number(p.total) }, 0)) + "</b></div>" +
+    '<div class="stat" data-go="pedidos" data-fil="por_revisar"><span class="muted small">Pagos por revisar</span><b>' + rev.length + "</b></div>" +
+    '<div class="stat" data-go="pedidos" data-fil="pendiente"><span class="muted small">Esperando pago</span><b>' + pend.length + "</b></div>" +
+    '<div class="stat" data-go="clientes"><span class="muted small">Clientes →</span><b>' + listaClientes().length + "</b></div></div>" +
+    '<div class="sec"><h2>Últimos pedidos</h2><a href="#" data-go="pedidos">Ver todos →</a></div>' +
+    (pedidos.length ? pedidos.slice(0, 6).map(ordHtml).join("") : '<div class="empty"><div class="big">🕯️</div>Aquí aparecerán tus pedidos en cuanto alguien compre.</div>') +
+    '<div class="box" style="margin-top:22px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><b style="font-weight:500">Instala el panel como app</b><p class="muted small" style="margin:2px 0 0">Recibe avisos de pedidos en tu celular.</p></div><button class="btn sm" onclick="V.pedirInstalar()">Instalar</button></div>' +
+    '<button class="btn line block" style="margin-top:14px" id="out2">Cerrar sesión</button>';
+  $$("[data-go]", v).forEach(function (b) { b.style.cursor = "pointer"; b.onclick = function (e) { e.preventDefault(); if (b.dataset.fil) filtro = b.dataset.fil; ir(b.dataset.go) } });
+  $$("[data-o]", v).forEach(function (b) { b.onclick = function () { abrirPedido(b.dataset.o) } });
+  $("#out2").onclick = salir;
+}
+function ordHtml(p) {
+  var n = (p.items || []).reduce(function (s, i) { return s + i.cant }, 0);
+  return '<div class="ord ' + (p.visto ? "" : "new") + '" data-o="' + p.id + '"><img src="' + esc(V.img(p.items && p.items[0] && p.items[0].imagen)) + '" alt="">' +
+    '<div class="t"><div style="display:flex;justify-content:space-between;gap:8px"><b>' + esc(p.cliente) + "</b><b>" + money(p.total) + "</b></div>" +
+    '<div class="muted small">' + esc(p.folio) + " · " + n + " pza · " + V.fechaHora(p.creado) + '</div><div style="margin-top:6px">' + V.chip(p.estado) + "</div></div></div>";
+}
+
+// ---------- Pedidos ----------
+function vPedidos(v) {
+  var F = [["activos", "Activos"], ["por_revisar", "Por revisar"], ["pendiente", "Esperando pago"], ["pagado", "Pagados"], ["enviado", "Enviados"], ["entregado", "Entregados"], ["cancelado", "Cancelados"], ["todos", "Todos"]];
+  var l = pedidos.filter(function (p) { return filtro === "todos" || (filtro === "activos" ? ["entregado", "cancelado"].indexOf(p.estado) < 0 : p.estado === filtro) });
+  v.innerHTML = '<h1 class="title">Pedidos</h1><div class="search" style="margin:10px 0"><label class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="q" placeholder="Buscar folio, nombre o teléfono"></label></div>' +
+    '<div class="chips" style="margin-bottom:12px">' + F.map(function (f) { var n = f[0] === "todos" ? pedidos.length : pedidos.filter(function (p) { return f[0] === "activos" ? ["entregado", "cancelado"].indexOf(p.estado) < 0 : p.estado === f[0] }).length; return '<button class="chip ' + (f[0] === filtro ? "on" : "") + '" data-f="' + f[0] + '">' + f[1] + " · " + n + "</button>" }).join("") + "</div><div id=\"ol\"></div>";
+  function draw() {
+    var t = $("#q").value.trim().toLowerCase();
+    var x = l.filter(function (p) { return !t || (p.folio + " " + p.cliente + " " + p.telefono).toLowerCase().indexOf(t) >= 0 });
+    $("#ol").innerHTML = x.length ? x.map(ordHtml).join("") : '<div class="empty">No hay pedidos aquí.</div>';
+    $$("[data-o]", v).forEach(function (b) { b.onclick = function () { abrirPedido(b.dataset.o) } });
+  }
+  $("#q").oninput = draw; draw();
+  $$("[data-f]", v).forEach(function (b) { b.onclick = function () { filtro = b.dataset.f; vPedidos(v) } });
+}
+
+function modal(html) {
+  var m = document.createElement("div"); m.className = "modal"; m.innerHTML = '<div class="mbox">' + html + "</div>";
+  m.onclick = function (e) { if (e.target === m || e.target.closest("[data-close]")) m.remove() };
+  document.body.appendChild(m); return m;
+}
+var MSG = {
+  pendiente: "¡Hola {n}! 🕯️ Recibimos tu pedido {f} por {t}. Para confirmarlo, haz tu transferencia y envíanos tu comprobante. ¡Gracias!",
+  por_revisar: "¡Hola {n}! Recibimos tu comprobante del pedido {f}. En un momento lo revisamos ✨",
+  pagado: "¡Hola {n}! ✅ Confirmamos tu pago del pedido {f}. Ya estamos preparando tus velas 🕯️",
+  enviado: "¡Hola {n}! 📦 Tu pedido {f} ya va en camino. ¡Que lo disfrutes!",
+  entregado: "¡Hola {n}! Esperamos que ames tus velas 🕯️ Si puedes, déjanos tu reseña en la tienda. ¡Gracias por tu compra!",
+  cancelado: "Hola {n}, tu pedido {f} fue cancelado. Si tienes dudas, escríbenos por aquí."
+};
+function abrirPedido(id) {
+  var p = pedidos.find(function (x) { return x.id === id }); if (!p) return;
+  if (!p.visto) { p.visto = true; sb.from("velas_pedidos").update({ visto: true }).eq("id", p.id).then(function () {}); badges() }
+  var msg = (MSG[p.estado] || "").replace("{n}", p.cliente.split(" ")[0]).replace("{f}", p.folio).replace("{t}", money(p.total));
+  var m = modal('<div class="mhd"><div><h2 style="font-size:1.5rem">' + esc(p.folio) + '</h2><span class="muted small">' + V.fechaHora(p.creado) + '</span></div><button class="ibtn" data-close>✕</button></div>' +
+    '<div style="margin-bottom:12px">' + V.chip(p.estado) + "</div>" +
+    '<div class="box" style="margin-bottom:12px"><b style="font-weight:500">' + esc(p.cliente) + '</b><div class="small" style="margin-top:4px">📞 ' + esc(p.telefono) + (p.email ? "<br>✉ " + esc(p.email) : "") + "<br>📍 " + esc(p.direccion || "—") + (p.notas ? "<br>📝 " + esc(p.notas) : "") + "</div>" +
+    '<div class="row" style="margin-top:12px"><a class="btn wa sm" target="_blank" rel="noopener" href="' + V.wa(p.telefono, msg) + '">WhatsApp</a><a class="btn light sm" href="tel:' + esc(V.digits(p.telefono)) + '">Llamar</a></div>' +
+    (p.user_id ? '<p class="small muted" style="margin:10px 0 0">✦ Cliente con cuenta</p>' : "") + "</div>" +
+    '<div class="box" style="margin-bottom:12px"><table class="items-t">' + (p.items || []).map(function (i) { return "<tr><td>" + i.cant + "× " + esc(i.nombre) + (i.aroma ? '<br><span class="muted small">' + esc(i.aroma) + "</span>" : "") + '</td><td style="text-align:right">' + money(i.precio * i.cant) + "</td></tr>" }).join("") +
+    '<tr><td class="muted">Envío</td><td style="text-align:right">' + money(p.envio) + '</td></tr><tr><td><b>Total</b></td><td style="text-align:right"><b>' + money(p.total) + "</b></td></tr></table></div>" +
+    '<div class="box" style="margin-bottom:12px"><b style="font-weight:500">Comprobante</b><div id="comp" style="margin-top:8px">' + (p.comprobante ? '<p class="muted small">Cargando…</p>' : '<p class="muted small">El cliente aún no sube su comprobante.</p>') + "</div></div>" +
+    '<p style="margin:16px 0 8px">Cambiar estado</p><div class="estados">' +
+    ["pendiente", "por_revisar", "pagado", "enviado", "entregado", "cancelado"].map(function (e) { return '<button class="chip ' + (e === p.estado ? "on" : "") + '" data-e="' + e + '">' + V.ESTADOS[e].t + "</button>" }).join("") +
+    '</div><p class="small muted" style="margin-top:12px">Al cambiar el estado, el cliente lo ve en su cuenta. Usa el botón de WhatsApp para avisarle con el mensaje ya escrito.</p>');
+  if (p.comprobante) sb.storage.from("velas-comprobantes").createSignedUrl(p.comprobante, 3600).then(function (r) {
+    var u = r.data && r.data.signedUrl; if (!u) { $("#comp", m).innerHTML = '<p class="muted small">No se pudo abrir.</p>'; return }
+    $("#comp", m).innerHTML = /\.pdf$/i.test(p.comprobante) ? '<a class="btn sm" target="_blank" href="' + u + '">Abrir PDF</a>' : '<a href="' + u + '" target="_blank"><img src="' + u + '" style="border-radius:14px;max-height:360px;margin:auto" alt="Comprobante"></a>';
+  });
+  $$("[data-e]", m).forEach(function (b) { b.onclick = function () {
+    var e = b.dataset.e; if (e === p.estado) return;
+    if (e === "cancelado" && !confirm("¿Cancelar el pedido " + p.folio + "?")) return;
+    sb.from("velas_pedidos").update({ estado: e }).eq("id", p.id).then(function (r) {
+      if (r.error) return V.toast("No se pudo cambiar", "err");
+      p.estado = e; m.remove(); pintar(); V.toast("Estado: " + V.ESTADOS[e].t); abrirPedido(p.id);
+    });
+  } });
+}
+
+// ---------- Productos ----------
+function vProductos(v) {
+  v.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h1 class="title">Productos</h1><button class="btn sm" id="nuevo">+ Nuevo</button></div>' +
+    '<p class="muted small" style="margin:0 0 14px">' + productos.length + " productos · toca uno para editarlo</p>" +
+    (productos.length ? productos.map(function (p) {
+      return '<div class="prow" data-p="' + p.id + '" style="cursor:pointer"><img src="' + esc(V.img(p.imagenes[0])) + '" alt=""><div class="t"><b style="font-weight:500">' + esc(p.nombre) + '</b><div class="muted small">' + esc(p.categoria) + " · " + money(p.precio) + "</div>" +
+        '<div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">' + (!p.activo ? '<span class="state s-ink">Oculto</span>' : "") + (p.agotado ? '<span class="state s-red">Agotado</span>' : "") + (p.destacado ? '<span class="state s-amber">Destacado</span>' : "") + "</div></div></div>";
+    }).join("") : '<div class="empty">Aún no hay productos.</div>');
+  $("#nuevo").onclick = function () { editar(null) };
+  $$("[data-p]", v).forEach(function (b) { b.onclick = function () { editar(productos.find(function (p) { return p.id === b.dataset.p })) } });
+}
+function editar(p) {
+  var nuevo = !p; p = p || { nombre: "", categoria: "Velas en vaso", descripcion: "", precio: "", precio_antes: "", presentacion: "", aromas: [], imagenes: [], destacado: false, activo: true, agotado: false, orden: 0 };
+  var imgs = p.imagenes.slice(), cats = [];
+  productos.forEach(function (x) { if (cats.indexOf(x.categoria) < 0) cats.push(x.categoria) });
+  ["Velas en vaso", "Velas de figura", "Aromaterapia", "Regalos"].forEach(function (c) { if (cats.indexOf(c) < 0) cats.push(c) });
+  var m = modal('<div class="mhd"><h2 style="font-size:1.5rem">' + (nuevo ? "Nuevo producto" : "Editar producto") + '</h2><button class="ibtn" data-close>✕</button></div>' +
+    '<form id="fp"><p class="small muted" style="margin:0 0 8px">Fotos (la primera es la portada)</p><div class="pics" id="pics"></div><input type="file" id="fimg" accept="image/*" multiple hidden>' +
+    '<label class="f" style="margin-top:14px"><span>Nombre</span><input class="in" name="nombre" required value="' + esc(p.nombre) + '"></label>' +
+    '<label class="f"><span>Categoría</span><input class="in" name="categoria" list="cats" required value="' + esc(p.categoria) + '"><datalist id="cats">' + cats.map(function (c) { return '<option value="' + esc(c) + '">' }).join("") + "</datalist></label>" +
+    '<div class="row"><label class="f"><span>Precio</span><input class="in" name="precio" type="number" min="0" step="0.01" required value="' + esc(p.precio) + '"></label>' +
+    '<label class="f"><span>Precio antes (opcional)</span><input class="in" name="precio_antes" type="number" min="0" step="0.01" value="' + esc(p.precio_antes || "") + '"></label></div>' +
+    '<label class="f"><span>Presentación (ej. 200 g · 40 h)</span><input class="in" name="presentacion" value="' + esc(p.presentacion || "") + '"></label>' +
+    '<label class="f"><span>Aromas (separados por coma)</span><input class="in" name="aromas" placeholder="Vainilla, Lavanda, Coco" value="' + esc(p.aromas.join(", ")) + '"></label>' +
+    '<label class="f"><span>Descripción</span><textarea class="in" name="descripcion">' + esc(p.descripcion || "") + "</textarea></label>" +
+    '<label class="f"><span>Orden (menor aparece primero)</span><input class="in" name="orden" type="number" value="' + esc(p.orden || 0) + '"></label>' +
+    '<label class="sw"><input type="checkbox" name="activo" ' + (p.activo ? "checked" : "") + "> Visible en la tienda</label>" +
+    '<label class="sw"><input type="checkbox" name="destacado" ' + (p.destacado ? "checked" : "") + "> Destacado en el inicio</label>" +
+    '<label class="sw"><input type="checkbox" name="agotado" ' + (p.agotado ? "checked" : "") + "> Agotado</label>" +
+    '<button class="btn block" style="margin-top:8px">Guardar</button>' + (nuevo ? "" : '<button type="button" class="btn line block" id="del" style="margin-top:10px;color:var(--bad);border-color:var(--bad)">Eliminar producto</button>') + "</form>");
+  function pics() {
+    $("#pics", m).innerHTML = imgs.map(function (s, i) { return '<div class="pic"><img src="' + esc(V.img(s)) + '" alt=""><button type="button" data-x="' + i + '">✕</button></div>' }).join("") + '<div class="add" id="addimg">+</div>';
+    $("#addimg", m).onclick = function () { $("#fimg", m).click() };
+    $$("[data-x]", m).forEach(function (b) { b.onclick = function () { imgs.splice(+b.dataset.x, 1); pics() } });
+  }
+  pics();
+  $("#fimg", m).onchange = function () {
+    var fs = Array.prototype.slice.call(this.files); if (!fs.length) return; V.toast("Subiendo " + fs.length + " foto(s)…");
+    Promise.all(fs.map(function (f) { return subirFoto(f, "productos") })).then(function (us) { us.forEach(function (u) { if (u) imgs.push(u) }); pics() });
+    this.value = "";
+  };
+  $("#fp", m).onsubmit = function (e) {
+    e.preventDefault(); var f = new FormData(e.target), b = e.target.querySelector("button:not([type])"); b.disabled = true;
+    var d = { nombre: f.get("nombre").trim(), categoria: f.get("categoria").trim(), precio: Number(f.get("precio")), precio_antes: f.get("precio_antes") ? Number(f.get("precio_antes")) : null,
+      presentacion: f.get("presentacion").trim(), aromas: f.get("aromas").split(",").map(function (s) { return s.trim() }).filter(Boolean), descripcion: f.get("descripcion").trim(),
+      orden: Number(f.get("orden") || 0), activo: !!f.get("activo"), destacado: !!f.get("destacado"), agotado: !!f.get("agotado"), imagenes: imgs };
+    (nuevo ? sb.from("velas_productos").insert(d) : sb.from("velas_productos").update(d).eq("id", p.id)).select().single().then(function (r) {
+      b.disabled = false; if (r.error) return V.toast(r.error.message, "err");
+      if (nuevo) productos.unshift(r.data); else productos[productos.findIndex(function (x) { return x.id === p.id })] = r.data;
+      m.remove(); V.toast("Producto guardado ✓"); pintar();
+    });
+  };
+  $("#del", m) && ($("#del", m).onclick = function () {
+    if (!confirm("¿Eliminar " + p.nombre + "? También se borran sus reseñas. Si solo quieres ocultarlo, desmarca 'Visible'.")) return;
+    sb.from("velas_productos").delete().eq("id", p.id).then(function (r) {
+      if (r.error) return V.toast(r.error.message, "err"); productos = productos.filter(function (x) { return x.id !== p.id }); m.remove(); pintar();
+    });
+  });
+}
+function subirFoto(file, carpeta) {
+  return V.comprimir(file, 1600).then(function (f) {
+    var path = carpeta + "/" + Date.now() + "-" + Math.random().toString(36).slice(2, 7) + ".jpg";
+    return sb.storage.from("velas-fotos").upload(path, f, { contentType: f.type, cacheControl: "31536000" }).then(function (r) {
+      if (r.error) { V.toast(r.error.message, "err"); return null }
+      return sb.storage.from("velas-fotos").getPublicUrl(path).data.publicUrl;
+    });
+  });
+}
+
+// ---------- Clientes ----------
+function listaClientes() {
+  var map = {};
+  clientes.forEach(function (c) { map["u" + c.id] = { nombre: c.nombre || c.email, telefono: c.telefono, email: c.email, cuenta: true, desde: c.creado, pedidos: 0, total: 0, ultimo: null } });
+  pedidos.forEach(function (p) {
+    var k = p.user_id ? "u" + p.user_id : "t" + V.digits(p.telefono).slice(-10);
+    var c = map[k] || (map[k] = { nombre: p.cliente, telefono: p.telefono, email: p.email, cuenta: false, desde: p.creado, pedidos: 0, total: 0, ultimo: null });
+    if (!c.telefono) c.telefono = p.telefono;
+    c.pedidos++; if (p.estado !== "cancelado") c.total += Number(p.total);
+    if (!c.ultimo || p.creado > c.ultimo) c.ultimo = p.creado;
+  });
+  return Object.keys(map).map(function (k) { return map[k] }).sort(function (a, b) { return (b.ultimo || b.desde) > (a.ultimo || a.desde) ? 1 : -1 });
+}
+function vClientes(v) {
+  var l = listaClientes();
+  v.innerHTML = '<h1 class="title">Clientes</h1><p class="muted small" style="margin:0 0 14px">' + l.length + " clientes · " + clientes.length + ' con cuenta</p><div class="search" style="margin-bottom:12px"><label class="box"><input id="q" placeholder="Buscar nombre, teléfono o correo"></label></div><div id="cl"></div>';
+  function draw() {
+    var t = $("#q").value.trim().toLowerCase();
+    $("#cl").innerHTML = l.filter(function (c) { return !t || ((c.nombre || "") + " " + (c.telefono || "") + " " + (c.email || "")).toLowerCase().indexOf(t) >= 0 }).map(function (c) {
+      return '<div class="cl"><div style="min-width:0"><b style="font-weight:500">' + esc(c.nombre || "Sin nombre") + "</b>" + (c.cuenta ? ' <span class="state s-violet">Cuenta</span>' : "") +
+        '<div class="muted small">' + esc(c.telefono || "") + (c.email ? " · " + esc(c.email) : "") + "</div>" +
+        '<div class="small">' + c.pedidos + " pedido(s) · " + money(c.total) + (c.ultimo ? " · último " + V.fecha(c.ultimo) : "") + "</div></div>" +
+        (c.telefono ? '<a class="btn wa sm" target="_blank" rel="noopener" href="' + V.wa(c.telefono, "¡Hola " + (c.nombre || "").split(" ")[0] + "! 🕯️ ") + '">WA</a>' : "") + "</div>";
+    }).join("") || '<div class="empty">Aún no hay clientes.</div>';
+  }
+  $("#q").oninput = draw; draw();
+}
+
+// ---------- Reseñas ----------
+function vResenas(v) {
+  var nuevas = resenas.filter(function (r) { return !r.visto });
+  if (nuevas.length) sb.from("velas_resenas").update({ visto: true }).in("id", nuevas.map(function (r) { return r.id })).then(function () { nuevas.forEach(function (r) { r.visto = true }); badges() });
+  var prom = resenas.length ? (resenas.reduce(function (s, r) { return s + r.estrellas }, 0) / resenas.length).toFixed(1) : "–";
+  v.innerHTML = '<h1 class="title">Reseñas</h1><div class="stats" style="margin:10px 0 16px"><div class="stat dark"><span class="muted small">Calificación</span><b>★ ' + prom + '</b></div><div class="stat"><span class="muted small">Reseñas</span><b>' + resenas.length + "</b></div></div>" +
+    (resenas.length ? resenas.map(function (r) {
+      var p = productos.find(function (x) { return x.id === r.producto_id }) || {};
+      return '<div class="cl" style="align-items:start"><div style="min-width:0"><b style="font-weight:500">' + esc(r.nombre) + '</b> <span style="color:var(--accent)">' + V.stars(r.estrellas) + "</span>" + (nuevas.indexOf(r) >= 0 ? ' <span class="state s-amber">Nueva</span>' : "") +
+        '<div class="muted small">' + esc(p.nombre || "Producto") + " · " + V.fecha(r.creado) + '</div><p style="margin:6px 0 0">' + esc(r.comentario || "") + "</p></div>" +
+        '<div style="display:flex;flex-direction:column;gap:6px"><button class="btn sm light" data-vis="' + r.id + '">' + (r.visible ? "Ocultar" : "Mostrar") + '</button><button class="btn sm line" data-del="' + r.id + '">Borrar</button></div></div>';
+    }).join("") : '<div class="empty"><div class="big">⭐</div>Cuando tus clientes califiquen tus velas, las verás aquí.</div>');
+  $$("[data-vis]", v).forEach(function (b) { b.onclick = function () { var r = resenas.find(function (x) { return x.id === b.dataset.vis }); sb.from("velas_resenas").update({ visible: !r.visible }).eq("id", r.id).then(function () { r.visible = !r.visible; pintar() }) } });
+  $$("[data-del]", v).forEach(function (b) { b.onclick = function () { if (!confirm("¿Borrar esta reseña?")) return; sb.from("velas_resenas").delete().eq("id", b.dataset.del).then(function () { resenas = resenas.filter(function (x) { return x.id !== b.dataset.del }); pintar() }) } });
+}
+
+// ---------- Mi tienda ----------
+function vTienda(v) {
+  var a = V.ajustes, logo = a.logo_url || "";
+  function inp(n, l, ph, t) { return '<label class="f"><span>' + l + '</span><input class="in" name="' + n + '" ' + (t ? 'type="' + t + '" step="0.01" min="0"' : "") + ' placeholder="' + esc(ph || "") + '" value="' + esc(a[n] == null ? "" : a[n]) + '"></label>' }
+  v.innerHTML = '<h1 class="title">Mi tienda</h1><p class="muted small" style="margin:0 0 16px">Lo que cambies aquí se ve al instante en la tienda.</p><form id="ft">' +
+    '<div class="box" style="margin-bottom:14px"><h3 style="font-size:1.25rem;margin-bottom:12px">Marca</h3>' +
+    '<div class="logo-box" style="margin-bottom:14px"><div class="lp" id="lp"></div><div><button type="button" class="btn sm" id="sl">Subir logo</button> <button type="button" class="btn sm light" id="ql">Quitar</button><p class="small muted" style="margin:6px 0 0">PNG con fondo transparente se ve mejor.</p></div><input type="file" id="flogo" accept="image/*" hidden></div>' +
+    inp("nombre", "Nombre de la tienda", "Ej. Luz de Luna") + inp("lema", "Frase corta", "Velas aromáticas hechas a mano") + inp("hero_titulo", "Título grande del inicio", "Llena tu casa de aromas que abrazan") + inp("instagram", "Instagram (opcional)", "@tutienda") + "</div>" +
+    '<div class="box" style="margin-bottom:14px"><h3 style="font-size:1.25rem;margin-bottom:4px">Cuenta para transferencias</h3><p class="small muted" style="margin:0 0 12px">Se muestra al cliente al finalizar su pedido.</p>' +
+    inp("banco", "Banco", "BBVA") + inp("titular", "Titular", "Nombre completo") + inp("clabe", "CLABE (18 dígitos)", "012345678901234567") + inp("cuenta", "Número de cuenta (opcional)") + inp("tarjeta", "Tarjeta (opcional)") +
+    '<label class="f"><span>Mensaje de pago</span><textarea class="in" name="nota_pago">' + esc(a.nota_pago || "") + "</textarea></label></div>" +
+    '<div class="box" style="margin-bottom:14px"><h3 style="font-size:1.25rem;margin-bottom:4px">WhatsApp y envío</h3><p class="small muted" style="margin:0 0 12px">A este número te avisarán los clientes sus pedidos.</p>' +
+    inp("whatsapp", "Tu WhatsApp (10 dígitos)", "5512345678") +
+    '<div class="row">' + inp("envio", "Costo de envío", "0", "number") + inp("envio_gratis_desde", "Envío gratis desde", "0 = nunca", "number") + "</div></div>" +
+    '<button class="btn block" style="height:54px">Guardar cambios</button></form>';
+  function pl() { $("#lp").innerHTML = logo ? '<img src="' + esc(logo) + '" alt="">' : '<span class="muted small center">Tu logo</span>' }
+  pl();
+  $("#sl").onclick = function () { $("#flogo").click() };
+  $("#ql").onclick = function () { logo = ""; pl() };
+  $("#flogo").onchange = function () { var f = this.files[0]; if (!f) return; V.toast("Subiendo logo…"); (f.type === "image/png" ? subirPng(f) : subirFoto(f, "logo")).then(function (u) { if (u) { logo = u; pl() } }) };
+  $("#ft").onsubmit = function (e) {
+    e.preventDefault(); var f = Object.fromEntries(new FormData(e.target));
+    f.envio = Number(f.envio || 0); f.envio_gratis_desde = Number(f.envio_gratis_desde || 0); f.logo_url = logo; f.whatsapp = V.digits(f.whatsapp); f.clabe = V.digits(f.clabe);
+    if (f.clabe && f.clabe.length !== 18) return V.toast("La CLABE debe tener 18 dígitos", "err");
+    sb.from("velas_ajustes").update(f).eq("id", 1).select().single().then(function (r) {
+      if (r.error) return V.toast(r.error.message, "err");
+      V.ajustes = r.data; $("#brand").innerHTML = V.marca(r.data); V.toast("Guardado ✓"); badges();
+    });
+  };
+}
+function subirPng(f) { // el logo PNG se sube tal cual para conservar la transparencia
+  var path = "logo/" + Date.now() + ".png";
+  return sb.storage.from("velas-fotos").upload(path, f, { contentType: "image/png" }).then(function (r) {
+    if (r.error) { V.toast(r.error.message, "err"); return null } return sb.storage.from("velas-fotos").getPublicUrl(path).data.publicUrl;
+  });
+}
+
+window.addEventListener("scroll", function () { $("#top").classList.toggle("scrolled", scrollY > 8) }, { passive: true });
+V.cargarAjustes().then(function (a) { $("#brand").innerHTML = V.marca(a) });
+sb.auth.getSession().then(function (r) { var s = r.data.session; if (s) iniciar(s.user); else vLogin() });
+sb.auth.onAuthStateChange(function (ev) { if (ev === "PASSWORD_RECOVERY") { var np = prompt("Escribe tu nueva contraseña (mínimo 6 caracteres)"); if (np) sb.auth.updateUser({ password: np }).then(function (r) { V.toast(r.error ? r.error.message : "Contraseña cambiada ✓") }) } });
+})();
+</script>
+</body>
+</html>

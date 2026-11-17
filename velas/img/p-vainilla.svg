@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 750"><defs><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F3DCC2"/><stop offset="1" stop-color="#C98B5E"/></linearGradient>
+<linearGradient id="g" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".18"/><stop offset=".35" stop-color="#fff" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".25"/></linearGradient></defs>
+<rect width="600" height="750" fill="url(#b)"/><circle cx="470" cy="140" r="120" fill="#fff" opacity=".18"/><ellipse cx="300" cy="640" rx="210" ry="26" fill="#000" opacity=".12"/><rect x="170" y="330" width="260" height="310" rx="34" fill="#8A4A1F"/><rect x="170" y="330" width="260" height="310" rx="34" fill="url(#g)"/>
+<rect x="160" y="318" width="280" height="30" rx="12" fill="#8A4A1F" opacity=".9"/><rect x="200" y="420" width="200" height="140" rx="10" fill="#F6EFE6"/>
+<text x="300" y="480" font-family="Georgia,serif" font-size="26" text-anchor="middle" fill="#3a2a20" letter-spacing="3">VAINILLA</text>
+<text x="300" y="515" font-family="Arial" font-size="13" text-anchor="middle" fill="#7a6658" letter-spacing="2">SOY WAX · 200 G</text>
+<ellipse cx="300" cy="330" rx="118" ry="14" fill="#F3E6D3"/><ellipse cx="300" cy="308" rx="34" ry="44" fill="#FFD9A0" opacity=".35"/>
+<path d="M300 270 C314 290 312 310 300 318 C288 310 286 290 300 270Z" fill="#FFB547"/>
+<path d="M300 288 C307 300 306 312 300 316 C294 312 293 300 300 288Z" fill="#FFF3C4"/>
+<rect x="298.5" y="316" width="3" height="12" rx="1.5" fill="#3a2a20"/></svg>

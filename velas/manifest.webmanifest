@@ -1,0 +1,19 @@
+{
+  "name": "Tienda de Velas",
+  "short_name": "Velas",
+  "description": "Velas aromáticas hechas a mano. Compra y sigue tus pedidos.",
+  "lang": "es-MX",
+  "start_url": "./index.html",
+  "scope": "./",
+  "id": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF6F1",
+  "theme_color": "#FBF6F1",
+  "categories": ["shopping"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
