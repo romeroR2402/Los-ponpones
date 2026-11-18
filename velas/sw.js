@@ -1,6 +1,6 @@
 // Tienda de velas: guarda la app en el celular para abrir rápido y aunque falle la conexión.
 // Solo atiende los archivos de esta carpeta; Supabase y otras apps del sitio pasan directo.
-var C = "velas-v2", BASE = new URL("./", self.location).href;
+var C = "velas-v3", BASE = new URL("./", self.location).href;
 var FILES = ["./", "index.html", "admin.html", "config.js", "js/velas.js", "css/velas.css", "manifest.webmanifest", "admin.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-180.png",
   "img/p-vainilla.svg"];

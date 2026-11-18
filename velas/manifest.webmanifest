@@ -8,8 +8,8 @@
   "id": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#FBF6F1",
-  "theme_color": "#FBF6F1",
+  "background_color": "#FAF7FF",
+  "theme_color": "#FAF7FF",
   "categories": ["shopping"],
   "icons": [
     { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
