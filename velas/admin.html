@@ -14,8 +14,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600&family=Marcellus&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/velas.css">
 <style>
-.adm{display:grid;gap:0}
-@media(min-width:860px){.adm{grid-template-columns:230px 1fr;gap:28px}.side{display:flex!important}}
+.adm{display:grid;gap:0;grid-template-columns:minmax(0,1fr)}
+#view{min-width:0}
+@media(min-width:860px){.adm{grid-template-columns:230px minmax(0,1fr);gap:28px}.side{display:flex!important}}
 .side{display:none;flex-direction:column;gap:4px;position:sticky;top:80px;align-self:start;margin-top:18px}
 .side a,.tabbar a{cursor:pointer}
 .side a{padding:11px 14px;border-radius:14px;text-decoration:none;color:var(--ink2);display:flex;justify-content:space-between;align-items:center}
@@ -80,32 +81,70 @@ var TABS = [
 // ---------- Entrar ----------
 function vLogin(msg) {
   $("#tabbar").classList.add("hide");
-  app.innerHTML = '<div style="max-width:420px;margin:40px auto"><h1 class="title">Panel de la tienda</h1><p class="muted" style="margin:0 0 18px">Entra con tu correo de administrador.</p>' +
+  app.innerHTML = '<div style="max-width:420px;margin:40px auto"><h1 class="title">Panel de la tienda</h1><p class="muted" style="margin:0 0 18px">Entra con tu usuario y contraseña.</p>' +
     (msg ? '<div class="alert">' + esc(msg) + "</div>" : "") +
-    '<form id="fl" class="box"><label class="f"><span>Correo</span><input class="in" name="email" type="email" required autocomplete="email" value="' + esc(localStorage.getItem("velas-admin-mail") || "") + '"></label>' +
+    '<form id="fl" class="box"><label class="f"><span>Usuario o correo</span><input class="in" name="usuario" required autocomplete="username" autocapitalize="none" spellcheck="false" value="' + esc(localStorage.getItem("velas-admin-mail") || "") + '"></label>' +
     '<label class="f"><span>Contraseña</span><input class="in" name="password" type="password" required autocomplete="current-password"></label><button class="btn block">Entrar</button>' +
     '<p class="center small" style="margin:12px 0 0"><a href="#" id="olv">Olvidé mi contraseña</a></p></form></div>';
   $("#fl").onsubmit = function (e) {
-    e.preventDefault(); var f = Object.fromEntries(new FormData(e.target));
-    try { localStorage.setItem("velas-admin-mail", f.email.trim()) } catch (x) {}
-    sb.auth.signInWithPassword({ email: f.email.trim(), password: f.password }).then(function (r) {
-      if (r.error) return V.toast("Correo o contraseña incorrectos", "err"); iniciar(r.data.user);
+    e.preventDefault(); var f = Object.fromEntries(new FormData(e.target)), u = f.usuario.trim();
+    try { localStorage.setItem("velas-admin-mail", u) } catch (x) {}
+    sb.auth.signInWithPassword({ email: correoDe(u), password: f.password }).then(function (r) {
+      if (r.error) return V.toast("Usuario o contraseña incorrectos", "err"); iniciar(r.data.user);
     });
   };
   $("#olv").onclick = function (e) {
-    e.preventDefault(); var m = $("[name=email]").value.trim(); if (!m) return V.toast("Escribe tu correo", "err");
+    e.preventDefault(); var m = $("[name=usuario]").value.trim();
+    if (m.indexOf("@") < 0) { alert("Pide a la administradora principal que restablezca tu contraseña desde el panel (Mi tienda → Usuarios)."); return }
     sb.auth.resetPasswordForEmail(m, { redirectTo: location.href.split("#")[0] }).then(function () { V.toast("Te enviamos un correo") });
   };
 }
+// Los usuarios sin correo entran con un correo interno que nunca recibe mensajes.
+var DOMINIO = "usuarios.tienda-velas.app";
+function correoDe(u) { u = u.toLowerCase(); return u.indexOf("@") >= 0 ? u : u + "@" + DOMINIO }
+var yo = {};
 
 function iniciar(u) {
   user = u;
-  sb.rpc("velas_es_admin").then(function (r) {
+  sb.rpc("velas_mi_admin").then(function (r) {
     if (!r.data) { sb.auth.signOut(); vLogin("Esta cuenta no es administradora de la tienda."); return }
-    nav(); cargarTodo().then(function () { ir(location.hash.slice(2) || "inicio") }); escuchar();
-    if ("Notification" in window && Notification.permission === "default") $("#bell").classList.remove("hide");
+    yo = r.data;
+    if (yo.debe_cambiar) { cambiarPass(true, arrancar); return }
+    arrancar();
   });
 }
+function arrancar() {
+  nav(); cargarTodo().then(function () { ir(location.hash.slice(2) || "inicio") }); escuchar();
+  if ("Notification" in window && Notification.permission === "default") $("#bell").classList.remove("hide");
+}
+// Cambio de contraseña: obligatorio la primera vez o después de que la restablezcan.
+function cambiarPass(obligatorio, listo) {
+  var m = modal('<div class="mhd"><h2 style="font-size:1.5rem">' + (obligatorio ? "Crea tu contraseña" : "Cambiar mi contraseña") + "</h2>" + (obligatorio ? "" : '<button class="ibtn" data-close>✕</button>') + "</div>" +
+    (obligatorio ? '<p class="muted" style="margin:0 0 14px">Por seguridad, cambia la contraseña temporal por una que solo tú conozcas.</p>' : "") +
+    '<form id="fcp"><label class="f"><span>Nueva contraseña (mínimo 6)</span><input class="in" name="p1" type="password" minlength="6" required autocomplete="new-password"></label>' +
+    '<label class="f"><span>Repítela</span><input class="in" name="p2" type="password" minlength="6" required autocomplete="new-password"></label><button class="btn block">Guardar contraseña</button></form>' +
+    (obligatorio ? '<p class="center small" style="margin-top:12px"><a href="#" id="cpout">Salir</a></p>' : ""));
+  if (obligatorio) m.onclick = null;
+  $("#cpout", m) && ($("#cpout", m).onclick = function (e) { e.preventDefault(); m.remove(); salir() });
+  $("#fcp", m).onsubmit = function (e) {
+    e.preventDefault(); var f = Object.fromEntries(new FormData(e.target));
+    if (f.p1 !== f.p2) return V.toast("Las contraseñas no coinciden", "err");
+    var b = e.target.querySelector("button"); b.disabled = true;
+    sb.auth.updateUser({ password: f.p1 }).then(function (r) {
+      b.disabled = false;
+      if (r.error) return V.toast(/different|same/i.test(r.error.message) ? "Usa una contraseña distinta a la anterior" : r.error.message, "err");
+      sb.rpc("velas_password_cambiada").then(function () { yo.debe_cambiar = false; m.remove(); V.toast("Contraseña guardada ✓"); listo && listo() });
+    });
+  };
+}
+// Funciones que solo puede usar la super administradora (crear usuarios y restablecer contraseñas).
+function usuarios(body) {
+  return sb.functions.invoke("velas-usuarios", { body: body }).then(function (r) {
+    var d = r.data; if (!d && r.error && r.error.context && r.error.context.json) return r.error.context.json();
+    return d || { error: (r.error && r.error.message) || "Error" };
+  });
+}
+function tempPass() { var c = "abcdefghjkmnpqrstuvwxyz23456789", s = ""; for (var i = 0; i < 6; i++) s += c[Math.floor(Math.random() * c.length)]; return "Velas-" + s }
 
 function nav() {
   var h = TABS.map(function (t) { return '<a data-tab="' + t[0] + '">' + t[2] + t[1] + '<span class="badge" data-b="' + t[0] + '"></span></a>' }).join("");
@@ -396,7 +435,36 @@ function vTienda(v) {
     '<div class="box" style="margin-bottom:14px"><h3 style="font-size:1.25rem;margin-bottom:4px">WhatsApp y envío</h3><p class="small muted" style="margin:0 0 12px">A este número te avisarán los clientes sus pedidos.</p>' +
     inp("whatsapp", "Tu WhatsApp (10 dígitos)", "5512345678") +
     '<div class="row">' + inp("envio", "Costo de envío", "0", "number") + inp("envio_gratis_desde", "Envío gratis desde", "0 = nunca", "number") + "</div></div>" +
-    '<button class="btn block" style="height:54px">Guardar cambios</button></form>';
+    '<button class="btn block" style="height:54px">Guardar cambios</button></form>' +
+    '<div class="box" style="margin-top:20px"><h3 style="font-size:1.25rem;margin-bottom:4px">Mi acceso</h3><p class="small muted" style="margin:0 0 12px">Entraste como <b>' + esc(yo.usuario || (user && user.email) || "") + "</b>" + (yo.rol === "super" ? " · administradora principal" : "") + '</p><button class="btn sm light" id="cpme">Cambiar mi contraseña</button></div>' +
+    (yo.rol === "super" ? '<div class="box" style="margin-top:14px"><h3 style="font-size:1.25rem;margin-bottom:4px">Usuarios administradores</h3><p class="small muted" style="margin:0 0 12px">Crea accesos con usuario y contraseña temporal. Al entrar, cada persona debe cambiarla. Si la olvida, restablécela aquí.</p><div id="ulist"><p class="small muted">Cargando…</p></div>' +
+      '<form id="fnu" class="row" style="margin-top:12px;align-items:end"><label class="f" style="margin:0"><span>Nuevo usuario</span><input class="in" name="usuario" placeholder="ej. ana" autocapitalize="none" required></label><button class="btn sm" style="flex:none;height:50px">Crear</button></form></div>' : "");
+  $("#cpme").onclick = function () { cambiarPass(false) };
+  if (yo.rol === "super") {
+    var mostrar = function (titulo, u, p) { modal('<div class="mhd"><h2 style="font-size:1.4rem">' + titulo + '</h2><button class="ibtn" data-close>✕</button></div><div class="bank"><div class="l">Usuario</div><div class="v"><span>' + esc(u) + '</span><button data-copy="' + esc(u) + '">Copiar</button></div><div class="l">Contraseña temporal</div><div class="v"><span>' + esc(p) + '</span><button data-copy="' + esc(p) + '">Copiar</button></div></div><p class="small muted" style="margin-top:12px">Compártelos con la persona. Al entrar, el panel le pedirá crear su propia contraseña.</p><a class="btn block wa" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent("Tu acceso al panel de la tienda 🕯️\n" + location.href.split("#")[0] + "\nUsuario: " + u + "\nContraseña temporal: " + p + "\nAl entrar te pedirá cambiarla.") + '">Enviar por WhatsApp</a>'); $$("[data-copy]").forEach(function (b) { b.onclick = function () { V.copy(b.dataset.copy) } }) };
+    var lista = function () {
+      usuarios({ accion: "listar" }).then(function (d) {
+        if (d.error) { $("#ulist").innerHTML = '<p class="small" style="color:var(--bad)">' + esc(d.error) + "</p>"; return }
+        $("#ulist").innerHTML = d.admins.map(function (a) {
+          return '<div class="cl" style="box-shadow:none;border:1px solid var(--line);flex-wrap:wrap"><div><b style="font-weight:500">' + esc(a.usuario) + "</b> " + (a.rol === "super" ? '<span class="state s-violet">Principal</span>' : a.debe_cambiar ? '<span class="state s-amber">Contraseña temporal</span>' : '<span class="state s-green">Activa</span>') + "</div>" +
+            (a.rol === "super" ? "" : '<div style="display:flex;gap:6px"><button class="btn sm light" data-rp="' + esc(a.usuario) + '">Restablecer</button><button class="btn sm line" data-du="' + esc(a.usuario) + '">Quitar</button></div>') + "</div>";
+        }).join("");
+        $$("[data-rp]").forEach(function (b) { b.onclick = function () {
+          var u = b.dataset.rp, p = tempPass(); if (!confirm("¿Restablecer la contraseña de " + u + "?")) return;
+          usuarios({ accion: "restablecer", usuario: u, password: p }).then(function (d) { if (d.error) return V.toast(d.error, "err"); mostrar("Contraseña restablecida", u, p); lista() });
+        } });
+        $$("[data-du]").forEach(function (b) { b.onclick = function () {
+          var u = b.dataset.du; if (!confirm("¿Quitar el acceso de " + u + "? Ya no podrá entrar al panel.")) return;
+          usuarios({ accion: "eliminar", usuario: u }).then(function (d) { if (d.error) return V.toast(d.error, "err"); V.toast("Acceso eliminado"); lista() });
+        } });
+      });
+    };
+    lista();
+    $("#fnu").onsubmit = function (e) {
+      e.preventDefault(); var u = e.target.usuario.value.trim().toLowerCase(), p = tempPass(), b = e.target.querySelector("button"); b.disabled = true;
+      usuarios({ accion: "crear", usuario: u, password: p }).then(function (d) { b.disabled = false; if (d.error) return V.toast(d.error, "err"); e.target.reset(); mostrar("Usuario creado", u, p); lista() });
+    };
+  }
   function pl() { $("#lp").innerHTML = logo ? '<img src="' + esc(logo) + '" alt="">' : '<span class="muted small center">Tu logo</span>' }
   pl();
   $("#sl").onclick = function () { $("#flogo").click() };

@@ -46,3 +46,12 @@ Los avisos por WhatsApp se envían con botones que abren WhatsApp con el mensaje
 Las fotos de `img/*.jpg` son de [Unsplash](https://unsplash.com) (licencia Unsplash: uso comercial gratis, sin atribución obligatoria).
 Son fotos de referencia: cuando tengas fotos de tus propios productos, súbelas desde el panel → Productos.
 Categorías iniciales: Velas en vaso, Velas decorativas, Kits, Aromatizantes y Regalos (puedes crear más escribiendo una nueva al editar un producto).
+
+## Accesos al panel (usuarios)
+- **Administradora principal (super admin):** entra con su correo. En **Mi tienda → Usuarios administradores** crea accesos nuevos,
+  **restablece** contraseñas (genera una temporal y la puede mandar por WhatsApp) o **quita** accesos.
+- **Administradoras:** entran con **usuario** (sin correo) y contraseña. La primera vez, y cada vez que se la restablezcan,
+  el panel les pide crear su propia contraseña. También pueden cambiarla en **Mi tienda → Mi acceso**.
+- Los usuarios sin correo usan internamente `usuario@usuarios.tienda-velas.app`; ahí nunca llegan correos,
+  por eso "Olvidé mi contraseña" les pide hablar con la administradora principal.
+- Función de Supabase: `velas-usuarios` (copia en `supabase/functions/velas-usuarios/index.ts`).

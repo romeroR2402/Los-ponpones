@@ -262,3 +262,18 @@ select * from (values
   ('Lavanda Relax','Aromaterapia','Mezcla de aceites esenciales de lavanda y eucalipto para dormir mejor.',199,null,'200 g · 40 h','{Lavanda,Eucalipto}','{img/p-lavanda.svg}',false,5),
   ('Set Mini Velas x3','Regalos','Tres mini velas de 60 g en caja de regalo: vainilla, frutos rojos y coco.',259,299,'3 × 60 g','{}','{img/p-set.svg}',true,6)
 ) v where not exists (select 1 from velas_productos);
+
+-- ---------- 12. Administradores con usuario (sin correo) ----------
+alter table velas_admins add column if not exists usuario text unique;
+alter table velas_admins add column if not exists rol text not null default 'admin';   -- super | admin
+alter table velas_admins add column if not exists debe_cambiar boolean not null default false;
+alter table velas_admins add column if not exists user_id uuid;
+alter table velas_admins add column if not exists creado timestamptz default now();
+create or replace function velas_es_super() returns boolean language sql stable security definer set search_path = public as $$
+  select exists(select 1 from velas_admins where email = lower(auth.jwt() ->> 'email') and rol = 'super'); $$;
+create or replace function velas_mi_admin() returns json language sql stable security definer set search_path = public as $$
+  select json_build_object('usuario', usuario, 'rol', rol, 'debe_cambiar', debe_cambiar) from velas_admins where email = lower(auth.jwt() ->> 'email'); $$;
+create or replace function velas_password_cambiada() returns void language sql security definer set search_path = public as $$
+  update velas_admins set debe_cambiar = false where email = lower(auth.jwt() ->> 'email'); $$;
+grant execute on function velas_es_super(), velas_mi_admin(), velas_password_cambiada() to authenticated;
+-- Crear, restablecer y quitar usuarios lo hace la función supabase/functions/velas-usuarios.
