@@ -1,0 +1,18 @@
+{
+  "name": "Mostrador · Gestión para tu negocio",
+  "short_name": "Mostrador",
+  "description": "Vende, escanea tu mercancía y entérate de lo que se acaba o se va a vencer.",
+  "lang": "es-MX",
+  "start_url": "./index.html",
+  "scope": "./",
+  "id": "./index.html",
+  "display": "standalone",
+  "background_color": "#f6f5f4",
+  "theme_color": "#f6f5f4",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

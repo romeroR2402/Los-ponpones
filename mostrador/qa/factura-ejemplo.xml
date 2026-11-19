@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital" Version="4.0" Fecha="2026-11-18T10:00:00" Total="652.00" SubTotal="600.00" Moneda="MXN">
+  <cfdi:Emisor Rfc="DLA850101AB1" Nombre="DISTRIBUIDORA LACTEA DEMO" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="XAXX010101000" Nombre="PUBLICO EN GENERAL"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="50131700" NoIdentificacion="7501055300075" Cantidad="12" ClaveUnidad="H87" Unidad="PIEZA" Descripcion="LECHE ENTERA 1 L" ValorUnitario="21.50" Importe="258.00" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados><cfdi:Traslado Base="258.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.000000" Importe="0.00"/></cfdi:Traslados></cfdi:Impuestos>
+    </cfdi:Concepto>
+    <cfdi:Concepto ClaveProdServ="50181900" NoIdentificacion="7501000611010" Cantidad="20" ClaveUnidad="H87" Unidad="PIEZA" Descripcion="Galletas Marías 170 g" ValorUnitario="15.00" Importe="300.00" ObjetoImp="02">
+      <cfdi:Impuestos><cfdi:Traslados><cfdi:Traslado Base="300.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="48.00"/></cfdi:Traslados></cfdi:Impuestos>
+    </cfdi:Concepto>
+    <cfdi:Concepto ClaveProdServ="50131700" NoIdentificacion="7500000000017" Cantidad="2" ClaveUnidad="KGM" Unidad="KILO" Descripcion="Queso panela" ValorUnitario="21.00" Importe="42.00" ObjetoImp="01"/>
+  </cfdi:Conceptos>
+  <cfdi:Complemento><tfd:TimbreFiscalDigital Version="1.1" UUID="6f1c2a3b-0000-4000-8000-abcdefabcdef" FechaTimbrado="2026-11-18T10:01:00"/></cfdi:Complemento>
+</cfdi:Comprobante>
