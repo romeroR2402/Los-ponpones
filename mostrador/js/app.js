@@ -97,9 +97,18 @@
       (modo === "crear" ? "<small>Mínimo 6 caracteres.</small>" : "") + '</label>' +
       '<div id="fa-msg"></div><button class="btn block lg">' + (modo === "crear" ? "Crear mi cuenta" : "Entrar") + "</button>" +
       (modo === "entrar" ? '<p class="center mt small"><a href="#" id="olvide">Olvidé mi contraseña</a></p>' : "") +
-      "</form></div></div></div>";
+      "</form></div>" +
+      '<div class="card mt" style="text-align:center"><p class="body small" style="margin:0 0 10px">¿Quieres verla funcionando antes de registrarte?</p>' +
+      '<button class="btn alt block lg" id="ver-demo">' + ic("store", 20) + ' Ver la demo: tienda de ejemplo</button></div></div></div>';
     $$(".tabs button").forEach(function (b) { b.onclick = function () { pantallaAcceso(b.dataset.m) } });
     var f = $("#fa"), msg = $("#fa-msg");
+    $("#ver-demo").onclick = function () {
+      var b = this; b.disabled = true; b.textContent = "Abriendo la demo…";
+      M.sb.auth.signInWithPassword({ email: M.DEMO.email, password: M.DEMO.pass }).then(function (r) {
+        if (r.error) { b.disabled = false; b.textContent = "Ver la demo"; return M.error(r.error) }
+        location.hash = "#/inicio"; arrancar();
+      });
+    };
     if ($("#olvide")) $("#olvide").onclick = function (e) {
       e.preventDefault(); var em = f.email.value.trim();
       if (!/\S+@\S+\.\S+/.test(em)) { mensaje(msg, "warn", "Escribe tu correo arriba y vuelve a tocar “Olvidé mi contraseña”."); return }
@@ -222,12 +231,28 @@
       '<span id="net"></span><a class="ibtn" id="lec" href="#/lector" title="Lector de códigos" aria-label="Lector de códigos" style="text-decoration:none;position:relative">' + ic("scan-barcode", 21) + '<i id="lec-dot" class="hide" style="position:absolute;top:8px;right:8px;width:9px;height:9px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 2px var(--surface)"></i></a>' +
       '<a class="ibtn" href="#/alertas" title="Alertas" aria-label="Alertas" style="position:relative;text-decoration:none">' + ic("bell", 21) + '<span class="n hide" data-n></span></a>' +
       '<span class="row" style="gap:10px;margin-left:4px"><span class="hola">Hola,<b>' + esc(nom.split(/[\s@]/)[0]) + '</b></span><span class="avatar" title="' + esc(nom) + '">' + esc(iniciales(nom)) + "</span></span></div></header>" +
+      (M.negocio.es_demo ? '<div class="demo-bar">' + ic("sparkles", 18) + '<span class="grow"><b>Tienda de ejemplo.</b> Vende, escanea y mueve lo que quieras: es una demostración.</span>' +
+        '<button class="btn sm ghost" id="demo-reset">Reiniciar demo</button><button class="btn sm" id="demo-salir">Crear mi tienda</button></div>' : "") +
       '<main id="view" tabindex="-1"></main></div></div>' +
       '<nav class="tabbar" aria-label="Menú">' + movil.map(function (m) {
         return '<a href="#/' + m.id + '" data-r="' + m.id + '">' + ic(m.ic, 22) + esc(m.corto || m.t) + (m.id === "alertas" ? '<span class="n hide" data-n></span>' : "") + "</a>";
       }).join("") + '<a href="#" id="mas">' + ic("menu", 22) + "Más</a></nav>";
     $("#side-salir").onclick = function (e) { e.preventDefault(); salir() };
     $("#mas").onclick = function (e) { e.preventDefault(); menuMas() };
+    if ($("#demo-reset")) $("#demo-reset").onclick = function () {
+      M.confirmar("¿Reiniciar la demo?", "Se borra lo que movieron y la tienda vuelve a quedar como nueva, con un mes de ventas.", "Reiniciar").then(function (ok) {
+        if (!ok) return;
+        cargando($("#view"));
+        M.sb.rpc("mos_demo_reiniciar").then(function (r) {
+          if (r.error) return M.error(r.error);
+          carrito = []; entrada = null; localStorage.removeItem("mostrador-negocio");
+          M.cargarNegocio().then(entrarApp).then(function () { M.toast("Demo reiniciada ✓", "ok") });
+        });
+      });
+    };
+    if ($("#demo-salir")) $("#demo-salir").onclick = function () {
+      M.confirmar("Crear tu propia tienda", "Saldrás de la demo para entrar o crear tu cuenta.", "Continuar").then(function (ok) { if (ok) salir() });
+    };
     $("#top-q").onkeydown = function (e) {
       if (e.key !== "Enter") return; var v = this.value.trim(); if (!v) return;
       var p = M.porCodigo(v); this.value = "";
@@ -293,7 +318,8 @@
   function icCat(c, s) { return ic(ICONO_CATEGORIA[c] || "tag", s || 20) }
   M.icCat = icCat;
   function imgOIcono(p, s) {
-    return p.imagen ? '<img src="' + esc(p.imagen) + '" alt="" loading="lazy" onerror="this.outerHTML=M.icCat(' + esc(JSON.stringify(p.categoria || "")) + "," + s + ')">' : icCat(p.categoria, s);
+    // El ícono de la categoría se ve mientras carga la foto (o si nunca carga por mala señal).
+    return icCat(p.categoria, s) + (p.imagen ? '<img class="foto" src="' + esc(p.imagen) + '" alt="" loading="lazy" onload="this.classList.add(\'ok\')" onerror="this.remove()">' : "");
   }
   function thumb(p) { return '<span class="thumb" aria-hidden="true">' + imgOIcono(p, 22) + "</span>" }
   function estadoStock(p) {

@@ -222,3 +222,16 @@ body[data-r="vender"] .tsearch, body[data-r="productos"] .tsearch { visibility: 
 .cart .line, .sheet .line { flex-wrap: wrap; row-gap: 8px }
 .cart .line .t, .sheet .line .t { flex-basis: calc(100% - 34px) }
 .cart .line .qty, .sheet .line .qty { margin-left: 34px; margin-right: auto }
+/* Barra de la tienda demo */
+.demo-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 16px 0; padding: 10px 14px; border-radius: var(--r-md); background: #fff8e6; border: 1px solid #f6dfa4; color: #6b4300; font-size: 13px }
+.demo-bar .i { color: var(--accent) }
+@media (min-width: 900px) { .demo-bar { margin: 16px 24px 0 } }
+/* Foto encima del ícono: si no carga, se queda el ícono de la categoría */
+.pimg, .thumb { position: relative }
+img.foto { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; opacity: 0; transition: opacity .2s }
+img.foto.ok { opacity: 1 }
+.pimg img.foto { border-radius: 12px }
+/* QA: con muchas categorías la tira de mosaicos ensanchaba la pantalla en celular */
+.pos { grid-template-columns: minmax(0, 1fr) } .pos > * { min-width: 0 }
+@media (min-width: 1100px) { .pos { grid-template-columns: minmax(0,1fr) 370px } }
+@media (max-width: 700px) { .demo-bar .grow { flex-basis: calc(100% - 30px) } .demo-bar .btn { flex: 1 } }

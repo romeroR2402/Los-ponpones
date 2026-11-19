@@ -3,6 +3,8 @@
   var C = window.MOSTRADOR || {};
   var sb = window.supabase.createClient(C.url, C.key, { auth: { persistSession: true, storageKey: "mostrador-auth" } });
   var M = window.M = { sb: sb, negocio: null, rol: null, giro: null, user: null, productos: [] };
+  // Cuenta pública de la tienda de ejemplo (sólo ve su propio negocio demo).
+  M.DEMO = { email: "demo@usuarios.mostrador.app", pass: "demo2026" };
 
   // ---------- DOM y formato ----------
   M.$ = function (s, el) { return (el || document).querySelector(s) };

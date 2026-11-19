@@ -19,6 +19,12 @@ Se instala como app en Android, iPhone, tablet o PC, y **la caja sigue vendiendo
 | **Proveedores** | Con WhatsApp, RFC y día de visita. |
 | **Mi negocio** | Datos, prender/apagar funciones, días de aviso de caducidad. |
 
+## Demo para mostrar a clientes
+En la pantalla de entrada: **“Ver la demo: tienda de ejemplo”** (Abarrotes La Esperanza, Coyoacán): 53 productos con foto,
+5 proveedores, ~750 ventas de los últimos 30 días, caducidades (una por cambiar con el proveedor, una vencida, varias por vencer),
+agotados y productos por acabarse. Se puede vender y mover todo; el botón **“Reiniciar demo”** la deja como nueva.
+Cuenta: `demo@usuarios.mostrador.app` / `demo2026` (pública; sólo ve su tienda). SQL en `supabase/demo.sql`.
+
 ## Diseño
 Estilo **"Mostrador Verde"** tomado de la referencia del cliente (punto de venta verde): menú lateral blanco con íconos de línea,
 mosaicos de categorías, tarjetas de producto con foto y botón "+ Agregar", panel de la venta a la derecha.
@@ -45,6 +51,7 @@ Cómo actualizarlo: `supabase/catalogo/README.md`.
 3. En **Authentication → URL Configuration → Redirect URLs** agrega `https://romeror2402.github.io/Los-ponpones/mostrador/**`.
 
 ## Pruebas
+`qa/demo.js`: 11 casos de la demo (entrar con un toque, datos llenos, vender, reiniciar, aislamiento).
 `qa/lector.js`: 15 casos de pistola (ráfagas tipo teclado en cada pantalla, escritura lenta que no se confunde, pistola BLE simulada).
 `qa/e2e.js` recorre 35 casos en dos giros (abarrotes y farmacia), móvil y escritorio, sin internet y aislamiento entre negocios.
 Necesita dos usuarios de prueba confirmados (`qa-abarrotes@…`, `qa-farmacia@…`) y un servidor local:
