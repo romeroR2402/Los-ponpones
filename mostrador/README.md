@@ -11,7 +11,7 @@ Se instala como app en Android, iPhone, tablet o PC, y **la caja sigue vendiendo
 | **Registro del negocio** | Eliges tu giro (tarjetas con ícono) y contestas 6 preguntas sí/no (¿caduca?, ¿granel?, ¿fiado?…). El sistema prende sólo lo que usas. |
 | **Inicio** | Lo que vendiste hoy, ganancia estimada, lo que se acaba y lo que se vence. |
 | **Vender** | Busca, toca o **escanea** (cámara o lector USB). Granel por kilo **o por dinero** ("dame $45 de jamón"). Efectivo con cambio, tarjeta, transferencia o fiado. Ticket por WhatsApp. |
-| **Productos** | Alta escaneando el código (busca el nombre en el catálogo abierto Open Food Facts), mínimos, costo y ganancia, caducidad. Campos extra según el giro (farmacia: sustancia activa, laboratorio, receta). |
+| **Productos** | Alta escaneando el código: **≈25 mil productos de México ya vienen cargados** (nombre, marca, presentación, foto y categoría) y sólo pones el precio. Si no está, lo escribes una vez y queda para todas las tiendas. También: mínimos, costo y ganancia, caducidad. Campos extra según el giro (farmacia: sustancia activa, laboratorio, receta). |
 | **Entrada de mercancía** | 3 formas: escanear uno tras otro, **subir el XML de la factura (CFDI 4.0)** que se llena sola con costos con IVA y crea al proveedor, o buscar a mano. Fecha de caducidad por lote y "el proveedor me lo cambia". |
 | **Alertas** | Pídele el cambio al proveedor · Ya vencieron · Vencen pronto · Agotados · Se están acabando. Botones para sacar mermas, pedir el cambio por WhatsApp y **armar pedido** al proveedor. Aviso en el celular una vez al día. |
 | **Ventas** | Hoy / 7 / 30 días, ticket promedio, lo más vendido, por forma de pago, cancelar venta (regresa existencias). |
@@ -26,6 +26,10 @@ Se instala como app en Android, iPhone, tablet o PC, y **la caja sigue vendiendo
 - **Inventario = libro de movimientos** (entradas, ventas, mermas, correcciones). La existencia se actualiza sola.
 - Las ventas tienen un id generado en el celular: si se mandan dos veces (por falta de internet) no se duplican.
 - Al vender se descuenta primero el lote que caduca antes (FEFO).
+
+## Catálogo de productos
+Tabla `mos_catalogo` con datos de [Open Food Facts](https://world.openfoodfacts.org) (ODbL) + lo que aportan las tiendas (nunca el precio).
+Cómo actualizarlo: `supabase/catalogo/README.md`.
 
 ## Antes de usarlo con tiendas reales (pendiente del dueño del proyecto)
 1. **Abrir el registro de cuentas:** en Supabase el registro está desactivado (`Authentication → Sign In / Providers → Allow new users to sign up`).

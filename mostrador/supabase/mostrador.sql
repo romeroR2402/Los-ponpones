@@ -314,3 +314,36 @@ grant execute on function mos_crear_negocio(jsonb), mos_vender(jsonb), mos_cance
 revoke execute on function mos_aplicar_movimiento() from anon, public, authenticated;
 revoke execute on function mos_es_miembro(uuid), mos_rol(uuid) from anon, public;
 grant execute on function mos_es_miembro(uuid), mos_rol(uuid) to authenticated;
+
+-- ---------- 7. Catálogo compartido de productos (código de barras → nombre, marca, foto, categoría) ----------
+-- ≈25 mil productos de México tomados de Open Food Facts (licencia ODbL) + los que dan de alta las tiendas (sin precio).
+create table if not exists mos_catalogo (
+  codigo       text primary key,
+  nombre       text not null,
+  marca        text not null default '',
+  presentacion text not null default '',
+  categoria    text not null default '',
+  imagen       text not null default '',
+  fuente       text not null default 'off' check (fuente in ('off','tiendas')),
+  usos         int  not null default 0,
+  actualizado  timestamptz not null default now()
+);
+alter table mos_catalogo enable row level security;
+drop policy if exists mos_cat_ver on mos_catalogo;
+create policy mos_cat_ver on mos_catalogo for select to authenticated using (true);
+
+-- Las tiendas aportan productos nuevos (nunca sobrescriben los existentes; nunca se comparte el precio).
+create or replace function mos_catalogo_aportar(p jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+declare c text := trim(coalesce(p->>'codigo',''));
+begin
+  if auth.uid() is null or not exists(select 1 from mos_miembros where user_id = auth.uid()) then return; end if;
+  if c !~ '^[0-9]{8,14}$' or length(trim(coalesce(p->>'nombre',''))) < 3 then return; end if;
+  insert into mos_catalogo(codigo, nombre, marca, presentacion, categoria, imagen, fuente, usos)
+  values (c, left(trim(p->>'nombre'),120), left(coalesce(p->>'marca',''),60), left(coalesce(p->>'presentacion',''),40),
+          left(coalesce(p->>'categoria',''),40), case when coalesce(p->>'imagen','') ~ '^https://images\.openfoodfacts\.org/' then p->>'imagen' else '' end,
+          case when p->>'fuente' = 'off' then 'off' else 'tiendas' end, 1)
+  on conflict (codigo) do update set usos = mos_catalogo.usos + 1;
+end $$;
+revoke execute on function mos_catalogo_aportar(jsonb) from anon, public;
+grant execute on function mos_catalogo_aportar(jsonb) to authenticated;

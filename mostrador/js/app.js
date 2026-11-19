@@ -271,7 +271,7 @@
   // Componentes compartidos
   // =====================================================================
   function thumb(p) {
-    if (p.imagen) return '<span class="thumb"><img src="' + esc(p.imagen) + '" alt="" loading="lazy"></span>';
+    if (p.imagen) return '<span class="thumb"><img src="' + esc(p.imagen) + '" alt="" loading="lazy" onerror="this.replaceWith(\'📦\')"></span>';
     return '<span class="thumb" aria-hidden="true">' + esc((p.nombre || "?").trim().charAt(0).toUpperCase()) + "</span>";
   }
   function estadoStock(p) {
@@ -373,6 +373,8 @@
     }
   };
   function codigoDesconocido(code) {
+    // Dueño/encargado: se busca en el catálogo, se pone precio y se agrega a la venta en el mismo paso.
+    if (puedeInventario()) return altaPorCodigo(code, function (p) { if (ruta() === "vender") { agregar(p); render() } });
     M.sonar(false);
     var h = M.hoja('<h2>No tienes ese producto</h2><p class="body">El código <b>' + esc(code) + "</b> no está en tu catálogo.</p>" +
       (puedeInventario() ? '<div class="acts"><button class="btn ghost" data-cerrar>Cancelar</button><button class="btn" id="cd-alta">Darlo de alta y vender</button></div>' : '<p class="muted">Pídele al dueño o encargado que lo dé de alta.</p>'));
@@ -514,7 +516,7 @@
         .map(function (f) { return '<button class="chip' + (filtroProd.f === f[0] ? " on" : "") + '" data-f="' + esc(f[0]) + '">' + esc(f[1]) + "</button>" }).join("") + "</div>" +
       '<div id="p-lista" class="mt"></div>';
     if ($("#p-nuevo", v)) { $("#p-nuevo", v).onclick = function () { formProducto() }; $("#p-esc", v).onclick = escanearAlta }
-    $("#p-esc2", v).onclick = function () { M.escanear(function (c) { var p = M.porCodigo(c); if (p) detalleProducto(p); else if (puedeInventario()) formProducto(null, { codigo: c }); else codigoDesconocido(c) }) };
+    $("#p-esc2", v).onclick = function () { M.escanear(function (c) { var p = M.porCodigo(c); if (p) detalleProducto(p); else if (puedeInventario()) altaPorCodigo(c); else codigoDesconocido(c) }) };
     $("#p-q", v).oninput = function () { filtroProd.q = this.value; pintar() };
     $("#p-q", v).onkeydown = function (e) { if (e.key === "Enter") { var p = M.porCodigo(this.value.trim()); if (p) { detalleProducto(p); this.value = ""; filtroProd.q = ""; pintar() } } };
     $("#p-f", v).onclick = function (e) { var b = e.target.closest(".chip"); if (!b) return; filtroProd.f = b.dataset.f; $$("#p-f .chip", v).forEach(function (x) { x.classList.toggle("on", x === b) }); pintar() };
@@ -551,8 +553,65 @@
     M.escanear(function (c) {
       var p = M.porCodigo(c);
       if (p) { M.toast("Ya lo tienes: " + p.nombre); detalleProducto(p) }
-      else formProducto(null, { codigo: c, alGuardar: function () { setTimeout(function () { M.toast("Listo ✓ Escanea el siguiente"); escanearAlta() }, 300) } });
+      else altaPorCodigo(c, function () { setTimeout(function () { M.toast("Listo ✓ Escanea el siguiente", "ok"); escanearAlta() }, 300) });
     }, { titulo: "Escanear producto nuevo" });
+  }
+
+  // ---------- Alta por código: busca en el catálogo de productos ya registrados ----------
+  var PERECEDEROS = ["Lácteos", "Salchichonería", "Pan", "Frutas y verduras", "Congelados", "Bebés"];
+  function altaPorCodigo(code, alGuardar) {
+    var ya = M.porCodigo(code); if (ya) { M.cerrarHoja(); if (alGuardar) alGuardar(ya); return }
+    M.hoja('<h2>Buscando el producto…</h2><p class="muted">Código ' + esc(code) + '</p><div class="spin" style="margin:24px auto"></div>');
+    M.buscarCodigo(code).then(function (r) {
+      if (!$("#sheet")) return; // la cerró
+      if (r) altaRapida(Object.assign({}, r, { codigo: code }), alGuardar);
+      else formProducto(null, { codigo: code, yaBuscado: true, alGuardar: alGuardar });
+    });
+  }
+  // Tarjeta rápida: el producto ya viene (nombre, marca, foto, categoría); sólo pones el precio.
+  function altaRapida(c, alGuardar) {
+    var cad = M.tiene("caducidad"), perece = cad && PERECEDEROS.indexOf(c.categoria) >= 0;
+    var h = M.hoja('<div class="row" style="align-items:flex-start;gap:14px;padding-right:40px">' +
+      '<span class="thumb" style="width:76px;height:76px;flex:none;background:#fff;border:1px solid var(--line)">' + (c.imagen ? '<img src="' + esc(c.imagen) + '" alt="" style="object-fit:contain" onerror="this.replaceWith(\'📦\')">' : "📦") + "</span>" +
+      '<div class="grow"><span class="badge info">✓ Producto encontrado</span><h2 style="margin:6px 0 2px;font-size:18px">' + esc(c.nombre) + '</h2><span class="muted small">' +
+      esc([c.marca, c.presentacion].filter(Boolean).join(" · ")) + (c.categoria ? ' · <span class="badge">' + esc(c.categoria) + "</span>" : "") + "</span></div></div>" +
+      '<form id="ar" class="mt" novalidate><label class="f"><span>¿A cuánto lo vendes?</span><input class="inp big" name="precio" inputmode="decimal" placeholder="$0.00" autofocus></label>' +
+      '<div class="grid2"><label class="f"><span>Te cuesta <span class="muted">(opcional)</span></span><input class="inp" name="costo" inputmode="decimal" placeholder="$0.00"></label>' +
+      '<label class="f"><span>¿Cuántos tienes? <span class="muted">(opcional)</span></span><input class="inp" name="existencia" inputmode="decimal" placeholder="0"></label></div>' +
+      (cad ? '<label class="check" style="padding-top:0"><input type="checkbox" name="caduca"' + (perece ? " checked" : "") + '><span><b>Caduca</b> <span class="muted small">— te avisamos antes de que se venza</span></span></label>' +
+        '<label class="f' + (perece ? "" : " hide") + '" id="ar-cadw"><span>Fecha de caducidad de lo que tienes</span><input class="inp" type="date" name="caducidad"></label>' : "") +
+      '<div class="acts"><button type="button" class="btn ghost" id="ar-mas">Cambiar nombre u otros datos</button><button class="btn" id="ar-ok">Guardar</button></div>' +
+      '<p class="muted xs center" style="margin-top:10px">Datos del producto: Open Food Facts y tiendas Mostrador</p></form>');
+    var f = $("#ar", h);
+    if (f.caduca) f.caduca.onchange = function () { $("#ar-cadw", h).classList.toggle("hide", !this.checked) };
+    $("#ar-mas", h).onclick = function () {
+      formProducto(null, { codigo: c.codigo, nombre: c.nombre, categoria: c.categoria, imagen: c.imagen, precio: f.precio.value, costo: f.costo.value, caducidad: f.caduca && f.caduca.checked, yaBuscado: true, alGuardar: alGuardar });
+    };
+    f.onsubmit = function (e) {
+      e.preventDefault();
+      var precio = M.r2(M.num(f.precio.value)); if (!(precio > 0)) { f.precio.focus(); return M.toast("Escribe el precio de venta", "bad") }
+      var caduca = !!(f.caduca && f.caduca.checked), exi = M.r3(M.num(f.existencia.value)), fecha = caduca ? f.caducidad.value : "";
+      if (caduca && exi > 0 && !fecha) return M.toast("Pon la fecha de caducidad de lo que tienes", "bad");
+      $("#ar-ok", h).disabled = true;
+      crearProducto({ nombre: c.nombre, codigo: c.codigo, categoria: c.categoria || "General", unidad: M.unidadesNegocio()[0], precio: precio, costo: M.r2(M.num(f.costo.value)),
+        minimo: M.giro.alertas.minimo, maneja_caducidad: caduca, atributos: c.marca ? { marca: c.marca } : {}, imagen: c.imagen || "" }, exi, fecha).then(function (prod) {
+        M.cerrarHoja(); M.toast(prod.nombre + " agregado ✓", "ok");
+        if (alGuardar) alGuardar(prod); else render();
+      }).catch(function (er) { if ($("#ar-ok", h)) $("#ar-ok", h).disabled = false; M.error(er) });
+    };
+  }
+  // Guarda un producto nuevo, su existencia inicial y lo comparte (sin precio) con el catálogo de otras tiendas.
+  function crearProducto(d, exi, cad) {
+    return M.sb.from("mos_productos").insert(Object.assign({ negocio_id: M.negocio.id }, d)).select().single().then(function (r) {
+      if (r.error) throw r.error;
+      var prod = r.data;
+      M.productos.push(prod); M.productos.sort(function (a, b) { return a.nombre.localeCompare(b.nombre) });
+      if (d.codigo) M.aportarCatalogo({ codigo: d.codigo, nombre: d.nombre, marca: (d.atributos && d.atributos.marca) || "", categoria: d.categoria, imagen: d.imagen || "" });
+      if (!(exi > 0)) return prod;
+      return M.sb.rpc("mos_entrada", { p: { negocio_id: M.negocio.id, origen: "manual", items: [{ producto_id: prod.id, cantidad: exi, costo: d.costo, caducidad: d.maneja_caducidad ? cad : "" }] } }).then(function (r2) {
+        if (r2.error) throw r2.error; prod.existencia = exi; return cargarLotes().then(function () { return prod });
+      });
+    });
   }
 
   function formProducto(p, opts) {
@@ -584,11 +643,17 @@
       $("#fp-off", h).textContent = "Buscando el producto…";
       M.buscarCodigo(c).then(function (r) {
         if (!$("#fp-off", h)) return;
-        if (r && !f.nombre.value.trim()) { f.nombre.value = r.nombre; f.dataset.imagen = r.imagen; $("#fp-off", h).textContent = "✓ Lo encontramos. Revisa el nombre."; f.precio.focus() }
-        else { $("#fp-off", h).textContent = "No lo encontramos; escribe el nombre una sola vez."; f.nombre.focus() }
+        if (r && !f.nombre.value.trim()) {
+          f.nombre.value = r.nombre; f.dataset.imagen = r.imagen || ""; if (r.categoria && !f.categoria.value) f.categoria.value = r.categoria;
+          $("#fp-off", h).textContent = "✓ Lo encontramos. Revisa el nombre."; f.precio.focus();
+        } else if (!r) { $("#fp-off", h).textContent = "No está en el catálogo; escribe el nombre una sola vez."; if (!f.nombre.value.trim()) f.nombre.focus() }
+        else $("#fp-off", h).textContent = "";
       });
     }
-    f.codigo.onchange = buscarOFF; if (nuevo && p.codigo && !p.nombre) buscarOFF();
+    if (opts.imagen) f.dataset.imagen = opts.imagen;
+    f.codigo.onchange = buscarOFF;
+    if (nuevo && p.codigo && !p.nombre && !opts.yaBuscado) buscarOFF();
+    if (nuevo && p.codigo && !p.nombre && opts.yaBuscado) { $("#fp-off", h).textContent = "No está en el catálogo; escríbelo una sola vez y se guarda para la próxima."; f.nombre.focus() }
     $("#fp-esc", h).onclick = function () {
       var guardado = leerForm();
       function reabrir(extra) { if (nuevo) formProducto(null, Object.assign({}, opts, guardado, extra)); else formProducto(Object.assign({}, p, guardado, extra), opts) }
@@ -617,17 +682,11 @@
       if (nuevo && d.maneja_caducidad && exi > 0 && !cad) return M.toast("Pon la fecha de caducidad de lo que tienes", "bad");
       if (nuevo && f.dataset.imagen) d.imagen = f.dataset.imagen;
       $("#fp-ok", h).disabled = true;
-      var q = nuevo ? M.sb.from("mos_productos").insert(Object.assign({ negocio_id: M.negocio.id }, d)).select().single() : M.sb.from("mos_productos").update(d).eq("id", p.id).select().single();
-      q.then(function (r) {
+      var q = nuevo ? crearProducto(d, exi, cad) : M.sb.from("mos_productos").update(d).eq("id", p.id).select().single().then(function (r) {
         if (r.error) throw r.error;
-        var prod = r.data;
-        if (!nuevo) { M.productos = M.productos.map(function (x) { return x.id === prod.id ? prod : x }); return prod }
-        M.productos.push(prod); M.productos.sort(function (a, b) { return a.nombre.localeCompare(b.nombre) });
-        if (!(exi > 0)) return prod;
-        return M.sb.rpc("mos_entrada", { p: { negocio_id: M.negocio.id, origen: "manual", items: [{ producto_id: prod.id, cantidad: exi, costo: d.costo, caducidad: d.maneja_caducidad ? cad : "" }] } }).then(function (r2) {
-          if (r2.error) throw r2.error; prod.existencia = exi; return cargarLotes().then(function () { return prod });
-        });
-      }).then(function (prod) {
+        M.productos = M.productos.map(function (x) { return x.id === r.data.id ? r.data : x }); return r.data;
+      });
+      q.then(function (prod) {
         M.cerrarHoja(); M.toast(nuevo ? "Producto agregado ✓" : "Cambios guardados ✓", "ok");
         if (opts.alGuardar) opts.alGuardar(prod); else render();
       }).catch(function (er) { $("#fp-ok", h) && ($("#fp-ok", h).disabled = false); M.error(er) });
@@ -743,7 +802,7 @@
     M.escanear(function (c) {
       var p = M.porCodigo(c);
       if (p) { agregarLinea(p); M.toast("+1 " + p.nombre) }
-      else { M.cerrarHoja(); formProducto(null, { codigo: c, alGuardar: function (np) { agregarLinea(np); render(); setTimeout(escanearEntrada, 300) } }) }
+      else { M.cerrarHoja(); altaPorCodigo(c, function (np) { agregarLinea(np); render(); setTimeout(escanearEntrada, 300) }) }
     }, { continuo: true, titulo: "Escanea lo que recibes", alCerrar: function () { render() } });
   }
   function elegirProducto() {

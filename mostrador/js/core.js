@@ -152,9 +152,23 @@
     }
   };
 
-  // ---------- Catálogo abierto de productos (Open Food Facts) ----------
+  // ---------- Catálogo de productos ya registrados ----------
+  // 1) Catálogo compartido en Supabase (≈25 mil productos de México de Open Food Facts + los que dan de alta las tiendas).
+  // 2) Si no está, se pregunta en línea a Open Food Facts y se guarda en el catálogo para la próxima vez.
   M.buscarCodigo = function (code) {
+    code = String(code || "").trim();
     if (!/^\d{8,14}$/.test(code) || !navigator.onLine) return Promise.resolve(null);
+    var c13 = code.length === 14 && code.charAt(0) === "0" ? code.slice(1) : code;
+    return sb.from("mos_catalogo").select("codigo,nombre,marca,presentacion,categoria,imagen").in("codigo", [code, c13]).limit(1).then(function (r) {
+      if (r.data && r.data[0]) return r.data[0];
+      return buscarOFF(code).then(function (p) { if (p) M.aportarCatalogo(Object.assign({ fuente: "off" }, p)); return p });
+    }).catch(function () { return buscarOFF(code) });
+  };
+  M.aportarCatalogo = function (p) {
+    if (!p || !/^\d{8,14}$/.test(p.codigo || "")) return;
+    sb.rpc("mos_catalogo_aportar", { p: p }).then(function () {}, function () {});
+  };
+  function buscarOFF(code) {
     var ctl = window.AbortController ? new AbortController() : null;
     var to = setTimeout(function () { if (ctl) ctl.abort() }, 4000);
     return fetch("https://world.openfoodfacts.org/api/v2/product/" + code + ".json?fields=product_name,product_name_es,brands,quantity,image_front_small_url",
@@ -164,9 +178,10 @@
       var p = j.product, n = (p.product_name_es || p.product_name || "").trim();
       if (!n) return null;
       var marca = (p.brands || "").split(",")[0].trim();
-      return { nombre: [n, marca && n.toLowerCase().indexOf(marca.toLowerCase()) < 0 ? marca : "", p.quantity || ""].filter(Boolean).join(" "), imagen: p.image_front_small_url || "" };
+      return { codigo: code, nombre: [n, marca && n.toLowerCase().indexOf(marca.toLowerCase()) < 0 ? marca : "", p.quantity || ""].filter(Boolean).join(" ").slice(0, 120),
+        marca: marca, presentacion: p.quantity || "", categoria: "", imagen: p.image_front_small_url || "" };
     }).catch(function () { clearTimeout(to); return null });
-  };
+  }
 
   // ---------- Factura electrónica (XML CFDI 3.3 / 4.0) ----------
   M.leerCFDI = function (texto) {
