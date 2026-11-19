@@ -287,6 +287,93 @@
   };
   window.addEventListener("online", function () { M.sincronizar() });
 
+  // =====================================================================
+  // Pistola lectora de códigos de barras (Bluetooth / USB)
+  // =====================================================================
+  // A) Modo teclado (HID): la pistola se vincula en el Bluetooth del celular y "teclea" el código + Enter muy rápido.
+  //    Detectamos esa ráfaga en cualquier pantalla (aunque no haya un campo seleccionado) y la mandamos a M.alEscanear.
+  // B) Modo BLE: conexión directa desde la app con Web Bluetooth (Chrome en Android/PC; iPhone no lo permite).
+  var L = M.lector = { activo: false, ultimo: null, ble: null, oyentes: [], vel: 45 };
+  var buf = "", t0 = 0, tPrev = 0, objetivo = null, finTimer = null;
+  function esCampo(el) { return el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable) }
+  function emitir(code, origen) {
+    code = String(code || "").replace(/[\r\n\t]/g, "").trim();
+    if (code.length < 4) return;
+    L.activo = true; L.ultimo = { code: code, origen: origen, t: Date.now() };
+    L.oyentes.forEach(function (f) { try { f(code, origen) } catch (e) { console.error(e) } });
+    if (M.alEscanear) M.alEscanear(code, origen);
+  }
+  L.emitir = emitir;
+  L.escuchar = function (f) { L.oyentes.push(f); return function () { L.oyentes = L.oyentes.filter(function (x) { return x !== f }) } };
+  function rafaga() { return buf.length >= 4 && (tPrev - t0) / Math.max(buf.length - 1, 1) < L.vel }
+  function terminar(e) {
+    var code = buf, el = objetivo; buf = ""; clearTimeout(finTimer);
+    if (e) { e.preventDefault(); e.stopPropagation() }
+    // Si los números cayeron en un campo que no es de código (p. ej. el precio), los quitamos de ahí.
+    if (el && esCampo(el) && typeof el.value === "string" && el.value.slice(-code.length) === code) {
+      el.value = el.value.slice(0, -code.length); el.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    emitir(code, "pistola");
+  }
+  document.addEventListener("keydown", function (e) {
+    var el = e.target, now = Date.now();
+    // Campos donde se escribe un código a mano (formulario de producto, escáner manual) se dejan trabajar normal.
+    if (esCampo(el) && (el.name === "codigo" || el.closest("#scan-man"))) { buf = ""; return }
+    if (e.key === "Enter" || e.key === "Tab") { if (rafaga()) terminar(e); else buf = ""; return }
+    if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (now - tPrev > 80) { buf = ""; t0 = now }
+    buf += e.key; tPrev = now; objetivo = el;
+    // Pistolas configuradas sin Enter al final: si la ráfaga se detiene, la tomamos igual.
+    clearTimeout(finTimer);
+    finTimer = setTimeout(function () { if (buf.length >= 8 && /^\d+$/.test(buf) && rafaga()) terminar(null); else buf = "" }, 120);
+  }, true);
+
+  // ---------- Modo BLE (Web Bluetooth) ----------
+  // Servicios "serie" que usan las pistolas BLE más comunes (Nordic UART, HM-10/FFE0, FFF0, Zebra/Honeywell genéricos).
+  var SERVICIOS = ["6e400001-b5a3-f393-e0a9-e50e24dcca9e", 0xffe0, 0xfff0, 0xfee7, 0x1812, "49535343-fe7d-4ae5-8fa9-9fafd205e455", "0000feea-0000-1000-8000-00805f9b34fb"];
+  L.bleDisponible = function () { return !!(navigator.bluetooth && navigator.bluetooth.requestDevice) };
+  L.estadoBLE = function () { return L.ble ? (L.ble.device.gatt.connected ? "conectado" : "desconectado") : "sin" };
+  function avisar() { document.dispatchEvent(new Event("mostrador:lector")) }
+  function usarDispositivo(device) {
+    var dec = new TextDecoder(), linea = "";
+    function alDato(ev) {
+      linea += dec.decode(ev.target.value);
+      var partes = linea.split(/[\r\n]+/); linea = partes.pop();
+      partes.forEach(function (c) { if (c.trim()) emitir(c, "bluetooth") });
+      clearTimeout(alDato.t); alDato.t = setTimeout(function () { if (linea.trim().length >= 8) { emitir(linea, "bluetooth"); linea = "" } }, 150);
+    }
+    device.addEventListener("gattserverdisconnected", function () { avisar(); setTimeout(function () { if (L.ble && L.ble.device === device) reconectar(device, 1) }, 1500) });
+    return device.gatt.connect().then(function (srv) { return srv.getPrimaryServices() }).then(function (svcs) {
+      return Promise.all(svcs.map(function (s) { return s.getCharacteristics().catch(function () { return [] }) }));
+    }).then(function (grupos) {
+      var chs = [].concat.apply([], grupos).filter(function (c) { return c.properties.notify || c.properties.indicate });
+      if (!chs.length) throw new Error("Este lector no manda códigos por Bluetooth directo. Úsalo en modo teclado (HID).");
+      return Promise.all(chs.map(function (c) { return c.startNotifications().then(function () { c.addEventListener("characteristicvaluechanged", alDato) }).catch(function () {}) }));
+    }).then(function () {
+      L.ble = { device: device, nombre: device.name || "Lector Bluetooth" };
+      try { localStorage.setItem("mostrador-lector-ble", device.id) } catch (e) {}
+      avisar(); return L.ble;
+    });
+  }
+  function reconectar(device, intento) {
+    if (intento > 3) return avisar();
+    usarDispositivo(device).catch(function () { setTimeout(function () { reconectar(device, intento + 1) }, 2000 * intento) });
+  }
+  L.conectarBLE = function () {
+    if (!L.bleDisponible()) return Promise.reject(new Error("Este navegador no permite Bluetooth directo. Usa Chrome en Android o PC, o el modo teclado."));
+    return navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: SERVICIOS }).then(usarDispositivo);
+  };
+  L.desconectarBLE = function () {
+    var b = L.ble; L.ble = null; try { localStorage.removeItem("mostrador-lector-ble") } catch (e) {}
+    if (b && b.device.gatt.connected) b.device.gatt.disconnect(); avisar();
+  };
+  // Al abrir la app, reconecta solo el lector BLE que ya se había autorizado (Chrome con getDevices).
+  L.reconectarGuardado = function () {
+    var id = null; try { id = localStorage.getItem("mostrador-lector-ble") } catch (e) {}
+    if (!id || !navigator.bluetooth || !navigator.bluetooth.getDevices) return;
+    navigator.bluetooth.getDevices().then(function (ds) { var d = ds.filter(function (x) { return x.id === id })[0]; if (d) reconectar(d, 1) }).catch(function () {});
+  };
+
   // ---------- Instalar como app ----------
   M.instalar = null;
   window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); M.instalar = e; document.documentElement.classList.add("can-install") });

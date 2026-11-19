@@ -180,3 +180,5 @@ main#view { padding: 16px 16px calc(96px + var(--safe-b)); min-width: 0 }
 /* QA BUG-0002/0003: la ✕ tapaba “Vaciar” y los nombres se cortaban en celulares angostos */
 .sheet[data-carrito] > .row:first-of-type { padding-right: 48px }
 @media (max-width: 480px) { .line { flex-wrap: wrap; row-gap: 6px } .line .t { flex-basis: 100% } .line .qty { margin-right: auto } }
+/* El aviso no tapa la barra verde de Cobrar */
+body:has(#v-bar button) .toast { bottom: calc(150px + var(--safe-b)) }

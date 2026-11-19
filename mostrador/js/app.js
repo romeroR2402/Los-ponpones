@@ -27,7 +27,7 @@
   function entrarApp() {
     pintarShell(); cargando($("#view"));
     return Promise.all([M.cargarProductos(), cargarLotes()]).catch(function (e) { M.error(e) }).then(function () {
-      render(); M.sincronizar(); avisarAlertas();
+      render(); M.sincronizar(); avisarAlertas(); M.lector.reconectarGuardado();
     });
   }
   M.sb.auth.onAuthStateChange(function (ev) {
@@ -212,7 +212,7 @@
   function pintarShell() {
     var mods = M.modulosActivos(), movil = mods.filter(function (m) { return m.movil });
     app.innerHTML = '<header class="top"><div class="in"><a class="brand grow" href="#/inicio"><span class="logo">' + M.giro.icono + '</span><span class="ellipsis">' + esc(M.negocio.nombre) + '</span></a>' +
-      '<span id="net"></span><button class="ibtn" id="bell" title="Alertas" aria-label="Alertas" onclick="location.hash=\'#/alertas\'">🔔</button></div></header>' +
+      '<span id="net"></span><a class="ibtn" id="lec" href="#/lector" title="Lector de códigos" aria-label="Lector de códigos" style="text-decoration:none;position:relative;color:var(--text)">' + M.iconoLector + '<i id="lec-dot" class="hide" style="position:absolute;top:9px;right:9px;width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 2px var(--canvas)"></i></a><button class="ibtn" id="bell" title="Alertas" aria-label="Alertas" onclick="location.hash=\'#/alertas\'">🔔</button></div></header>' +
       '<div class="layout"><nav class="side" aria-label="Menú">' + mods.map(function (m) {
         return '<a href="#/' + m.id + '" data-r="' + m.id + '"><span>' + m.icono + "</span>" + esc(m.t) + (m.id === "alertas" ? '<span class="n hide" data-n></span>' : "") + "</a>";
       }).join("") + '<div class="grow"></div><a href="#" class="install" onclick="M.pedirInstalar();return false">📲 Instalar app</a><a href="#" id="side-salir">↩️ Salir</a></nav><main id="view" tabindex="-1"></main></div>' +
@@ -1064,6 +1064,79 @@
         M.usarNegocio(r.data, M.rol); pintarShell(); render(); M.toast("Cambios guardados ✓", "ok");
       });
     };
+  };
+
+  M.iconoLector = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M3 5h2v14H3zM7 5h1v14H7zM10 5h2v14h-2zM14 5h1v14h-1zM17 5h1v14h-1zM20 5h1v14h-1z"/><rect x="1" y="11.3" width="22" height="1.4" fill="#e32d14"/></svg>';
+  // =====================================================================
+  // PISTOLA LECTORA: qué hacer con cada código según la pantalla
+  // =====================================================================
+  function puntoLector() { var d = $("#lec-dot"); if (d) d.classList.toggle("hide", !(M.lector.activo || M.lector.estadoBLE() === "conectado")) }
+  document.addEventListener("mostrador:lector", puntoLector);
+  M.alEscanear = function (code) {
+    puntoLector();
+    if (!M.negocio || !$("#view")) return;
+    var r = ruta(), hoja = $("#sheet");
+    if (r === "lector") return; // la pantalla de prueba lo muestra ella misma
+    if (hoja) {
+      var man = $("#scan-man", hoja);
+      if (man) { $("input", man).value = code; man.dispatchEvent(new Event("submit", { cancelable: true })); return } // cámara abierta
+      if (!$(".sheet[data-carrito]")) { M.sonar(false); return M.toast("Termina o cierra esta ventana antes de escanear otro producto", "bad") }
+    }
+    var p = M.porCodigo(code);
+    if (r === "vender") { if (p) agregar(p); else codigoDesconocido(code); return }
+    if (r === "entradas" && puedeInventario()) {
+      if (p) { agregarLinea(p); M.sonar(true); M.toast("+1 " + p.nombre); render() }
+      else altaPorCodigo(code, function (np) { agregarLinea(np); render() });
+      return;
+    }
+    if (p) { M.sonar(true); detalleProducto(p) }
+    else if (puedeInventario()) altaPorCodigo(code);
+    else codigoDesconocido(code);
+  };
+
+  VISTAS.lector = function (v) {
+    var L = M.lector, ble = L.bleDisponible(), est = L.estadoBLE();
+    var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    v.innerHTML = '<div class="pagehead"><h1>Lector de códigos</h1></div>' +
+      '<div class="card" id="lp-prueba" style="text-align:center;padding:28px 16px"><div style="transform:scale(2.4);height:56px;padding-top:16px">' + M.iconoLector + '</div><h2 id="lp-t">Escanea cualquier producto para probar</h2>' +
+      '<p class="muted" id="lp-s" style="margin:0">No necesitas tocar nada: apunta la pistola y dispara.</p><div id="lp-r"></div></div>' +
+      '<div class="card"><div class="row between"><h2 style="margin:0">Pistola Bluetooth (modo teclado)</h2><span class="badge ' + (L.activo ? "ok" : "") + '" id="lp-hid">' + (L.activo ? "✓ Funcionando" : "Esperando lectura") + "</span></div>" +
+      '<p class="body small mt">Es el modo que traen casi todas las pistolas. Funciona en <b>Android, iPhone y PC</b>.</p><ol class="small body" style="padding-left:20px;margin:0">' +
+      "<li>Enciende la pistola y ponla en <b>modo Bluetooth HID / teclado</b> (lo indica su manual; casi siempre es escanear un código de configuración).</li>" +
+      "<li>En tu " + (ios ? "iPhone: <b>Ajustes → Bluetooth</b>" : "celular: <b>Ajustes → Bluetooth → Vincular dispositivo</b>") + " y elige la pistola.</li>" +
+      "<li>Regresa aquí y escanea un producto. Si aparece arriba, ¡listo! Ya funciona en Vender, Productos y Entradas.</li></ol>" +
+      '<div class="note info mt small"><span>💡 Al conectar la pistola, ' + (ios ? "el iPhone oculta el teclado de la pantalla. Para escribir, apaga la pistola o toca dos veces su botón (depende del modelo)." : "Android puede ocultar el teclado de la pantalla. Para que siga apareciendo: Ajustes → Idioma y teclado → Teclado físico → activa “Mostrar teclado en pantalla”.") + "</span></div>" +
+      '<div class="note warn small" style="margin:0"><span>Si la pistola escribe letras raras o le faltan números: configúrala en idioma de teclado <b>US / Inglés</b> y con <b>Enter (CR)</b> al final, desde su manual.</span></div></div>' +
+      '<div class="card"><div class="row between"><h2 style="margin:0">Conexión directa (BLE)</h2><span class="badge ' + (est === "conectado" ? "ok" : est === "desconectado" ? "warn" : "") + '">' + (est === "conectado" ? "✓ " + esc(L.ble.nombre) : est === "desconectado" ? "Reconectando…" : "Sin conectar") + "</span></div>" +
+      '<p class="body small mt">Para pistolas que se conectan directo con la app (sin vincularlas en Ajustes). ' + (ble ? "Disponible en este navegador." : "<b>No disponible aquí:</b> sólo funciona en Chrome de Android o computadora (no en iPhone). Usa el modo teclado.") + "</p>" +
+      (ble ? '<div class="row wrap">' + (est === "sin" ? '<button class="btn" id="lp-ble">🔵 Conectar lector Bluetooth</button>' : '<button class="btn ghost" id="lp-desc">Desconectar</button>') + "</div>" : "") + "</div>" +
+      '<div class="card"><h2>Lector USB</h2><p class="body small" style="margin:0">Conéctalo a la computadora (o al celular con un adaptador OTG). Funciona igual que el modo teclado, sin configurar nada.</p></div>';
+    if ($("#lp-ble", v)) $("#lp-ble", v).onclick = function () {
+      var b = this; b.disabled = true; b.textContent = "Buscando lectores…";
+      M.lector.conectarBLE().then(function (x) { M.toast("Conectado a " + x.nombre + " ✓", "ok"); render() }).catch(function (e) {
+        b.disabled = false; b.textContent = "🔵 Conectar lector Bluetooth";
+        if (e && e.name === "NotFoundError") return; // canceló la ventana
+        M.error(e);
+      });
+    };
+    if ($("#lp-desc", v)) $("#lp-desc", v).onclick = function () { M.lector.desconectarBLE(); render() };
+    var quitar = M.lector.escuchar(function (code, origen) {
+      if (!$("#lp-prueba")) return quitar();
+      var p = M.porCodigo(code);
+      $("#lp-hid").textContent = "✓ Funcionando"; $("#lp-hid").className = "badge ok";
+      $("#lp-t").textContent = "✓ Leído: " + code; $("#lp-s").textContent = origen === "bluetooth" ? "Por conexión directa (BLE)" : "Por pistola (modo teclado)";
+      var r = $("#lp-r");
+      if (p) { M.sonar(true); r.innerHTML = '<div class="list mt" style="text-align:left"><button class="li" id="lp-p">' + thumb(p) + '<span class="t"><b>' + esc(p.nombre) + "</b><small>" + money(p.precio) + " · tienes " + M.cant(p.existencia, p.unidad) + "</small></span>›</button></div>"; $("#lp-p").onclick = function () { detalleProducto(p) } }
+      else {
+        r.innerHTML = '<p class="muted mt">Buscando en el catálogo…</p>';
+        M.buscarCodigo(code).then(function (c) {
+          if (!$("#lp-r")) return; M.sonar(!!c);
+          r.innerHTML = '<div class="note ' + (c ? "info" : "warn") + ' mt" style="text-align:left"><div class="grow">' + (c ? "<b>" + esc(c.nombre) + "</b><br>Está en el catálogo, pero aún no en tu tienda." : "Este código no está en tu tienda ni en el catálogo.") + "</div>" +
+            (puedeInventario() ? '<button class="btn sm" id="lp-alta">Darlo de alta</button>' : "") + "</div>";
+          if ($("#lp-alta")) $("#lp-alta").onclick = function () { if (c) altaRapida(Object.assign({}, c, { codigo: code })); else formProducto(null, { codigo: code, yaBuscado: true }) };
+        });
+      }
+    });
   };
 
   arrancar();

@@ -91,6 +91,7 @@
     { id: "alertas", t: "Alertas", icono: "🔔", movil: true },
     { id: "ventas", t: "Ventas", icono: "📈" },
     { id: "proveedores", t: "Proveedores", icono: "🤝", roles: ["dueno", "encargado"] },
+    { id: "lector", t: "Lector de códigos", icono: "🏷️" },
     { id: "ajustes", t: "Mi negocio", icono: "⚙️", roles: ["dueno"] }
   ];
 
