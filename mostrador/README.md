@@ -19,6 +19,11 @@ Se instala como app en Android, iPhone, tablet o PC, y **la caja sigue vendiendo
 | **Proveedores** | Con WhatsApp, RFC y día de visita. |
 | **Mi negocio** | Datos, prender/apagar funciones, días de aviso de caducidad. |
 
+## Diseño
+Estilo **"Mostrador Verde"** tomado de la referencia del cliente (punto de venta verde): menú lateral blanco con íconos de línea,
+mosaicos de categorías, tarjetas de producto con foto y botón "+ Agregar", panel de la venta a la derecha.
+Reglas en `.claude/skills/ux-ui-designer/references/design-system.md`. Íconos: Lucide (ISC) en `js/iconos.js`, sin internet.
+
 ## Cómo está hecho (igual que Los Ponpones y Velas)
 - HTML + CSS + JavaScript sin compilar, instalable (manifest + service worker).
 - Supabase (mismo proyecto que Los Ponpones), tablas con prefijo `mos_`. Estructura en `supabase/mostrador.sql` (ya aplicada).

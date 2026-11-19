@@ -15,13 +15,20 @@ a menudo con una fila de clientes enfrente.
 2. **Lenguaje del negocio, no de sistemas.** "Lo que vendiste hoy", "Se te está acabando",
    "Se vence pronto". La terminología cambia por giro (ver `terminologia` en la config del giro).
 3. **Escanear antes que teclear.** Cada formulario de producto ofrece primero el escáner.
-4. **Legible a un brazo de distancia:** texto base 16px, objetivos táctiles ≥ 44px,
+4. **Bonito y amigable:** blanco + verde suave, fotos e íconos de línea (nunca emojis como íconos de interfaz).
+5. **Legible a un brazo de distancia:** texto base 16px, objetivos táctiles ≥ 44px,
    contraste AA mínimo.
-5. **Estados siempre diseñados:** vacío, cargando, error, sin conexión, éxito.
-6. **Un solo sistema visual para todos los giros.** El giro cambia contenido, módulos y
+6. **Estados siempre diseñados:** vacío, cargando, error, sin conexión, éxito.
+7. **Un solo sistema visual para todos los giros.** El giro cambia contenido, módulos y
    textos; **no** cambia componentes ni estilos.
 
 ## Design System
+
+**Estilo oficial: "Mostrador Verde" (Referencia 5 del cliente).** Toda pantalla nueva o modificada debe verse como
+esa referencia: menú lateral blanco con íconos de línea, mosaicos de categoría, tarjetas de producto con foto y botón verde
+"+ Agregar", panel de la venta a la derecha, verde como única acción principal. Antes de entregar un diseño, compáralo
+contra la referencia y contra `references/design-system.md`; si algo no se parece, corrígelo.
+
 
 - Tokens y componentes: `references/design-system.md` (fuente de verdad).
 - Análisis de las referencias visuales del cliente: `references/referencias-visuales.md`.

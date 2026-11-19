@@ -33,3 +33,16 @@ de tarjetas.
 - Las referencias usan verde; los tokens del cliente usan azul. **Decisión propuesta:** azul
   como color de acción y verde reservado para "en existencia / éxito", así no se confunde
   "acción" con "estado".
+
+---
+# Referencia 5 (19 nov 2026) — Punto de venta verde ⭐ ESTILO OFICIAL
+Pantalla de caja de un restaurante: menú lateral blanco con íconos de línea, buscador en píldora, campana y avatar
+"Bonjour, Amélie"; mosaicos de categorías con ícono (activo con borde verde); cuadrícula de productos con foto grande,
+nombre centrado, precio y botón verde "+ Ajouter"; a la derecha "Commande en cours" con renglones numerados, nota,
+resumen (subtotal, descuento en rojo, IVA) y total grande; botones "Enregistrer" (verde suave) y "Encaisser" (verde).
+
+**El cliente pidió que TODO el sistema siga este estilo.** Lo tomamos completo, adaptado a tienda:
+- "Commande en cours" → **Venta actual**; "Ajouter" → **Agregar**; "Encaisser" → **Cobrar**; "Enregistrer" → **Vaciar** / apartar.
+- Sur place / À emporter / Livraison → formas de pago al cobrar (efectivo, tarjeta, transferencia, fiado).
+- Fotos: las del catálogo (Open Food Facts); si no hay, ícono de la categoría sobre fondo suave.
+Tokens y componentes: `design-system.md` v2.

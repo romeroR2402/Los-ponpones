@@ -20,7 +20,7 @@
       if (!n) return onboarding();
       return entrarApp();
     }).catch(function (e) {
-      app.innerHTML = '<div class="auth"><div class="box center"><div class="empty"><div class="ic">📡</div><b>No pudimos conectar</b>Revisa tu internet e inténtalo otra vez.</div><button class="btn" onclick="location.reload()">Reintentar</button></div></div>';
+      app.innerHTML = '<div class="auth"><div class="box center"><div class="empty"><div class="ic">' + ic("triangle-alert", 40, 1.5) + '</div><b>No pudimos conectar</b>Revisa tu internet e inténtalo otra vez.</div><button class="btn" onclick="location.reload()">Reintentar</button></div></div>';
       console.error(e);
     });
   }
@@ -86,7 +86,7 @@
   function pantallaAcceso(modo) {
     modo = modo || "entrar";
     app.innerHTML = '<div class="auth"><div class="box">' +
-      '<div class="brand"><span class="logo">🏪</span><span>Mostrador</span></div>' +
+      '<div class="brand"><span class="logo">' + ic("store", 20, 2) + '</span><span>Mostrador</span></div>' +
       '<h1 class="hero-t">Tu negocio, en orden y sin complicaciones.</h1>' +
       '<p class="body">Vende, escanea tu mercancía y entérate de lo que se acaba o se va a vencer.</p>' +
       '<div class="card mt"><div class="tabs" role="tablist"><button type="button" data-m="entrar" class="' + (modo === "entrar" ? "on" : "") + '">Entrar</button><button type="button" data-m="crear" class="' + (modo === "crear" ? "on" : "") + '">Crear cuenta</button></div>' +
@@ -141,12 +141,12 @@
   function onboarding(paso) {
     if (!onb) onb = { giro: null, nombre: "", persona: (M.user.user_metadata && M.user.user_metadata.nombre) || "", estado: "Ciudad de México", municipio: "", telefono: "", caps: {} };
     paso = paso || 1;
-    var html = '<div class="onb"><div class="row between"><div class="brand"><span class="logo">🏪</span><span>Mostrador</span></div><button class="btn ghost sm" id="salir">Salir</button></div>' +
+    var html = '<div class="onb"><div class="row between"><div class="brand"><span class="logo">' + ic("store", 20, 2) + '</span><span>Mostrador</span></div><button class="btn ghost sm" id="salir">Salir</button></div>' +
       '<div class="steps" aria-label="Paso ' + paso + ' de 3"><i class="on"></i><i class="' + (paso > 1 ? "on" : "") + '"></i><i class="' + (paso > 2 ? "on" : "") + '"></i></div>';
     if (paso === 1) {
       html += '<h1>¿Qué tipo de negocio tienes?</h1><p class="body">Así preparamos el sistema con lo que tú usas. Lo puedes ajustar después.</p><div class="giros mt">' +
         GIROS.lista.map(function (g) {
-          return '<button class="giro' + (onb.giro === g.id ? " on" : "") + '" data-g="' + g.id + '"><span class="ic" style="background:' + g.color + '">' + g.icono + "</span><b>" + esc(g.nombre) + "</b><small>" + esc(g.ejemplo) + "</small></button>";
+          return '<button class="giro' + (onb.giro === g.id ? " on" : "") + '" data-g="' + g.id + '"><span class="ic">' + ic(g.ic, 26) + "</span><b>" + esc(g.nombre) + "</b><small>" + esc(g.ejemplo) + "</small></button>";
         }).join("") + "</div>";
     } else if (paso === 2) {
       var g = GIROS.get(onb.giro);
@@ -199,8 +199,8 @@
       location.hash = "#/inicio";
       return entrarApp();
     }).then(function () {
-      var h = M.hoja('<div class="done"><div class="ok">✓</div><h2>¡Tu negocio está listo!</h2><p class="body">Empieza dando de alta tus productos. Lo más rápido es escanear su código de barras.</p></div>' +
-        '<div class="acts"><button class="btn ghost" data-cerrar>Después</button><button class="btn" id="w-esc">📷 Escanear productos</button></div>');
+      var h = M.hoja('<div class="done"><div class="ok">' + ic("circle-check", 40, 2) + '</div><h2>¡Tu negocio está listo!</h2><p class="body">Empieza dando de alta tus productos. Lo más rápido es escanear su código de barras.</p></div>' +
+        '<div class="acts"><button class="btn ghost" data-cerrar>Después</button><button class="btn" id="w-esc">' + ic("scan-barcode", 18) + ' Escanear productos</button></div>');
       $("#w-esc", h).onclick = function () { M.cerrarHoja(); location.hash = "#/productos"; setTimeout(escanearAlta, 50) };
     }).catch(function (e) { b.disabled = false; b.textContent = "Crear mi negocio"; M.error(e) });
   }
@@ -209,26 +209,39 @@
   // Estructura (barra superior, menú lateral, barra inferior)
   // =====================================================================
   function ruta() { return (location.hash.replace(/^#\/?/, "").split("?")[0] || "inicio").split("/")[0] }
+  function persona() { return ((M.user && M.user.user_metadata && M.user.user_metadata.nombre) || (M.user && M.user.email) || "").trim() }
+  function iniciales(n) { var p = n.split(/[\s@.]+/).filter(Boolean); return ((p[0] || "?").charAt(0) + (p[1] ? p[1].charAt(0) : "")).toUpperCase() }
   function pintarShell() {
-    var mods = M.modulosActivos(), movil = mods.filter(function (m) { return m.movil });
-    app.innerHTML = '<header class="top"><div class="in"><a class="brand grow" href="#/inicio"><span class="logo">' + M.giro.icono + '</span><span class="ellipsis">' + esc(M.negocio.nombre) + '</span></a>' +
-      '<span id="net"></span><a class="ibtn" id="lec" href="#/lector" title="Lector de códigos" aria-label="Lector de códigos" style="text-decoration:none;position:relative;color:var(--text)">' + M.iconoLector + '<i id="lec-dot" class="hide" style="position:absolute;top:9px;right:9px;width:9px;height:9px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 2px var(--canvas)"></i></a><button class="ibtn" id="bell" title="Alertas" aria-label="Alertas" onclick="location.hash=\'#/alertas\'">🔔</button></div></header>' +
-      '<div class="layout"><nav class="side" aria-label="Menú">' + mods.map(function (m) {
-        return '<a href="#/' + m.id + '" data-r="' + m.id + '"><span>' + m.icono + "</span>" + esc(m.t) + (m.id === "alertas" ? '<span class="n hide" data-n></span>' : "") + "</a>";
-      }).join("") + '<div class="grow"></div><a href="#" class="install" onclick="M.pedirInstalar();return false">📲 Instalar app</a><a href="#" id="side-salir">↩️ Salir</a></nav><main id="view" tabindex="-1"></main></div>' +
+    var mods = M.modulosActivos(), movil = mods.filter(function (m) { return m.movil }), nom = persona();
+    var marca = '<a class="brand" href="#/inicio"><span class="logo">' + ic(M.giro.ic || "store", 20, 2) + '</span><span class="ellipsis">' + esc(M.negocio.nombre) + "</span></a>";
+    app.innerHTML = '<div class="shell"><nav class="side" aria-label="Menú">' + marca + mods.map(function (m) {
+        return '<a href="#/' + m.id + '" data-r="' + m.id + '">' + ic(m.ic, 20) + esc(m.t) + (m.id === "alertas" ? '<span class="n hide" data-n></span>' : "") + "</a>";
+      }).join("") + '<div class="grow"></div><a href="#" class="install" onclick="M.pedirInstalar();return false">' + ic("download", 20) + 'Instalar app</a><a href="#" id="side-salir">' + ic("log-out", 20) + "Cerrar sesión</a></nav>" +
+      '<div style="min-width:0"><header class="top"><div class="in">' + marca.replace('class="brand"', 'class="brand grow"') +
+      '<div class="tsearch search"><span class="lupa">' + ic("search", 18) + '</span><input class="inp" id="top-q" placeholder="Buscar un producto…" autocomplete="off" aria-label="Buscar un producto"></div><div class="grow only-desk"></div>' +
+      '<span id="net"></span><a class="ibtn" id="lec" href="#/lector" title="Lector de códigos" aria-label="Lector de códigos" style="text-decoration:none;position:relative">' + ic("scan-barcode", 21) + '<i id="lec-dot" class="hide" style="position:absolute;top:8px;right:8px;width:9px;height:9px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 2px var(--surface)"></i></a>' +
+      '<a class="ibtn" href="#/alertas" title="Alertas" aria-label="Alertas" style="position:relative;text-decoration:none">' + ic("bell", 21) + '<span class="n hide" data-n></span></a>' +
+      '<span class="row" style="gap:10px;margin-left:4px"><span class="hola">Hola,<b>' + esc(nom.split(/[\s@]/)[0]) + '</b></span><span class="avatar" title="' + esc(nom) + '">' + esc(iniciales(nom)) + "</span></span></div></header>" +
+      '<main id="view" tabindex="-1"></main></div></div>' +
       '<nav class="tabbar" aria-label="Menú">' + movil.map(function (m) {
-        return '<a href="#/' + m.id + '" data-r="' + m.id + '"><span class="i">' + m.icono + "</span>" + esc(m.corto || m.t) + (m.id === "alertas" ? '<span class="n hide" data-n></span>' : "") + "</a>";
-      }).join("") + '<a href="#" id="mas"><span class="i">☰</span>Más</a></nav>';
+        return '<a href="#/' + m.id + '" data-r="' + m.id + '">' + ic(m.ic, 22) + esc(m.corto || m.t) + (m.id === "alertas" ? '<span class="n hide" data-n></span>' : "") + "</a>";
+      }).join("") + '<a href="#" id="mas">' + ic("menu", 22) + "Más</a></nav>";
     $("#side-salir").onclick = function (e) { e.preventDefault(); salir() };
     $("#mas").onclick = function (e) { e.preventDefault(); menuMas() };
+    $("#top-q").onkeydown = function (e) {
+      if (e.key !== "Enter") return; var v = this.value.trim(); if (!v) return;
+      var p = M.porCodigo(v); this.value = "";
+      if (p) return detalleProducto(p);
+      filtroProd.q = v; filtroProd.f = "todos"; if (ruta() === "productos") render(); else location.hash = "#/productos";
+    };
     estadoRed();
   }
   function menuMas() {
     var extra = M.modulosActivos().filter(function (m) { return !m.movil });
     var h = M.hoja('<h2>' + esc(M.negocio.nombre) + '</h2><div class="list">' + extra.map(function (m) {
-      return '<a class="li" href="#/' + m.id + '" data-cerrar><span class="thumb">' + m.icono + '</span><span class="t"><b>' + esc(m.t) + "</b></span>›</a>";
-    }).join("") + '<button class="li install" id="mm-inst"><span class="thumb">📲</span><span class="t"><b>Instalar como app</b></span></button>' +
-      '<button class="li" id="mm-salir"><span class="thumb">↩️</span><span class="t"><b>Cerrar sesión</b><small>' + esc(M.user.email) + "</small></span></button></div>");
+      return '<a class="li" href="#/' + m.id + '" data-cerrar><span class="thumb">' + ic(m.ic, 20) + '</span><span class="t"><b>' + esc(m.t) + "</b></span>" + ic("chevron-right", 18) + "</a>";
+    }).join("") + '<button class="li install" id="mm-inst"><span class="thumb">' + ic("download", 20) + '</span><span class="t"><b>Instalar como app</b></span></button>' +
+      '<button class="li" id="mm-salir"><span class="thumb">' + ic("log-out", 20) + '</span><span class="t"><b>Cerrar sesión</b><small>' + esc(M.user.email) + "</small></span></button></div>");
     $$("a.li", h).forEach(function (a) { a.addEventListener("click", function () { setTimeout(M.cerrarHoja, 0) }) });
     $("#mm-inst", h).onclick = function () { M.cerrarHoja(); M.pedirInstalar() };
     $("#mm-salir", h).onclick = function () { M.cerrarHoja(); salir() };
@@ -249,7 +262,7 @@
     M.modulosActivos().forEach(function (m) { if (m.id === r) mod = m });
     if (!mod || !VISTAS[r]) { location.hash = "#/inicio"; return }
     $$("[data-r]").forEach(function (a) { a.classList.toggle("on", a.dataset.r === r) });
-    var v = $("#view"); v.innerHTML = ""; window.scrollTo(0, 0);
+    var v = $("#view"); v.innerHTML = ""; window.scrollTo(0, 0); document.body.setAttribute("data-r", r);
     document.title = mod.t + " · " + M.negocio.nombre;
     VISTAS[r](v);
     pintarContadores();
@@ -270,10 +283,19 @@
   // =====================================================================
   // Componentes compartidos
   // =====================================================================
-  function thumb(p) {
-    if (p.imagen) return '<span class="thumb"><img src="' + esc(p.imagen) + '" alt="" loading="lazy" onerror="this.replaceWith(\'📦\')"></span>';
-    return '<span class="thumb" aria-hidden="true">' + esc((p.nombre || "?").trim().charAt(0).toUpperCase()) + "</span>";
+  var ICONO_CATEGORIA = { "Todos": "layout-grid", "Bebidas": "cup-soda", "Lácteos": "milk", "Salchichonería": "ham", "Carnes frías": "ham", "Botanas": "popcorn",
+    "Dulces": "candy", "Galletas": "cookie", "Pan": "croissant", "Abarrotes": "shopping-basket", "Despensa": "shopping-basket", "Cereales": "wheat", "Granel": "package-open",
+    "Congelados": "snowflake", "Vinos y licores": "wine", "Bebés": "baby", "Frutas y verduras": "apple", "Higiene": "bath", "Cuidado personal": "sparkles", "Limpieza": "spray-can",
+    "Mascotas": "bone", "Cigarros": "box", "Herramientas": "hammer", "Tornillería": "wrench", "Eléctrico": "zap", "Plomería": "droplet", "Pinturas": "paint-bucket",
+    "Pegamentos": "droplet", "Jardinería": "apple", "Cerrajería": "wrench", "Construcción": "hammer", "Analgésicos": "pill", "Antigripales": "pill", "Antibióticos": "pill",
+    "Gastrointestinal": "pill", "Vitaminas": "heart-pulse", "Curación": "bandage", "Dermatológicos": "sparkles", "Cuadernos": "notebook", "Escritura": "pencil",
+    "Arte y manualidades": "scissors", "Oficina": "sticky-note", "Papel": "book-open", "Mochilas": "backpack", "Copias e impresiones": "receipt", "Regalos": "gift", "Temporada escolar": "backpack" };
+  function icCat(c, s) { return ic(ICONO_CATEGORIA[c] || "tag", s || 20) }
+  M.icCat = icCat;
+  function imgOIcono(p, s) {
+    return p.imagen ? '<img src="' + esc(p.imagen) + '" alt="" loading="lazy" onerror="this.outerHTML=M.icCat(' + esc(JSON.stringify(p.categoria || "")) + "," + s + ')">' : icCat(p.categoria, s);
   }
+  function thumb(p) { return '<span class="thumb" aria-hidden="true">' + imgOIcono(p, 22) + "</span>" }
   function estadoStock(p) {
     if (p.existencia <= 0) return '<span class="badge bad">Agotado</span>';
     if (p.minimo > 0 && p.existencia <= p.minimo) return '<span class="badge warn">Se acaba · ' + M.cant(p.existencia, p.unidad) + "</span>";
@@ -303,18 +325,18 @@
   VISTAS.inicio = function (v) {
     var a = alertas(), persona = (M.user.user_metadata && M.user.user_metadata.nombre || "").split(" ")[0];
     var cad = M.tiene("caducidad");
-    v.innerHTML = '<div class="pagehead"><div><p class="muted small" style="margin:0">' + esc(M.fecha(M.hoyISO())) + '</p><h1>Hola' + (persona ? ", " + esc(persona) : "") + ' 👋</h1></div>' +
-      '<div class="row"><a class="btn lg" href="#/vender">🧾 Vender</a></div></div>' +
+    v.innerHTML = '<div class="pagehead"><div><p class="muted small" style="margin:0">' + esc(M.fecha(M.hoyISO())) + '</p><h1>Hola' + (persona ? ", " + esc(persona) : "") + '</h1></div>' +
+      '<div class="row"><a class="btn lg" href="#/vender">' + ic("receipt", 20) + ' Vender</a></div></div>' +
       '<div class="kpis"><div class="kpi dark"><span class="muted small">Vendiste hoy</span><b id="k-hoy">…</b><span class="muted xs" id="k-n"></span></div>' +
       '<a class="kpi" href="#/ventas"><span class="muted small">Ganancia de hoy</span><b id="k-gan">…</b><span class="muted xs">estimada</span></a>' +
       '<a class="kpi ' + (a.bajo.length + a.agotados.length ? "warn" : "") + '" href="#/alertas"><span class="muted small">Se acaban o agotaron</span><b>' + (a.bajo.length + a.agotados.length) + '</b><span class="muted xs">productos</span></a>' +
       (cad ? '<a class="kpi ' + (a.vencidos.length || a.cambios.length ? "bad" : a.pronto.length ? "warn" : "") + '" href="#/alertas"><span class="muted small">Caducidades</span><b>' + (a.vencidos.length + a.pronto.length + a.cambios.length) + '</b><span class="muted xs">' + (a.vencidos.length ? a.vencidos.length + " ya vencidos" : "vencen en " + M.diasAviso() + " días o menos") + "</span></a>"
         : '<a class="kpi" href="#/productos"><span class="muted small">Productos</span><b>' + M.productos.length + '</b><span class="muted xs">en tu catálogo</span></a>') + "</div>" +
-      (M.cola().length ? '<div class="note warn mt">📡 Tienes ' + M.cola().length + " ventas guardadas en este celular. Se suben solas cuando vuelva el internet.</div>" : "") +
-      (!M.productos.length ? '<div class="card mt"><h2>Empieza por tus productos</h2><p class="body">Escanea el código de barras y nosotros buscamos el nombre. Si no aparece, lo escribes una sola vez.</p><div class="acts"><button class="btn" id="i-esc">📷 Escanear productos</button><a class="btn ghost" href="#/productos">Agregar a mano</a></div></div>' : "") +
+      (M.cola().length ? '<div class="note warn mt">' + ic("triangle-alert", 18) + ' Tienes ' + M.cola().length + " ventas guardadas en este celular. Se suben solas cuando vuelva el internet.</div>" : "") +
+      (!M.productos.length ? '<div class="card mt"><h2>Empieza por tus productos</h2><p class="body">Escanea el código de barras y nosotros buscamos el nombre. Si no aparece, lo escribes una sola vez.</p><div class="acts"><button class="btn" id="i-esc">' + ic("scan-barcode", 18) + ' Escanear productos</button><a class="btn ghost" href="#/productos">Agregar a mano</a></div></div>' : "") +
       '<div class="sec"><h2>Atención</h2><a href="#/alertas" class="small">Ver todo →</a></div><div id="i-al"></div>' +
       '<div class="sec"><h2>Últimas ventas</h2><a href="#/ventas" class="small">Ver todas →</a></div><div id="i-ven"><div class="spin"></div></div>' +
-      (puedeInventario() ? '<div class="sec"><h2>Accesos rápidos</h2></div><div class="row wrap"><a class="btn alt" href="#/entradas">🚚 Dar entrada a mercancía</a><button class="btn alt" id="i-nuevo">＋ Nuevo producto</button></div>' : "");
+      (puedeInventario() ? '<div class="sec"><h2>Accesos rápidos</h2></div><div class="row wrap"><a class="btn alt" href="#/entradas">' + ic("truck", 18) + ' Dar entrada a mercancía</a><button class="btn alt" id="i-nuevo">＋ Nuevo producto</button></div>' : "");
     if ($("#i-esc", v)) $("#i-esc", v).onclick = escanearAlta;
     if ($("#i-nuevo", v)) $("#i-nuevo", v).onclick = function () { formProducto() };
     pintarListaAlertas($("#i-al", v), a, 5);
@@ -333,7 +355,7 @@
   };
   function filaVenta(x) {
     var n = (x.items || []).reduce(function (s, it) { return s + 1 }, 0);
-    return '<button class="li" data-v="' + x.id + '"><span class="thumb">' + ({ efectivo: "💵", tarjeta: "💳", transferencia: "🏦", fiado: "📒" }[x.pago] || "🧾") + '</span><span class="t"><b>' +
+    return '<button class="li" data-v="' + x.id + '"><span class="thumb">' + ic({ efectivo: "wallet", tarjeta: "credit-card", transferencia: "landmark", fiado: "book-open" }[x.pago] || "receipt", 20) + '</span><span class="t"><b>' +
       (x._pend ? "Por subir" : "Venta #" + x.folio) + "</b><small>" + M.fechaHora(x.creado) + " · " + n + (n === 1 ? " producto" : " productos") + (x.cliente ? " · " + esc(x.cliente) : "") + "</small></span>" +
       (x.cancelada ? '<span class="badge bad">Cancelada</span>' : x._pend ? '<span class="badge warn">Sin subir</span>' : "") + "<b>" + money(x.total != null ? x.total : totalItems(x.items)) + "</b></button>";
   }
@@ -345,10 +367,12 @@
   var catVenta = "";
   VISTAS.vender = function (v) {
     var cats = categorias().filter(function (c) { return M.productos.some(function (p) { return p.categoria === c }) });
-    v.innerHTML = '<div class="pos"><div><div class="search"><input class="inp" id="v-q" placeholder="Busca o escanea un producto" autocomplete="off" autofocus aria-label="Buscar producto"><button class="ibtn" id="v-esc" title="Escanear con la cámara" aria-label="Escanear con la cámara">📷</button></div>' +
-      '<div class="chips mt" id="v-cats"><button class="chip' + (!catVenta ? " on" : "") + '" data-c="">Todos</button>' + cats.map(function (c) { return '<button class="chip' + (catVenta === c ? " on" : "") + '" data-c="' + esc(c) + '">' + esc(c) + "</button>" }).join("") + "</div>" +
-      '<div class="pgrid mt" id="v-grid"></div></div><div class="card cart only-desk" id="v-cart"></div></div>' +
-      '<div class="cartbar hidden-desk" id="v-bar"></div>';
+    v.innerHTML = '<div class="pos"><div><div class="search"><span class="lupa">' + ic("search", 18) + '</span><input class="inp" id="v-q" placeholder="Busca o escanea un producto" autocomplete="off" autofocus aria-label="Buscar producto"><button class="ibtn" id="v-esc" title="Escanear con la cámara" aria-label="Escanear con la cámara">' + ic("camera", 20) + "</button></div>" +
+      (cats.length ? '<div class="sec" style="margin-top:20px"><h2>Categorías</h2></div><div class="tiles" id="v-cats">' + [""].concat(cats).map(function (c) {
+        return '<button class="tile' + (catVenta === c ? " on" : "") + '" data-c="' + esc(c) + '">' + icCat(c || "Todos", 28) + "<span>" + esc(c || "Todos") + "</span></button>";
+      }).join("") + "</div>" : "") +
+      '<div class="sec"><h2>' + (M.productos.length ? "Tus productos" : "Productos") + '</h2></div><div class="pgrid" id="v-grid"></div></div><div class="card cart only-pos" id="v-cart"></div></div>' +
+      '<div class="cartbar hidden-pos" id="v-bar"></div>';
     var q = $("#v-q", v);
     q.oninput = pintarGrid;
     q.onkeydown = function (e) {
@@ -359,15 +383,17 @@
       if (p) { agregar(p); q.value = ""; pintarGrid() } else codigoDesconocido(val);
     };
     $("#v-esc", v).onclick = function () { M.escanear(function (c) { var p = M.porCodigo(c); if (p) agregar(p); else codigoDesconocido(c) }, { titulo: "Escanear para vender" }) };
-    $("#v-cats", v).onclick = function (e) { var b = e.target.closest(".chip"); if (!b) return; catVenta = b.dataset.c; $$(".chip", v).forEach(function (x) { x.classList.toggle("on", x === b) }); pintarGrid() };
+    if ($("#v-cats", v)) $("#v-cats", v).onclick = function (e) { var b = e.target.closest(".tile"); if (!b) return; catVenta = b.dataset.c; $$(".tile", v).forEach(function (x) { x.classList.toggle("on", x === b) }); pintarGrid() };
     pintarGrid(); pintarCarrito();
     function pintarGrid() {
       var lista = buscar(M.productos, q.value); if (catVenta && !q.value) lista = lista.filter(function (p) { return p.categoria === catVenta });
       var g = $("#v-grid", v);
-      if (!M.productos.length) { g.innerHTML = '<div class="card empty" style="grid-column:1/-1"><div class="ic">📦</div><b>No tienes productos todavía</b>Agrégalos en Productos para poder venderlos.<div class="mt"><a class="btn" href="#/productos">Ir a Productos</a></div></div>'; return }
+      if (!M.productos.length) { g.innerHTML = '<div class="card empty" style="grid-column:1/-1"><div class="ic">' + ic("package", 40, 1.5) + '</div><b>No tienes productos todavía</b>Agrégalos en Productos para poder venderlos.<div class="mt"><a class="btn" href="#/productos">Ir a Productos</a></div></div>'; return }
       if (!lista.length) { g.innerHTML = '<div class="empty" style="grid-column:1/-1"><b>Sin resultados</b>Prueba con otra palabra o escanea el código.</div>'; return }
       g.innerHTML = lista.slice(0, 80).map(function (p) {
-        return '<button class="pcard" data-p="' + p.id + '"><span class="nm">' + esc(p.nombre) + '</span><span class="st">' + (p.existencia <= 0 ? '<span class="badge bad">Agotado</span>' : M.cant(p.existencia, p.unidad)) + '</span><span class="pr">' + money(p.precio) + (p.unidad !== "pza" ? ' <span class="muted xs">/ ' + M.unidad(p.unidad).c + "</span>" : "") + "</span></button>";
+        var st = p.existencia <= 0 ? '<span class="badge bad">Agotado</span>' : p.minimo > 0 && p.existencia <= p.minimo ? '<span class="badge warn">Quedan ' + M.cant(p.existencia, p.unidad) + "</span>" : "";
+        return '<button class="pcard" data-p="' + p.id + '"><span class="pimg">' + imgOIcono(p, 44) + "</span>" + (st ? '<span class="st">' + st + "</span>" : "") + '<span class="nm">' + esc(p.nombre) + '</span><span class="pr">' + money(p.precio) +
+          (p.unidad !== "pza" ? " <small>/ " + M.unidad(p.unidad).c + "</small>" : "") + '</span><span class="pbtn">' + ic("plus", 16, 2.2) + "Agregar</span></button>";
       }).join("");
       $$(".pcard", g).forEach(function (b) { b.onclick = function () { agregar(M.porId(b.dataset.p)) } });
     }
@@ -412,19 +438,22 @@
   }
   function htmlCarrito() {
     var ls = lineasCarrito(), tot = ls.reduce(function (s, x) { return s + x.imp }, 0);
-    if (!ls.length) return '<h2>Venta</h2><div class="empty"><div class="ic">🧾</div><b>Sin productos</b>Escanea o toca un producto para agregarlo.</div>';
-    return '<div class="row between"><h2 style="margin:0">Venta</h2><button class="btn ghost sm" data-vaciar>Vaciar</button></div><div class="lines">' + ls.map(function (x) {
+    var head = '<div class="carthead"><div><small>Venta actual</small><b>' + (ls.length ? ls.length + (ls.length === 1 ? " producto" : " productos") : "Nueva venta") + '</b></div><span class="avatar" style="width:40px;height:40px">' + ic("shopping-cart", 20) + "</span></div>";
+    if (!ls.length) return head + '<div class="empty"><div class="ic">' + ic("scan-barcode", 40, 1.5) + '</div><b>Sin productos</b>Escanea o toca un producto para agregarlo.</div>';
+    var piezas = ls.reduce(function (s, x) { return s + (M.unidad(x.p.unidad).dec ? 1 : x.l.cantidad) }, 0);
+    return head + '<div class="lines">' + ls.map(function (x, i) {
       var dec = M.unidad(x.p.unidad).dec;
-      return '<div class="line"><div class="t"><b>' + esc(x.p.nombre) + "</b><small>" + money(x.p.precio) + (dec ? " / " + M.unidad(x.p.unidad).c : "") + '</small></div><div class="qty"><button data-menos="' + x.p.id + '" aria-label="Quitar uno">−</button><span data-cant="' + x.p.id + '" title="Cambiar cantidad">' +
-        M.cant(x.l.cantidad, x.p.unidad).replace(/ pzas?$/, "") + '</span><button data-mas="' + x.p.id + '" aria-label="Agregar uno">+</button></div><b style="min-width:76px;text-align:right">' + money(x.imp) + "</b></div>";
-    }).join("") + '</div><div class="total"><span class="muted">Total</span><b>' + money(tot) + '</b></div><button class="btn ok block lg" data-cobrar>Cobrar ' + money(tot) + "</button>";
+      return '<div class="line"><span class="no">' + (i + 1) + '</span><div class="t"><b>' + esc(x.p.nombre) + "</b><small>" + money(x.p.precio) + (dec ? " / " + M.unidad(x.p.unidad).c : "") + '</small></div><div class="qty"><button data-menos="' + x.p.id + '" aria-label="Quitar uno">' + ic("minus", 15, 2.2) + '</button><span data-cant="' + x.p.id + '" title="Cambiar cantidad">' +
+        M.cant(x.l.cantidad, x.p.unidad).replace(/ pzas?$/, "") + '</span><button data-mas="' + x.p.id + '" aria-label="Agregar uno">' + ic("plus", 15, 2.2) + '</button></div><span class="imp">' + money(x.imp) + '</span><button class="del" data-quitar="' + x.p.id + '" aria-label="Quitar ' + esc(x.p.nombre) + '">' + ic("trash-2", 17) + "</button></div>";
+    }).join("") + '</div><div class="resumen"><div class="r"><span>Artículos</span><span>' + M.r3(piezas) + '</span></div><div class="r"><span>Subtotal</span><span>' + money(tot) + "</span></div></div>" +
+      '<div class="total"><span>Total</span><b>' + money(tot) + '</b></div><div class="row"><button class="btn alt lg" data-vaciar style="flex:0 0 auto">Vaciar</button><button class="btn ok lg grow" data-cobrar>Cobrar ' + money(tot) + "</button></div>";
   }
   function pintarCarrito() {
     var c = $("#v-cart"); if (c) { c.innerHTML = htmlCarrito(); eventosCarrito(c) }
     var s = $("#sheet .sheet[data-carrito]"); if (s) { s.innerHTML = '<button class="sheet-x" aria-label="Cerrar" data-cerrar>✕</button>' + htmlCarrito(); eventosCarrito(s) }
     var bar = $("#v-bar"); if (bar) {
       var ls = lineasCarrito(), tot = ls.reduce(function (s, x) { return s + x.imp }, 0), n = ls.length;
-      bar.innerHTML = n ? '<button class="btn ok block lg" id="v-ver">🧾 ' + n + (n === 1 ? " producto" : " productos") + " · Cobrar " + money(tot) + "</button>" : "";
+      bar.innerHTML = n ? '<button class="btn ok block lg" id="v-ver">' + ic("shopping-cart", 20) + n + (n === 1 ? " producto" : " productos") + " · Cobrar " + money(tot) + "</button>" : "";
       if (n) $("#v-ver").onclick = function () { var h = M.hoja(""); h.setAttribute("data-carrito", "1"); pintarCarrito() };
     }
   }
@@ -432,6 +461,7 @@
     el.onclick = function (e) {
       var t = e.target.closest("button,[data-cant]"); if (!t) return;
       var id = t.dataset.menos || t.dataset.mas || t.dataset.cant, l = carrito.filter(function (x) { return x.id === id })[0], p = M.porId(id);
+      if (t.dataset.quitar) { carrito = carrito.filter(function (x) { return x.id !== t.dataset.quitar }); pintarCarrito(); return }
       if (t.hasAttribute("data-vaciar")) { M.confirmar("¿Vaciar la venta?", "Se quitan todos los productos.", "Vaciar", true).then(function (ok) { if (ok) { carrito = []; pintarCarrito() } }); return }
       if (t.hasAttribute("data-cobrar")) return cobrar();
       if (!l || !p) return;
@@ -446,8 +476,8 @@
     var ls = lineasCarrito(); if (!ls.length) return;
     var tot = M.r2(ls.reduce(function (s, x) { return s + x.imp }, 0));
     var receta = M.tiene("receta") && ls.some(function (x) { return x.p.atributos && x.p.atributos.requiereReceta });
-    var pagos = [["efectivo", "💵 Efectivo"], ["tarjeta", "💳 Tarjeta"], ["transferencia", "🏦 Transferencia"]];
-    if (M.tiene("fiado")) pagos.push(["fiado", "📒 Fiado"]);
+    var pagos = [["efectivo", ic("wallet", 18) + " Efectivo"], ["tarjeta", ic("credit-card", 18) + " Tarjeta"], ["transferencia", ic("landmark", 18) + " Transferencia"]];
+    if (M.tiene("fiado")) pagos.push(["fiado", ic("book-open", 18) + " Fiado"]);
     var h = M.hoja('<h2>Cobrar</h2><div class="total" style="margin-top:0"><span class="muted">Total</span><b>' + money(tot) + "</b></div>" +
       '<div class="pays">' + pagos.map(function (p, i) { return '<button type="button" class="pay' + (i ? "" : " on") + '" data-p="' + p[0] + '">' + p[1] + "</button>" }).join("") + "</div>" +
       '<div id="c-ef"><label class="f"><span>¿Con cuánto paga?</span><input class="inp big" id="c-rec" inputmode="decimal" placeholder="' + M.r2(tot) + '" autofocus></label>' +
@@ -491,9 +521,9 @@
     var folio = M.folios[venta.id], cambio = venta.pago === "efectivo" ? M.r2(venta.recibido - tot) : 0;
     var txt = M.negocio.nombre + "\n" + (folio ? "Venta #" + folio + "\n" : "") + M.fechaHora(venta.creado) + "\n\n" +
       venta.items.map(function (it) { return M.cant(it.cantidad, it.unidad) + " " + it.nombre + "  " + money(it.importe) }).join("\n") + "\n\nTOTAL " + money(tot) + "\n¡Gracias por su compra!";
-    var h = M.hoja('<div class="done"><div class="ok">✓</div><h2>Venta registrada</h2>' + (cambio > 0 ? '<div class="cambio"><span>Cambio</span><span>' + money(cambio) + "</span></div>" : "") +
+    var h = M.hoja('<div class="done"><div class="ok">' + ic("circle-check", 40, 2) + '</div><h2>Venta registrada</h2>' + (cambio > 0 ? '<div class="cambio"><span>Cambio</span><span>' + money(cambio) + "</span></div>" : "") +
       (!folio ? '<p class="muted small mt">Sin internet: se guardó en este celular y se sube sola.</p>' : "") + "</div>" + ticketHtml(venta, tot, folio) +
-      '<div class="acts"><a class="btn ghost" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(txt) + '">💬 Ticket por WhatsApp</a><button class="btn" data-cerrar autofocus>Nueva venta</button></div>',
+      '<div class="acts"><a class="btn ghost" target="_blank" rel="noopener" href="https://wa.me/?text=' + encodeURIComponent(txt) + '">' + ic("smartphone", 18) + ' Ticket por WhatsApp</a><button class="btn" data-cerrar autofocus>Nueva venta</button></div>',
       { alCerrar: function () { var q = $("#v-q"); if (q) q.focus() } });
     $("[data-cerrar].btn", h).onclick = function () { M.cerrarHoja(); var q = $("#v-q"); if (q) q.focus() };
   }
@@ -510,8 +540,8 @@
   VISTAS.productos = function (v) {
     var cats = categorias().filter(function (c) { return M.productos.some(function (p) { return p.categoria === c }) });
     v.innerHTML = '<div class="pagehead"><h1>Productos <span class="muted" style="font-weight:400">' + M.productos.length + "</span></h1>" +
-      (puedeInventario() ? '<div class="row"><button class="btn alt" id="p-esc">📷 Escanear</button><button class="btn" id="p-nuevo">＋ Nuevo</button></div>' : "") + "</div>" +
-      '<div class="search"><input class="inp" id="p-q" placeholder="Buscar por nombre, código o categoría" value="' + esc(filtroProd.q) + '" aria-label="Buscar"><button class="ibtn" id="p-esc2" aria-label="Buscar escaneando">📷</button></div>' +
+      (puedeInventario() ? '<div class="row"><button class="btn alt" id="p-esc">' + ic("scan-barcode", 18) + ' Escanear</button><button class="btn" id="p-nuevo">' + ic("plus", 18, 2.2) + ' Nuevo</button></div>' : "") + "</div>" +
+      '<div class="search"><span class="lupa">' + ic("search", 18) + '</span><input class="inp" id="p-q" placeholder="Buscar por nombre, código o categoría" value="' + esc(filtroProd.q) + '" aria-label="Buscar"><button class="ibtn" id="p-esc2" aria-label="Buscar escaneando">' + ic("camera", 20) + '</button></div>' +
       '<div class="chips mt" id="p-f">' + [["todos", "Todos"], ["bajo", "Se acaban"], ["agotados", "Agotados"]].concat(M.tiene("caducidad") ? [["cad", "Con caducidad"]] : []).concat(cats.map(function (c) { return ["c:" + c, c] }))
         .map(function (f) { return '<button class="chip' + (filtroProd.f === f[0] ? " on" : "") + '" data-f="' + esc(f[0]) + '">' + esc(f[1]) + "</button>" }).join("") + "</div>" +
       '<div id="p-lista" class="mt"></div>';
@@ -530,7 +560,7 @@
         return true;
       });
       var el = $("#p-lista", v);
-      if (!M.productos.length) { el.innerHTML = '<div class="card empty"><div class="ic">📦</div><b>Agrega tu primer producto</b>Escanea su código de barras: si es conocido, llenamos el nombre por ti.' + (puedeInventario() ? '<div class="acts" style="justify-content:center"><button class="btn" id="pe-esc">📷 Escanear</button><button class="btn ghost" id="pe-man">Escribir a mano</button></div>' : "") + "</div>";
+      if (!M.productos.length) { el.innerHTML = '<div class="card empty"><div class="ic">' + ic("package", 40, 1.5) + '</div><b>Agrega tu primer producto</b>Escanea su código de barras: si es conocido, llenamos el nombre por ti.' + (puedeInventario() ? '<div class="acts" style="justify-content:center"><button class="btn" id="pe-esc">' + ic("scan-barcode", 18) + ' Escanear</button><button class="btn ghost" id="pe-man">Escribir a mano</button></div>' : "") + "</div>";
         if ($("#pe-esc", el)) { $("#pe-esc", el).onclick = escanearAlta; $("#pe-man", el).onclick = function () { formProducto() } } return }
       if (!l.length) { el.innerHTML = '<div class="card empty"><b>Sin resultados</b>Prueba con otra búsqueda o filtro.</div>'; return }
       var cad = M.tiene("caducidad"), lim = l.slice(0, 300);
@@ -572,7 +602,7 @@
   function altaRapida(c, alGuardar) {
     var cad = M.tiene("caducidad"), perece = cad && PERECEDEROS.indexOf(c.categoria) >= 0;
     var h = M.hoja('<div class="row" style="align-items:flex-start;gap:14px;padding-right:40px">' +
-      '<span class="thumb" style="width:76px;height:76px;flex:none;background:#fff;border:1px solid var(--line)">' + (c.imagen ? '<img src="' + esc(c.imagen) + '" alt="" style="object-fit:contain" onerror="this.replaceWith(\'📦\')">' : "📦") + "</span>" +
+      '<span class="thumb" style="width:76px;height:76px;flex:none;background:#fff;border:1px solid var(--line)">' + imgOIcono(c, 36) + "</span>" +
       '<div class="grow"><span class="badge info">✓ Producto encontrado</span><h2 style="margin:6px 0 2px;font-size:18px">' + esc(c.nombre) + '</h2><span class="muted small">' +
       esc([c.marca, c.presentacion].filter(Boolean).join(" · ")) + (c.categoria ? ' · <span class="badge">' + esc(c.categoria) + "</span>" : "") + "</span></div></div>" +
       '<form id="ar" class="mt" novalidate><label class="f"><span>¿A cuánto lo vendes?</span><input class="inp big" name="precio" inputmode="decimal" placeholder="$0.00" autofocus></label>' +
@@ -618,7 +648,7 @@
     opts = opts || {}; var nuevo = !p; p = p || { nombre: opts.nombre || "", codigo: opts.codigo || "", categoria: opts.categoria || "", unidad: opts.unidad || M.unidadesNegocio()[0], precio: opts.precio || "", costo: opts.costo || "", minimo: M.giro.alertas.minimo, maneja_caducidad: M.tiene("caducidad") && !!opts.caducidad, atributos: {} };
     var attrs = (M.giro.atributos || []).filter(function (a) { return !a.capacidad || M.tiene(a.capacidad) });
     var h = M.hoja('<h2>' + (nuevo ? "Nuevo producto" : "Editar producto") + '</h2><form id="fp" novalidate>' +
-      '<label class="f"><span>Código de barras</span><div class="row"><input class="inp" name="codigo" inputmode="numeric" value="' + esc(p.codigo || "") + '" placeholder="Escanéalo o escríbelo"><button type="button" class="btn alt" id="fp-esc" aria-label="Escanear">📷</button></div><small id="fp-off"></small></label>' +
+      '<label class="f"><span>Código de barras</span><div class="row"><input class="inp" name="codigo" inputmode="numeric" value="' + esc(p.codigo || "") + '" placeholder="Escanéalo o escríbelo"><button type="button" class="btn alt" id="fp-esc" aria-label="Escanear">' + ic("camera", 20) + '</button></div><small id="fp-off"></small></label>' +
       '<label class="f"><span>Nombre *</span><input class="inp" name="nombre" value="' + esc(p.nombre) + '" placeholder="Ej. Leche entera 1 L" required' + (p.codigo ? "" : " autofocus") + "></label>" +
       '<div class="grid2"><label class="f"><span>Categoría</span><input class="inp" name="categoria" list="fp-cats" value="' + esc(p.categoria || "") + '" placeholder="Elige o escribe"><datalist id="fp-cats">' + categorias().map(function (c) { return '<option value="' + esc(c) + '">' }).join("") + "</datalist></label>" +
       '<label class="f"><span>Se vende por</span><select class="inp" name="unidad">' + M.unidadesNegocio().concat(M.unidadesNegocio().indexOf(p.unidad) < 0 ? [p.unidad] : []).map(function (u) { return '<option value="' + u + '"' + (u === p.unidad ? " selected" : "") + ">" + M.unidad(u).t + "</option>" }).join("") + "</select></label></div>" +
@@ -705,7 +735,7 @@
         return '<div class="li"><span class="t"><b>' + M.cant(l.cantidad, p.unidad) + "</b><small>" + (l.caducidad ? "Caduca el " + M.fecha(l.caducidad) : "Sin fecha") + (l.lote ? " · Lote " + esc(l.lote) : "") + (l.cambio_proveedor === "pendiente" ? " · el proveedor lo cambia" : "") + "</small></span>" + badgeCad(d) + "</div>";
       }).join("") + "</div>" : '<p class="muted small">Sin fechas registradas. Se agregan al dar entrada a mercancía.</p>') : "") +
       '<div class="sec" style="margin-top:18px"><h3 style="margin:0">Movimientos recientes</h3></div><div id="dp-mov"><div class="spin" style="margin:16px auto"></div></div>' +
-      (puedeInventario() ? '<div class="acts"><button class="btn ghost" id="dp-aj">Corregir existencia</button><button class="btn alt" id="dp-ent">🚚 Dar entrada</button><button class="btn" id="dp-ed">Editar</button></div>' : ""));
+      (puedeInventario() ? '<div class="acts"><button class="btn ghost" id="dp-aj">Corregir existencia</button><button class="btn alt" id="dp-ent">' + ic("truck", 18) + ' Dar entrada</button><button class="btn" id="dp-ed">Editar</button></div>' : ""));
     if ($("#dp-ed", h)) {
       $("#dp-ed", h).onclick = function () { formProducto(p) };
       $("#dp-aj", h).onclick = function () { ajustar(p) };
@@ -756,9 +786,9 @@
       if (ruta() !== "entradas") return;
       var e = entrada, tot = e.lineas.reduce(function (s, l) { return s + l.cantidad * l.costo }, 0);
       v.innerHTML = '<div class="pagehead"><h1>Entrada de mercancía</h1>' + (e.lineas.length ? '<button class="btn ghost sm" id="e-borrar">Empezar de nuevo</button>' : "") + "</div>" +
-        '<div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))"><button class="kpi" id="e-esc" style="border:0;text-align:left;cursor:pointer;font:inherit"><b>📷</b><span>Escanear productos</span><br><span class="muted xs">Uno tras otro, como en caja</span></button>' +
-        '<label class="kpi" style="cursor:pointer"><b>📄</b><span>Subir factura XML</span><br><span class="muted xs">La del proveedor (CFDI). Se llena sola</span><input type="file" id="e-xml" accept=".xml,text/xml,application/xml" class="hide"></label>' +
-        '<button class="kpi" id="e-man" style="border:0;text-align:left;cursor:pointer;font:inherit"><b>✍️</b><span>Buscar producto</span><br><span class="muted xs">Agregar a mano</span></button></div>' +
+        '<div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))"><button class="kpi" id="e-esc" style="border:0;text-align:left;cursor:pointer;font:inherit"><b>' + ic("scan-barcode", 26) + '</b><span>Escanear productos</span><br><span class="muted xs">Uno tras otro, como en caja</span></button>' +
+        '<label class="kpi" style="cursor:pointer"><b>' + ic("receipt", 26) + '</b><span>Subir factura XML</span><br><span class="muted xs">La del proveedor (CFDI). Se llena sola</span><input type="file" id="e-xml" accept=".xml,text/xml,application/xml" class="hide"></label>' +
+        '<button class="kpi" id="e-man" style="border:0;text-align:left;cursor:pointer;font:inherit"><b>' + ic("search", 26) + '</b><span>Buscar producto</span><br><span class="muted xs">Agregar a mano</span></button></div>' +
         '<div class="card mt"><label class="f" style="margin:0"><span>Proveedor</span><div class="row"><select class="inp" id="e-prov"><option value="">Sin proveedor</option>' + proveedores.map(function (p) { return '<option value="' + p.id + '"' + (p.id === e.proveedor_id ? " selected" : "") + ">" + esc(p.nombre) + "</option>" }).join("") + '</select><button class="btn alt" id="e-nprov">＋</button></div></label></div>' +
         (e.pendientes.length ? '<div class="note warn mt"><div class="grow"><b>' + e.pendientes.length + ' productos de la factura no están en tu catálogo.</b><br>Los damos de alta con el costo de la factura y un precio sugerido (+30 %). Luego puedes cambiar el precio.</div></div><div class="list">' + e.pendientes.map(function (c, i) {
           return '<div class="li"><span class="t"><b>' + esc(c.descripcion) + "</b><small>" + (c.codigo ? esc(c.codigo) + " · " : "") + M.cant(c.cantidad, "pza") + " · costo " + money(c.costo) + '</small></span><button class="btn sm alt" data-crear="' + i + '">Revisar</button></div>';
@@ -779,7 +809,7 @@
   };
   function pintarLineas(el) {
     var e = entrada;
-    if (!e.lineas.length) { el.innerHTML = '<div class="card empty"><div class="ic">🚚</div><b>Aún no agregas productos</b>Escanea, sube la factura o búscalos.</div>'; return }
+    if (!e.lineas.length) { el.innerHTML = '<div class="card empty"><div class="ic">' + ic("truck", 40, 1.5) + '</div><b>Aún no agregas productos</b>Escanea, sube la factura o búscalos.</div>'; return }
     var cad = M.tiene("caducidad"), rec = M.tiene("reclamoProveedor");
     el.innerHTML = '<div class="list">' + e.lineas.map(function (l, i) {
       var p = M.porId(l.id); if (!p) return "";
@@ -806,7 +836,7 @@
     }, { continuo: true, titulo: "Escanea lo que recibes", alCerrar: function () { render() } });
   }
   function elegirProducto() {
-    var h = M.hoja('<h2>Agregar producto</h2><div class="search"><input class="inp" id="ep-q" placeholder="Busca por nombre o código" autofocus></div><div class="list mt" id="ep-l"></div><button class="btn ghost block mt" id="ep-n">＋ Producto nuevo</button>');
+    var h = M.hoja('<h2>Agregar producto</h2><div class="search"><span class="lupa">' + ic("search", 18) + '</span><input class="inp" id="ep-q" placeholder="Busca por nombre o código" autofocus></div><div class="list mt" id="ep-l"></div><button class="btn ghost block mt" id="ep-n">＋ Producto nuevo</button>');
     function pintar() {
       var l = buscar(M.productos, $("#ep-q", h).value).slice(0, 30);
       $("#ep-l", h).innerHTML = l.map(function (p) { return '<button class="li" data-p="' + p.id + '">' + thumb(p) + '<span class="t"><b>' + esc(p.nombre) + "</b><small>Tienes " + M.cant(p.existencia, p.unidad) + "</small></span>＋</button>" }).join("") || '<div class="empty">Sin resultados</div>';
@@ -885,8 +915,8 @@
   // =====================================================================
   VISTAS.alertas = function (v) {
     var a = alertas();
-    v.innerHTML = '<div class="pagehead"><h1>Alertas</h1><div class="row">' + ("Notification" in window && Notification.permission !== "granted" ? '<button class="btn alt sm" id="a-not">🔔 Avisarme en el celular</button>' : "") +
-      (a.bajo.length + a.agotados.length ? '<button class="btn sm" id="a-ped">📝 Armar pedido</button>' : "") + "</div></div><div id='a-l'></div>";
+    v.innerHTML = '<div class="pagehead"><h1>Alertas</h1><div class="row">' + ("Notification" in window && Notification.permission !== "granted" ? '<button class="btn alt sm" id="a-not">' + ic("bell", 18) + ' Avisarme en el celular</button>' : "") +
+      (a.bajo.length + a.agotados.length ? '<button class="btn sm" id="a-ped">' + ic("sticky-note", 18) + ' Armar pedido</button>' : "") + "</div></div><div id='a-l'></div>";
     pintarListaAlertas($("#a-l", v), a);
     if ($("#a-not", v)) $("#a-not", v).onclick = function () { Notification.requestPermission().then(function (p) { if (p === "granted") { localStorage.removeItem("mostrador-aviso-" + M.negocio.id); avisarAlertas(); M.toast("Listo, te avisaremos ✓", "ok"); render() } }) };
     if ($("#a-ped", v)) $("#a-ped", v).onclick = function () { armarPedido(a.agotados.concat(a.bajo)) };
@@ -899,7 +929,7 @@
     sec("Vencen pronto", "Véndelos primero o ponlos en oferta.", a.pronto, filaLote);
     sec("Agotados", "Ya no tienes en existencia.", a.agotados, filaProd);
     sec("Se están acabando", "Llegaron a tu mínimo.", a.bajo, filaProd);
-    if (!secs.length) { el.innerHTML = '<div class="card empty"><div class="ic">✅</div><b>Todo en orden</b>No hay productos por acabarse ni por vencer.</div>'; return }
+    if (!secs.length) { el.innerHTML = '<div class="card empty"><div class="ic">' + ic("circle-check", 40, 1.5) + '</div><b>Todo en orden</b>No hay productos por acabarse ni por vencer.</div>'; return }
     var n = 0;
     el.innerHTML = secs.map(function (s) {
       if (max && n >= max) return "";
@@ -926,7 +956,7 @@
   }
   function filaLote(x, sec) {
     var acciones = puedeInventario() ? (x.l.cambio_proveedor === "pendiente"
-      ? '<button class="btn sm alt" data-acc="wa" data-l="' + x.l.id + '">💬 Pedir cambio</button><button class="btn sm" data-acc="cambiado" data-l="' + x.l.id + '">Ya me lo cambió</button>'
+      ? '<button class="btn sm alt" data-acc="wa" data-l="' + x.l.id + '">' + ic("smartphone", 16) + ' Pedir cambio</button><button class="btn sm" data-acc="cambiado" data-l="' + x.l.id + '">Ya me lo cambió</button>'
       : x.d < 0 ? '<button class="btn sm" data-acc="merma" data-l="' + x.l.id + '">Ya lo saqué</button>' : "") : "";
     return '<div class="li" data-pid="' + x.p.id + '" style="cursor:pointer;flex-wrap:wrap">' + thumb(x.p) + '<span class="t"><b>' + esc(x.p.nombre) + "</b><small>" + M.cant(x.l.cantidad, x.p.unidad) + " · caduca el " + M.fecha(x.l.caducidad) + '</small><span style="display:block;margin-top:4px">' + badgeCad(x.d) + "</span></span>" +
       (acciones ? '<span class="row" style="flex-basis:100%;justify-content:flex-end;gap:6px">' + acciones + "</span>" : "") + "</div>";
@@ -948,7 +978,7 @@
       var h = M.hoja('<h2>Armar pedido</h2><p class="muted small">Te sugerimos pedir lo suficiente para llegar al doble de tu mínimo. Ajusta lo que quieras.</p><div class="list" id="ap-l">' + lista.map(function (p) {
         var sug = Math.max(1, Math.ceil(Math.max(p.minimo * 2, 1) - Math.max(p.existencia, 0)));
         return '<label class="li"><input type="checkbox" checked data-id="' + p.id + '" style="width:22px;height:22px;accent-color:var(--primary)"><span class="t"><b>' + esc(p.nombre) + "</b><small>Tienes " + M.cant(p.existencia, p.unidad) + '</small></span><input class="inp" style="width:90px" inputmode="decimal" value="' + sug + '" data-q="' + p.id + '"></label>';
-      }).join("") + '</div><label class="f mt"><span>Mandar a</span><select class="inp" id="ap-p"><option value="">Elegir en WhatsApp</option>' + proveedores.map(function (p) { return '<option value="' + p.id + '">' + esc(p.nombre) + (p.telefono ? "" : " (sin teléfono)") + "</option>" }).join("") + '</select></label><button class="btn block lg" id="ap-ok">💬 Enviar pedido por WhatsApp</button>', { ancha: true });
+      }).join("") + '</div><label class="f mt"><span>Mandar a</span><select class="inp" id="ap-p"><option value="">Elegir en WhatsApp</option>' + proveedores.map(function (p) { return '<option value="' + p.id + '">' + esc(p.nombre) + (p.telefono ? "" : " (sin teléfono)") + "</option>" }).join("") + '</select></label><button class="btn block lg" id="ap-ok">' + ic("smartphone", 18) + ' Enviar pedido por WhatsApp</button>', { ancha: true });
       $("#ap-ok", h).onclick = function () {
         var items = $$("[data-id]", h).filter(function (c) { return c.checked }).map(function (c) { var p = M.porId(c.dataset.id); return "• " + M.cant(M.num($('[data-q="' + p.id + '"]', h).value), p.unidad) + " de " + p.nombre });
         if (!items.length) return M.toast("Elige al menos un producto", "bad");
@@ -1011,9 +1041,9 @@
     cargarProveedores().then(function (ps) {
       v.innerHTML = '<div class="pagehead"><h1>Proveedores</h1><button class="btn" id="pv-n">＋ Nuevo</button></div>' +
         (ps.length ? '<div class="list">' + ps.map(function (p) {
-          return '<div class="li"><span class="thumb">🤝</span><button class="t" style="background:none;border:0;text-align:left;font:inherit;cursor:pointer;padding:0" data-e="' + p.id + '"><b>' + esc(p.nombre) + "</b><small>" + [p.telefono, p.rfc, p.dia_visita && "Visita: " + p.dia_visita].filter(Boolean).map(esc).join(" · ") + "</small></button>" +
-            (p.telefono ? '<a class="btn alt sm" target="_blank" rel="noopener" href="' + M.wa(p.telefono, "Hola, soy de " + M.negocio.nombre + ".") + '">💬</a>' : "") + "</div>";
-        }).join("") + "</div>" : '<div class="card empty"><div class="ic">🤝</div><b>Sin proveedores</b>Agrégalos para pedirles mercancía y cambios por WhatsApp. Al subir una factura XML se agregan solos.</div>');
+          return '<div class="li"><span class="thumb">' + ic("handshake", 20) + '</span><button class="t" style="background:none;border:0;text-align:left;font:inherit;cursor:pointer;padding:0" data-e="' + p.id + '"><b>' + esc(p.nombre) + "</b><small>" + [p.telefono, p.rfc, p.dia_visita && "Visita: " + p.dia_visita].filter(Boolean).map(esc).join(" · ") + "</small></button>" +
+            (p.telefono ? '<a class="btn alt sm" target="_blank" rel="noopener" href="' + M.wa(p.telefono, "Hola, soy de " + M.negocio.nombre + ".") + '">' + ic("smartphone", 18) + '</a>' : "") + "</div>";
+        }).join("") + "</div>" : '<div class="card empty"><div class="ic">' + ic("handshake", 40, 1.5) + '</div><b>Sin proveedores</b>Agrégalos para pedirles mercancía y cambios por WhatsApp. Al subir una factura XML se agregan solos.</div>');
       $("#pv-n", v).onclick = function () { formProveedor(null, render) };
       $$("[data-e]", v).forEach(function (b) { b.onclick = function () { formProveedor(ps.filter(function (p) { return p.id === b.dataset.e })[0], render) } });
     });
@@ -1051,7 +1081,7 @@
       '<label class="f mt"><span>Avisarme de caducidades con cuántos días de anticipación</span><input class="inp" name="diasAviso" inputmode="numeric" value="' + M.diasAviso() + '" style="max-width:120px"></label></div>' +
       '<div class="card"><h2>Personas que usan el sistema</h2><p class="muted small" style="margin:0">Pronto podrás dar acceso a tus cajeros con permisos limitados (no verán costos ni ganancias).</p></div>' +
       '<div class="acts"><button class="btn lg">Guardar cambios</button></div></form>' +
-      '<div class="card mt"><div class="row wrap"><button class="btn alt install" onclick="M.pedirInstalar()">📲 Instalar como app</button><button class="btn ghost" id="aj-salir">Cerrar sesión</button></div></div>';
+      '<div class="card mt"><div class="row wrap"><button class="btn alt install" onclick="M.pedirInstalar()">' + ic("download", 18) + ' Instalar como app</button><button class="btn ghost" id="aj-salir">Cerrar sesión</button></div></div>';
     $("#aj-salir", v).onclick = salir;
     $("#aj", v).onsubmit = function (e) {
       e.preventDefault(); var f = this, c = {};
@@ -1105,16 +1135,16 @@
       "<li>Enciende la pistola y ponla en <b>modo Bluetooth HID / teclado</b> (lo indica su manual; casi siempre es escanear un código de configuración).</li>" +
       "<li>En tu " + (ios ? "iPhone: <b>Ajustes → Bluetooth</b>" : "celular: <b>Ajustes → Bluetooth → Vincular dispositivo</b>") + " y elige la pistola.</li>" +
       "<li>Regresa aquí y escanea un producto. Si aparece arriba, ¡listo! Ya funciona en Vender, Productos y Entradas.</li></ol>" +
-      '<div class="note info mt small"><span>💡 Al conectar la pistola, ' + (ios ? "el iPhone oculta el teclado de la pantalla. Para escribir, apaga la pistola o toca dos veces su botón (depende del modelo)." : "Android puede ocultar el teclado de la pantalla. Para que siga apareciendo: Ajustes → Idioma y teclado → Teclado físico → activa “Mostrar teclado en pantalla”.") + "</span></div>" +
+      '<div class="note info mt small"><span>Al conectar la pistola, ' + (ios ? "el iPhone oculta el teclado de la pantalla. Para escribir, apaga la pistola o toca dos veces su botón (depende del modelo)." : "Android puede ocultar el teclado de la pantalla. Para que siga apareciendo: Ajustes → Idioma y teclado → Teclado físico → activa “Mostrar teclado en pantalla”.") + "</span></div>" +
       '<div class="note warn small" style="margin:0"><span>Si la pistola escribe letras raras o le faltan números: configúrala en idioma de teclado <b>US / Inglés</b> y con <b>Enter (CR)</b> al final, desde su manual.</span></div></div>' +
       '<div class="card"><div class="row between"><h2 style="margin:0">Conexión directa (BLE)</h2><span class="badge ' + (est === "conectado" ? "ok" : est === "desconectado" ? "warn" : "") + '">' + (est === "conectado" ? "✓ " + esc(L.ble.nombre) : est === "desconectado" ? "Reconectando…" : "Sin conectar") + "</span></div>" +
       '<p class="body small mt">Para pistolas que se conectan directo con la app (sin vincularlas en Ajustes). ' + (ble ? "Disponible en este navegador." : "<b>No disponible aquí:</b> sólo funciona en Chrome de Android o computadora (no en iPhone). Usa el modo teclado.") + "</p>" +
-      (ble ? '<div class="row wrap">' + (est === "sin" ? '<button class="btn" id="lp-ble">🔵 Conectar lector Bluetooth</button>' : '<button class="btn ghost" id="lp-desc">Desconectar</button>') + "</div>" : "") + "</div>" +
+      (ble ? '<div class="row wrap">' + (est === "sin" ? '<button class="btn" id="lp-ble">' + ic("bluetooth", 18) + ' Conectar lector Bluetooth</button>' : '<button class="btn ghost" id="lp-desc">Desconectar</button>') + "</div>" : "") + "</div>" +
       '<div class="card"><h2>Lector USB</h2><p class="body small" style="margin:0">Conéctalo a la computadora (o al celular con un adaptador OTG). Funciona igual que el modo teclado, sin configurar nada.</p></div>';
     if ($("#lp-ble", v)) $("#lp-ble", v).onclick = function () {
       var b = this; b.disabled = true; b.textContent = "Buscando lectores…";
       M.lector.conectarBLE().then(function (x) { M.toast("Conectado a " + x.nombre + " ✓", "ok"); render() }).catch(function (e) {
-        b.disabled = false; b.textContent = "🔵 Conectar lector Bluetooth";
+        b.disabled = false; b.innerHTML = ic("bluetooth", 18) + " Conectar lector Bluetooth";
         if (e && e.name === "NotFoundError") return; // canceló la ventana
         M.error(e);
       });

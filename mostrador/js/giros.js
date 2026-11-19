@@ -22,7 +22,7 @@
 
   var GIROS = [
     {
-      id: "abarrotes", nombre: "Tienda de abarrotes", icono: "🛒", color: "#e6f4ec",
+      id: "abarrotes", ic: "shopping-basket", nombre: "Tienda de abarrotes", icono: "🛒", color: "#e6f4ec",
       capacidades: { caducidad: true, reclamoProveedor: true, granel: true, fiado: true },
       unidades: ["pza", "kg", "l", "caja", "paquete"],
       categorias: ["Bebidas", "Lácteos", "Salchichonería", "Botanas", "Dulces", "Abarrotes", "Limpieza", "Higiene", "Pan", "Cigarros", "Granel"],
@@ -31,7 +31,7 @@
       ejemplo: "Leche, refrescos, jamón, pan"
     },
     {
-      id: "minisuper", nombre: "Minisúper", icono: "🏪", color: "#e6f3fe",
+      id: "minisuper", ic: "store", nombre: "Minisúper", icono: "🏪", color: "#e6f3fe",
       capacidades: { caducidad: true, reclamoProveedor: true, granel: true },
       unidades: ["pza", "kg", "l", "caja", "paquete"],
       categorias: ["Bebidas", "Lácteos", "Carnes frías", "Frutas y verduras", "Botanas", "Despensa", "Congelados", "Limpieza", "Higiene", "Mascotas", "Vinos y licores"],
@@ -40,7 +40,7 @@
       ejemplo: "Despensa completa, frescos y congelados"
     },
     {
-      id: "tlapaleria", nombre: "Tlapalería / Ferretería", icono: "🔧", color: "#fff4dc",
+      id: "tlapaleria", ic: "hammer", nombre: "Tlapalería / Ferretería", icono: "🔧", color: "#fff4dc",
       capacidades: { medidas: true, granel: true, fiado: true },
       unidades: ["pza", "m", "cm", "kg", "l", "rollo", "caja", "juego"],
       categorias: ["Herramientas", "Tornillería", "Eléctrico", "Plomería", "Pinturas", "Pegamentos", "Jardinería", "Cerrajería", "Construcción"],
@@ -49,7 +49,7 @@
       ejemplo: "Tornillos, cable por metro, pintura"
     },
     {
-      id: "farmacia", nombre: "Farmacia", icono: "💊", color: "#fdeae6",
+      id: "farmacia", ic: "pill", nombre: "Farmacia", icono: "💊", color: "#fdeae6",
       capacidades: { caducidad: true, reclamoProveedor: true, receta: true },
       unidades: ["pza", "caja", "frasco", "sobre"],
       categorias: ["Analgésicos", "Antigripales", "Antibióticos", "Gastrointestinal", "Vitaminas", "Curación", "Bebés", "Cuidado personal", "Dermatológicos"],
@@ -63,7 +63,7 @@
       ejemplo: "Medicamentos, curación, cuidado personal"
     },
     {
-      id: "papeleria", nombre: "Papelería", icono: "✏️", color: "#f1ecff",
+      id: "papeleria", ic: "pencil", nombre: "Papelería", icono: "✏️", color: "#f1ecff",
       capacidades: {},
       unidades: ["pza", "paquete", "caja", "m", "juego"],
       categorias: ["Cuadernos", "Escritura", "Arte y manualidades", "Oficina", "Papel", "Mochilas", "Copias e impresiones", "Regalos", "Temporada escolar"],
@@ -72,7 +72,7 @@
       ejemplo: "Útiles escolares, copias, regalos"
     },
     {
-      id: "otro", nombre: "Otro negocio", icono: "🏬", color: "#f6f5f4",
+      id: "otro", ic: "store", nombre: "Otro negocio", icono: "🏬", color: "#f6f5f4",
       capacidades: {},
       unidades: ["pza", "kg", "l", "m", "caja", "paquete"],
       categorias: ["General"],
@@ -84,15 +84,15 @@
 
   // Módulos de la plataforma: se muestran sólo si el negocio tiene la capacidad y el rol lo permite.
   var MODULOS = [
-    { id: "inicio", t: "Inicio", icono: "🏠", movil: true },
-    { id: "vender", t: "Vender", icono: "🧾", movil: true },
-    { id: "productos", t: "Productos", icono: "📦", movil: true },
-    { id: "entradas", t: "Entrada de mercancía", corto: "Entradas", icono: "🚚", roles: ["dueno", "encargado"] },
-    { id: "alertas", t: "Alertas", icono: "🔔", movil: true },
-    { id: "ventas", t: "Ventas", icono: "📈" },
-    { id: "proveedores", t: "Proveedores", icono: "🤝", roles: ["dueno", "encargado"] },
-    { id: "lector", t: "Lector de códigos", icono: "🏷️" },
-    { id: "ajustes", t: "Mi negocio", icono: "⚙️", roles: ["dueno"] }
+    { id: "inicio", ic: "house", t: "Inicio", icono: "🏠", movil: true },
+    { id: "vender", ic: "receipt", t: "Vender", icono: "🧾", movil: true },
+    { id: "productos", ic: "package", t: "Productos", icono: "📦", movil: true },
+    { id: "entradas", ic: "truck", t: "Entrada de mercancía", corto: "Entradas", icono: "🚚", roles: ["dueno", "encargado"] },
+    { id: "alertas", ic: "bell", t: "Alertas", icono: "🔔", movil: true },
+    { id: "ventas", ic: "trending-up", t: "Ventas", icono: "📈" },
+    { id: "proveedores", ic: "handshake", t: "Proveedores", icono: "🤝", roles: ["dueno", "encargado"] },
+    { id: "lector", ic: "scan-barcode", t: "Lector de códigos", icono: "🏷️" },
+    { id: "ajustes", ic: "settings", t: "Mi negocio", icono: "⚙️", roles: ["dueno"] }
   ];
 
   var ESTADOS_MX = ["Aguascalientes", "Baja California", "Baja California Sur", "Campeche", "Chiapas", "Chihuahua", "Ciudad de México",
