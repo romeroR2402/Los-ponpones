@@ -24,10 +24,25 @@
       console.error(e);
     });
   }
+  // La demo se renueva sola si sus ventas ya no son de hoy (así nunca se ve en ceros frente a un cliente).
+  function demoAlDia() {
+    if (!M.negocio || !M.negocio.es_demo || !navigator.onLine) return Promise.resolve(false);
+    return M.sb.from("mos_ventas").select("creado").eq("negocio_id", M.negocio.id).order("creado", { ascending: false }).limit(1).then(function (r) {
+      var ultima = r.data && r.data[0] && new Date(r.data[0].creado);
+      if ((ultima && ultima >= M.inicioDia()) || new Date(M.negocio.creado) >= M.inicioDia()) return false;   // ya está al día (o se llenó hoy temprano)
+      $("#view").innerHTML = '<div class="empty"><div class="spin" style="margin:24px auto"></div><b>Preparando la tienda de ejemplo…</b>Unos segundos.</div>';
+      return M.sb.rpc("mos_demo_reiniciar").then(function (x) {
+        if (x.error) return false;
+        try { localStorage.removeItem("mostrador-negocio") } catch (e) {}
+        return M.cargarNegocio().then(function () { pintarShell(); return true });
+      });
+    }).catch(function () { return false });
+  }
   function entrarApp() {
     pintarShell(); cargando($("#view"));
-    return Promise.all([M.cargarProductos(), cargarLotes()]).catch(function (e) { M.error(e) }).then(function () {
+    return demoAlDia().then(function () { return Promise.all([M.cargarProductos(), cargarLotes()]) }).catch(function (e) { M.error(e) }).then(function () {
       render(); M.sincronizar(); avisarAlertas(); M.lector.reconectarGuardado();
+      if (!yaVioRecorrido() && !entrarApp.sinRecorrido) setTimeout(function () { recorrido() }, 600);
     });
   }
   M.sb.auth.onAuthStateChange(function (ev) {
@@ -254,11 +269,11 @@
       return M.cargarNegocio();
     }).then(function () {
       location.hash = "#/inicio";
+      entrarApp.sinRecorrido = true;
       return entrarApp();
     }).then(function () {
-      var h = M.hoja('<div class="done"><div class="ok">' + ic("circle-check", 40, 2) + '</div><h2>¡Tu negocio está listo!</h2><p class="body">Empieza dando de alta tus productos. Lo más rápido es escanear su código de barras.</p></div>' +
-        '<div class="acts"><button class="btn ghost" data-cerrar>Después</button><button class="btn" id="w-esc">' + ic("scan-barcode", 18) + ' Escanear productos</button></div>');
-      $("#w-esc", h).onclick = function () { M.cerrarHoja(); location.hash = "#/productos"; setTimeout(escanearAlta, 50) };
+      entrarApp.sinRecorrido = false;
+      if (!sinRecorrido()) setTimeout(function () { recorrido({ nuevo: true }) }, 500);
     }).catch(function (e) { b.disabled = false; b.textContent = "Crear mi negocio"; M.error(e) });
   }
 
@@ -273,7 +288,7 @@
     var marca = '<a class="brand" href="#/inicio"><span class="logo">' + ic(M.giro.ic || "store", 20, 2) + '</span><span class="ellipsis">' + esc(M.negocio.nombre) + "</span></a>";
     app.innerHTML = '<div class="shell"><nav class="side" aria-label="Menú">' + marca + mods.map(function (m) {
         return '<a href="#/' + m.id + '" data-r="' + m.id + '">' + ic(m.ic, 20) + esc(m.t) + (m.id === "alertas" ? '<span class="n hide" data-n></span>' : "") + "</a>";
-      }).join("") + '<div class="grow"></div><a href="#" class="install" onclick="M.pedirInstalar();return false">' + ic("download", 20) + 'Instalar app</a><a href="#" id="side-salir">' + ic("log-out", 20) + "Cerrar sesión</a></nav>" +
+      }).join("") + '<div class="grow"></div><a href="#" id="side-tour">' + ic("sparkles", 20) + 'Cómo funciona</a><a href="#" class="install" onclick="M.pedirInstalar();return false">' + ic("download", 20) + 'Instalar app</a><a href="#" id="side-salir">' + ic("log-out", 20) + "Cerrar sesión</a></nav>" +
       '<div style="min-width:0"><header class="top"><div class="in">' + marca.replace('class="brand"', 'class="brand grow"') +
       '<div class="tsearch search"><span class="lupa">' + ic("search", 18) + '</span><input class="inp" id="top-q" placeholder="Buscar un producto…" autocomplete="off" aria-label="Buscar un producto"></div><div class="grow only-desk"></div>' +
       '<span id="net"></span><a class="ibtn" id="lec" href="#/lector" title="Lector de códigos" aria-label="Lector de códigos" style="text-decoration:none;position:relative">' + ic("scan-barcode", 21) + '<i id="lec-dot" class="hide" style="position:absolute;top:8px;right:8px;width:9px;height:9px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 2px var(--surface)"></i></a>' +
@@ -286,6 +301,7 @@
         return '<a href="#/' + m.id + '" data-r="' + m.id + '">' + ic(m.ic, 22) + esc(m.corto || m.t) + (m.id === "alertas" ? '<span class="n hide" data-n></span>' : "") + "</a>";
       }).join("") + '<a href="#" id="mas">' + ic("menu", 22) + "Más</a></nav>";
     $("#side-salir").onclick = function (e) { e.preventDefault(); salir() };
+    $("#side-tour").onclick = function (e) { e.preventDefault(); recorrido() };
     $("#mas").onclick = function (e) { e.preventDefault(); menuMas() };
     if ($("#demo-reset")) $("#demo-reset").onclick = function () {
       M.confirmar("¿Reiniciar la demo?", "Se borra lo que movieron y la tienda vuelve a quedar como nueva, con un mes de ventas.", "Reiniciar").then(function (ok) {
@@ -313,10 +329,12 @@
     var extra = M.modulosActivos().filter(function (m) { return !m.movil });
     var h = M.hoja('<h2>' + esc(M.negocio.nombre) + '</h2><div class="list">' + extra.map(function (m) {
       return '<a class="li" href="#/' + m.id + '" data-cerrar><span class="thumb">' + ic(m.ic, 20) + '</span><span class="t"><b>' + esc(m.t) + "</b></span>" + ic("chevron-right", 18) + "</a>";
-    }).join("") + '<button class="li install" id="mm-inst"><span class="thumb">' + ic("download", 20) + '</span><span class="t"><b>Instalar como app</b></span></button>' +
+    }).join("") + '<button class="li" id="mm-tour"><span class="thumb">' + ic("sparkles", 20) + '</span><span class="t"><b>Cómo funciona la app</b><small>Recorrido de cada sección</small></span></button>' +
+      '<button class="li install" id="mm-inst"><span class="thumb">' + ic("download", 20) + '</span><span class="t"><b>Instalar como app</b></span></button>' +
       '<button class="li" id="mm-salir"><span class="thumb">' + ic("log-out", 20) + '</span><span class="t"><b>Cerrar sesión</b><small>' + esc(M.user.email) + "</small></span></button></div>");
     $$("a.li", h).forEach(function (a) { a.addEventListener("click", function () { setTimeout(M.cerrarHoja, 0) }) });
     $("#mm-inst", h).onclick = function () { M.cerrarHoja(); M.pedirInstalar() };
+    $("#mm-tour", h).onclick = function () { M.cerrarHoja(); recorrido() };
     $("#mm-salir", h).onclick = function () { M.cerrarHoja(); salir() };
   }
   function estadoRed() {
@@ -1171,6 +1189,102 @@
   };
 
   M.iconoLector = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M3 5h2v14H3zM7 5h1v14H7zM10 5h2v14h-2zM14 5h1v14h-1zM17 5h1v14h-1zM20 5h1v14h-1z"/><rect x="1" y="11.3" width="22" height="1.4" fill="#e32d14"/></svg>';
+  // =====================================================================
+  // RECORRIDO GUIADO: ilumina cada sección del menú y explica para qué sirve
+  // =====================================================================
+  function claveRecorrido() { return "mostrador-recorrido-" + (M.user && M.user.id) }
+  function sinRecorrido() { try { return !!localStorage.getItem("mostrador-sin-recorrido") } catch (e) { return true } }   // pruebas automáticas
+  function yaVioRecorrido() { try { return sinRecorrido() || !!localStorage.getItem(claveRecorrido()) } catch (e) { return true } }
+  function textoSeccion(id) {
+    var cad = M.tiene("caducidad"), gran = M.tiene("granel") || M.tiene("medidas"), fiado = M.tiene("fiado");
+    return {
+      inicio: "Tu resumen del día: cuánto vendiste, tu ganancia y lo que necesita tu atención. Es lo primero que ves al abrir.",
+      vender: "Tu caja. Escanea o toca los productos y cobra en efectivo, tarjeta o transferencia" + (fiado ? " (o fiado)" : "") + "." +
+        (gran ? " Lo de granel lo vendes por kilo o por dinero: “dame $20 de jamón”." : "") + " Funciona aunque se vaya el internet.",
+      productos: "Tu catálogo. Escanea un código de barras y el producto aparece solo, con nombre y foto: tú sólo pones el precio. Aquí ves cuánto tienes de cada uno.",
+      entradas: "Cuando llega mercancía. Escanéala o sube la factura XML de tu proveedor y tu inventario se suma solo." + (cad ? " Aquí anotas la fecha de caducidad." : ""),
+      alertas: "Te avisa lo que se está acabando" + (cad ? ", lo que se va a vencer y lo que tu proveedor te debe cambiar" : "") + ". Desde aquí armas tu pedido y lo mandas por WhatsApp.",
+      ventas: "Todas tus ventas: hoy, 7 y 30 días, cuánto ganaste y lo que más vendes. Aquí también cancelas una venta.",
+      proveedores: "Tus proveedores con su WhatsApp, para pedirles mercancía o cambios con un solo toque.",
+      lector: "Conecta tu pistola lectora de códigos (Bluetooth o USB) y pruébala. Una vez conectada, sirve en cualquier pantalla.",
+      ajustes: "Los datos de tu negocio y las funciones que usas: granel, fiado, caducidades… Prende sólo lo que necesites."
+    }[id] || "";
+  }
+  function pasosRecorrido(opts) {
+    var movil = !window.matchMedia("(min-width: 900px)").matches;
+    var pasos = [{ ic: "sparkles", t: opts.nuevo ? "¡Tu negocio está listo!" : "Bienvenido a " + esc(M.negocio.nombre),
+      d: "Te enseño para qué sirve cada sección. Toma menos de un minuto." }];
+    M.modulosActivos().forEach(function (m) {
+      var enMas = movil && !m.movil;
+      pasos.push({ sel: movil ? (m.movil ? '.tabbar [data-r="' + m.id + '"]' : "#mas") : '.side [data-r="' + m.id + '"]',
+        ic: m.ic, t: esc(m.t), pre: enMas ? "Dentro de «Más»" : "", d: textoSeccion(m.id) });
+    });
+    pasos.push({ sel: movil ? "#lec" : "#lec", ic: "bell", t: "Arriba, siempre a la mano",
+      d: "El código de barras te lleva al lector, la campana a tus alertas (con el número de avisos) y tu inicial es tu sesión." });
+    var vacio = !M.productos.length && puedeInventario();
+    pasos.push({ ic: "circle-check", t: "¡Listo, ya conoces Mostrador!", fin: true,
+      d: vacio ? "Empieza dando de alta tus productos: escanea su código y nosotros ponemos el nombre y la foto."
+               : "Cuando quieras repasar, toca «Cómo funciona» en el menú." });
+    return pasos;
+  }
+  function recorrido(opts) {
+    opts = opts || {};
+    if (!M.negocio || !$("#view")) return;
+    cerrarRecorrido(); M.cerrarHoja();
+    if (ruta() !== "inicio") location.hash = "#/inicio";
+    var pasos = pasosRecorrido(opts), i = 0;
+    var w = document.createElement("div"); w.className = "tour"; w.id = "tour";
+    w.innerHTML = '<div class="tour-hole"></div><div class="tour-card" role="dialog" aria-modal="true" aria-live="polite"></div>';
+    document.body.appendChild(w); document.body.classList.add("noscroll");
+    var hole = $(".tour-hole", w), card = $(".tour-card", w);
+    function terminar(irAProductos) {
+      try { localStorage.setItem(claveRecorrido(), "1") } catch (e) {}
+      cerrarRecorrido();
+      if (irAProductos) { location.hash = "#/productos"; setTimeout(escanearAlta, 120) }
+    }
+    function pintar() {
+      var p = pasos[i], el = p.sel ? $(p.sel) : null, r = el && el.offsetParent !== null ? el.getBoundingClientRect() : null;
+      var vacio = p.fin && !M.productos.length && puedeInventario();
+      card.innerHTML = '<div class="row" style="gap:12px;align-items:flex-start"><span class="tour-ic">' + ic(p.ic || "sparkles", 22) + '</span><div class="grow">' +
+        (p.pre ? '<div class="xs muted" style="margin-bottom:2px">' + p.pre + "</div>" : "") + "<h3 style=\"margin:0 0 4px;font-size:17px\">" + p.t + '</h3><p class="body small" style="margin:0">' + p.d + "</p></div></div>" +
+        '<div class="row between" style="margin-top:16px"><span class="tour-dots">' + pasos.map(function (x, k) { return '<i class="' + (k === i ? "on" : "") + '"></i>' }).join("") + "</span>" +
+        '<span class="row" style="gap:6px">' + (i > 0 && !p.fin ? '<button class="btn ghost sm" data-t="atras">Atrás</button>' : (!p.fin ? '<button class="btn ghost sm" data-t="saltar">Saltar</button>' : "")) +
+        (p.fin ? (vacio ? '<button class="btn ghost sm" data-t="cerrar">Después</button><button class="btn sm" data-t="productos">' + ic("scan-barcode", 16) + " Agregar productos</button>" : '<button class="btn sm" data-t="cerrar">¡Empezar!</button>')
+               : '<button class="btn sm" data-t="sig">' + (i === 0 ? "Comenzar" : "Siguiente") + "</button>") + "</span></div>";
+      // Luz sobre la sección y globo junto a ella
+      var vw = window.innerWidth, vh = window.innerHeight, cw = Math.min(360, vw - 24);
+      card.style.width = cw + "px";
+      if (r) {
+        var pad = 6; hole.style.cssText = "top:" + (r.top - pad) + "px;left:" + (r.left - pad) + "px;width:" + (r.width + pad * 2) + "px;height:" + (r.height + pad * 2) + "px";
+        var ch = card.offsetHeight, top, left;
+        if (r.right + 16 + cw < vw && r.left < vw / 3) { left = r.right + 16; top = Math.max(12, Math.min(r.top + r.height / 2 - ch / 2, vh - ch - 12)) }   // menú lateral: a la derecha
+        else { left = Math.max(12, Math.min(r.left + r.width / 2 - cw / 2, vw - cw - 12)); top = r.top > vh / 2 ? r.top - ch - 16 : r.bottom + 16 }        // barra: arriba o abajo
+        card.style.top = Math.max(12, top) + "px"; card.style.left = left + "px"; card.classList.remove("centro");
+      } else {
+        hole.style.cssText = "top:50%;left:50%;width:0;height:0";
+        card.style.top = ""; card.style.left = ""; card.classList.add("centro");
+      }
+      var b = $('[data-t="sig"],[data-t="cerrar"],[data-t="productos"]', card); if (b) b.focus();
+    }
+    card.onclick = function (e) {
+      var t = e.target.closest("[data-t]"); if (!t) return;
+      var a = t.dataset.t;
+      if (a === "sig") { i = Math.min(i + 1, pasos.length - 1); pintar() }
+      else if (a === "atras") { i = Math.max(i - 1, 0); pintar() }
+      else terminar(a === "productos");
+    };
+    w.onkeydown = function (e) { if (e.key === "Escape") terminar(false); if (e.key === "ArrowRight") { i = Math.min(i + 1, pasos.length - 1); pintar() } if (e.key === "ArrowLeft") { i = Math.max(i - 1, 0); pintar() } };
+    recorrido.alCambiar = function () { if ($("#tour")) pintar() };
+    window.addEventListener("resize", recorrido.alCambiar);
+    pintar();
+  }
+  function cerrarRecorrido() {
+    var t = $("#tour"); if (t) t.parentNode.removeChild(t);
+    document.body.classList.remove("noscroll");
+    if (recorrido.alCambiar) window.removeEventListener("resize", recorrido.alCambiar);
+  }
+  M.recorrido = recorrido;
+
   // =====================================================================
   // PISTOLA LECTORA: qué hacer con cada código según la pantalla
   // =====================================================================

@@ -18,6 +18,7 @@ const MOCK_BLE = () => {
   fs.mkdirSync(SHOTS, { recursive: true });
   const b = await chromium.launch({ proxy: process.env.HTTPS_PROXY ? { server: process.env.HTTPS_PROXY, bypass: 'localhost,127.0.0.1' } : undefined });
   const ctx = await b.newContext({ viewport: { width: 360, height: 780 }, locale: 'es-MX', timezoneId: 'America/Mexico_City' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('mostrador-sin-recorrido', '1') } catch (e) {} });
   await ctx.addInitScript(MOCK_BLE);
   await ctx.route('https://cdn.jsdelivr.net/**', r => r.fulfill({ body: SB, contentType: 'application/javascript' }));
   await ctx.route('http://localhost:8081/**', r => {
@@ -29,7 +30,7 @@ const MOCK_BLE = () => {
   await p.goto(BASE); await p.waitForSelector('#fa');
   await p.fill('[name=email]', process.env.QA_EMAIL || 'qa-abarrotes@usuarios.mostrador.app'); await p.fill('[name=pass]', process.env.QA_PASS || 'PruebaQA-2026'); await p.click('#fa button.btn');
   await p.waitForSelector('.giro'); await p.click('.giro:has-text("Tienda de abarrotes")'); await p.fill('[name=nombre]', 'Abarrotes Pistola'); await p.click('button:has-text("Continuar")');
-  await p.click('#crear'); await p.waitForSelector('.done'); await p.click('button:has-text("Después")'); await p.waitForSelector('.kpis');
+  await p.click('#crear'); await p.waitForSelector('.kpis'); await p.waitForSelector('.kpis');
 
   await p.goto(BASE + '#/productos'); await p.waitForSelector('#p-lista'); await p.click('h1');
   await pistola(p, '7501055300075'); await p.waitForSelector('#ar');

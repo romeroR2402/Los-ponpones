@@ -29,10 +29,15 @@ Con correo configurado, al registrarse llega un **código de 6 números** y la c
 2. En Supabase → Edge Functions → **Secrets** agrega `SMTP_USER` = tu Gmail y `SMTP_PASS` = la contraseña de aplicación (16 letras).
 Mientras no estén, las cuentas se crean ya activadas (sin código).
 
+## Recorrido para usuarios nuevos
+La primera vez que alguien entra, la app ilumina cada sección del menú y explica para qué sirve (se adapta a celular/computadora
+y a las funciones de su giro). Al crear su tienda arranca solo y termina con “Agregar productos”. Se repite desde **“Cómo funciona”**
+(menú lateral o “Más”). Prueba: `qa/recorrido.js`.
+
 ## Demo para mostrar a clientes
 En la pantalla de entrada: **“Ver la demo: tienda de ejemplo”** (Abarrotes La Esperanza, Coyoacán): 53 productos con foto,
 5 proveedores, ~750 ventas de los últimos 30 días, caducidades (una por cambiar con el proveedor, una vencida, varias por vencer),
-agotados y productos por acabarse. Se puede vender y mover todo; el botón **“Reiniciar demo”** la deja como nueva.
+agotados y productos por acabarse. Se puede vender y mover todo; el botón **“Reiniciar demo”** la deja como nueva. Si al entrar sus ventas no son de hoy, se renueva sola.
 Cuenta: `demo@usuarios.mostrador.app` / `demo2026` (pública; sólo ve su tienda). SQL en `supabase/demo.sql`.
 
 ## Diseño

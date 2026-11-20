@@ -6,6 +6,7 @@ const hoy = new Date(); const iso = d => new Date(hoy.getTime() + d*864e5).toLoc
 const log = []; const ok = (n, c, d='') => { log.push((c ? '✅ ' : '❌ ') + n + (d ? ' — ' + d : '')); };
 async function nueva(b, vp) {
   const ctx = await b.newContext({ viewport: vp, deviceScaleFactor: 1, locale: 'es-MX', timezoneId: 'America/Mexico_City' });
+  await ctx.addInitScript(() => { try { localStorage.setItem('mostrador-sin-recorrido', '1') } catch (e) {} });
   await ctx.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js', r => r.fulfill({ body: SB, contentType: 'application/javascript' }));
   await ctx.route('https://world.openfoodfacts.org/**', r => r.fulfill({ status: 404, body: '{}' }));
   const p = await ctx.newPage(); global.P = p;
@@ -55,8 +56,7 @@ async function nuevoProducto(p, d) {
   const caps = await p.$$eval('#caps input', is => is.map(i => i.name + ':' + i.checked));
   ok('Abarrotes trae caducidad, granel, fiado y reclamo prendidos', ['caducidad:true', 'reclamoProveedor:true', 'granel:true', 'fiado:true'].every(c => caps.includes(c)), caps.join(' '));
   await shot(p, '03-onb-caps');
-  await p.click('#crear'); await p.waitForSelector('.done'); await shot(p, '04-listo');
-  await p.click('button:has-text("Después")');
+  await p.click('#crear'); await p.waitForSelector('.kpis'); await shot(p, '04-listo');
   await p.waitForSelector('.kpis'); await shot(p, '05-inicio-vacio');
   const tabs = await p.$$eval('.tabbar a', as => as.map(a => a.textContent.trim()));
   ok('Barra inferior móvil', tabs.length === 5, tabs.join(' | '));
@@ -141,7 +141,7 @@ async function nuevoProducto(p, d) {
   await entrar(p, 'qa-farmacia@usuarios.mostrador.app'); await onboarding(p, 'Farmacia', 'Farmacia San Toño');
   const capsB = await p.$$eval('#caps input', is => is.map(i => i.name + ':' + i.checked));
   ok('Farmacia: receta y caducidad prendidas, sin granel', capsB.includes('receta:true') && capsB.includes('caducidad:true') && capsB.includes('granel:false'), capsB.join(' '));
-  await p.click('#crear'); await p.waitForSelector('.done'); await p.click('button:has-text("Después")');
+  await p.click('#crear'); await p.waitForSelector('.kpis');
   await p.goto(URL + '#/productos'); await p.waitForSelector('#p-lista');
   ok('Aislamiento: Farmacia no ve productos de Abarrotes', (await p.evaluate(() => M.productos.length)) === 0);
   await p.click('#p-nuevo'); await p.waitForSelector('#fp');
