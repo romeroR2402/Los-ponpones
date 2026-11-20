@@ -123,8 +123,12 @@
       if (!/\S+@\S+\.\S+/.test(em)) return mensaje(msg, "warn", "Revisa tu correo.");
       if (pw.length < 6) return mensaje(msg, "warn", "La contraseña debe tener al menos 6 caracteres.");
       var btn = $("button.btn", f); btn.disabled = true;
+      // Crear cuenta: la función mos-registro la crea ya confirmada y luego entramos con ella.
       var p = modo === "crear"
-        ? M.sb.auth.signUp({ email: em, password: pw, options: { data: { nombre: f.nombre.value.trim() }, emailRedirectTo: location.href.split("#")[0] } })
+        ? fetch((window.MOSTRADOR || {}).url + "/functions/v1/mos-registro", { method: "POST", headers: { "Content-Type": "application/json", apikey: (window.MOSTRADOR || {}).key },
+            body: JSON.stringify({ email: em, password: pw, nombre: f.nombre.value.trim() }) })
+            .then(function (res) { return res.json() })
+            .then(function (j) { if (!j.ok) return { error: { message: j.error || "No se pudo crear la cuenta" } }; return M.sb.auth.signInWithPassword({ email: em, password: pw }) })
         : M.sb.auth.signInWithPassword({ email: em, password: pw });
       p.then(function (r) {
         btn.disabled = false;
