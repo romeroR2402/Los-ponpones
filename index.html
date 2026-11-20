@@ -288,7 +288,12 @@ html[data-tema="halloween"] #garl{display:block;background-image:url("data:image
 @keyframes fly{0%{transform:translate(-12vw,0)}50%{transform:translate(50vw,-5vh)}100%{transform:translate(112vw,3vh)}}
 @keyframes flap{to{transform:scaleY(.55)}}
 .web{position:absolute;top:0;right:0;width:120px;height:120px;color:var(--ink);opacity:.18}
-@media(prefers-reduced-motion:reduce){.sn,.bt{display:none}}
+.fl{position:absolute;bottom:-70px;opacity:.26;animation:flup linear infinite;will-change:transform}
+.fl svg{width:100%;display:block}
+@keyframes flup{0%{transform:translate3d(0,0,0) rotate(0deg)}50%{transform:translate3d(var(--dx,0),-58vh,0) rotate(calc(var(--r,40deg)/2))}100%{transform:translate3d(0,-118vh,0) rotate(var(--r,40deg))}}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .fl{opacity:.16}}
+:root[data-theme="dark"] .fl{opacity:.16}
+@media(prefers-reduced-motion:reduce){.sn,.bt,.fl{display:none}}
 .hint{font-weight:500;color:var(--mute);font-size:12px;margin-left:6px}
 /* Aviso para clientes */
 .aviso{background:var(--card);border:2px solid var(--acc);border-radius:22px;padding:14px 16px;margin:10px 0 14px}
@@ -870,12 +875,16 @@ function det(it){return [it.fl,it.fr&&it.fr.join(", "),it.qx?"Queso extra":""].f
 function vin(){var m=document.getElementById("main");m.classList.remove("vin");void m.offsetWidth;m.classList.add("vin")}
 var barN=0;
 function tab(n){if(n!==view&&!((n==2||n==3||n==5)&&!admin))vin();if((n==2||n==3||n==5)&&!admin){openLogin();return}view=n;armed=false;if(n==2){loadRep();loadComp();loadOps();opsSeen()}if(n==4)loadHist();if(n==5){loadInv();loadComp()}draw()}
+var FLWAF='<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="10" fill="#E9A64A" stroke="#B8742A" stroke-width="2"/><path d="M13 4V36M20 4V36M27 4V36M4 13H36M4 20H36M4 27H36" stroke="#C4832F" stroke-width="2.4"/><path d="M8 8h3M15 8h3M8 15h3" stroke="#F8D08A" stroke-width="2" stroke-linecap="round"/></svg>',
+ FLMAR='<svg viewBox="0 0 56 26" aria-hidden="true"><rect x="6" y="3" width="48" height="20" rx="10" fill="#E8B064" stroke="#B8742A" stroke-width="2"/><ellipse cx="9" cy="13" rx="7" ry="10" fill="#F2C987" stroke="#B8742A" stroke-width="2"/><path d="M9 7a5 6 0 1 0 1 12" fill="none" stroke="#B8742A" stroke-width="1.6"/><path d="M18 5l5 16 6-16 6 16 6-16 6 16" fill="none" stroke="#5A2E12" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 var TEMAS=[["original","Original","🧁"],["navidad","Navidad","🎄"],["halloween","Halloween","🎃"]],temaOn=null;
 function temaHtml(){var t=shop.tema||"original";
   return '<p class="l">Estilo de la app (lo ven todos tus clientes)</p><div class="chips">'+TEMAS.map(function(x){return '<button class="chip'+(t===x[0]?" on":"")+'" onclick="saveShop({tema:\''+x[0]+'\'})">'+x[2]+' '+x[1]+'</button>'}).join("")+'</div>'}
 function applyTema(){var t=shop.tema||"original";if(t===temaOn)return;temaOn=t;var r=document.documentElement,i,h="";
   if(t==="original")r.removeAttribute("data-tema");else r.setAttribute("data-tema",t);
   sv("pp_tema",t);
+  if(t==="original")for(i=0;i<10;i++){var wf=i%2===0,sz=wf?Math.round(30+Math.random()*16):Math.round(44+Math.random()*18);
+    h+='<span class="fl" style="left:'+(4+Math.random()*88).toFixed(1)+'%;width:'+sz+'px;animation-duration:'+(22+Math.random()*16).toFixed(1)+'s;animation-delay:-'+(Math.random()*36).toFixed(1)+'s;--dx:'+Math.round((Math.random()-.5)*70)+'px;--r:'+Math.round((Math.random()-.5)*120)+'deg">'+(wf?FLWAF:FLMAR)+'</span>'}
   if(t==="navidad")for(i=0;i<22;i++)h+='<span class="sn" style="left:'+(Math.random()*100).toFixed(1)+'%;font-size:'+Math.round(9+Math.random()*10)+'px;animation-duration:'+(9+Math.random()*10).toFixed(1)+'s;animation-delay:-'+(Math.random()*18).toFixed(1)+'s;--dx:'+Math.round((Math.random()-.5)*60)+'px">❄</span>';
   if(t==="halloween"){h+='<svg class="web" viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M100 0L0 100M100 0L30 100M100 0L65 100M100 0L0 30M100 0L0 65M84 0Q86 14 100 16M64 0Q68 30 100 36M42 0Q48 48 100 58M20 0Q30 68 100 82"/></svg>';
     for(i=0;i<4;i++)h+='<span class="bt" style="top:'+Math.round(8+Math.random()*50)+'%;animation-duration:'+(16+Math.random()*12).toFixed(1)+'s;animation-delay:-'+(Math.random()*20).toFixed(1)+'s"><svg viewBox="0 0 28 12" fill="currentColor"><path d="M0 6q5-7 10-2q2-4 4 0q2-4 4 0q5-5 10 2q-6 0-8 5q-2-2-4 0q-2-2-4 0q-2-5-8-5z"/></svg></span>'}
