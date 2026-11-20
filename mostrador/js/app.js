@@ -123,19 +123,63 @@
       if (!/\S+@\S+\.\S+/.test(em)) return mensaje(msg, "warn", "Revisa tu correo.");
       if (pw.length < 6) return mensaje(msg, "warn", "La contraseña debe tener al menos 6 caracteres.");
       var btn = $("button.btn", f); btn.disabled = true;
-      // Crear cuenta: la función mos-registro la crea ya confirmada y luego entramos con ella.
+      // Crear cuenta: la función mos-registro la crea; si la verificación está activa manda un código al correo.
       var p = modo === "crear"
-        ? fetch((window.MOSTRADOR || {}).url + "/functions/v1/mos-registro", { method: "POST", headers: { "Content-Type": "application/json", apikey: (window.MOSTRADOR || {}).key },
-            body: JSON.stringify({ email: em, password: pw, nombre: f.nombre.value.trim() }) })
-            .then(function (res) { return res.json() })
-            .then(function (j) { if (!j.ok) return { error: { message: j.error || "No se pudo crear la cuenta" } }; return M.sb.auth.signInWithPassword({ email: em, password: pw }) })
+        ? registro({ accion: "registrar", email: em, password: pw, nombre: f.nombre.value.trim() }).then(function (j) {
+            if (j.verificar && j.ok) return { verificar: true };
+            if (!j.ok) return { error: { message: j.error || "No se pudo crear la cuenta" }, verificar: j.verificar };
+            return M.sb.auth.signInWithPassword({ email: em, password: pw });
+          })
         : M.sb.auth.signInWithPassword({ email: em, password: pw });
       p.then(function (r) {
         btn.disabled = false;
+        if (r.verificar && !r.error) return pantallaCodigo(em, pw);
+        if (r.error && /Email not confirmed/i.test(r.error.message || "")) {   // entró sin haber verificado: mandamos código nuevo
+          registro({ accion: "reenviar", email: em });
+          return pantallaCodigo(em, pw);
+        }
         if (r.error) return M.error(r.error);
-        if (!r.data.session) return mensaje(msg, "info", "¡Listo! Te mandamos un correo a " + em + ". Ábrelo para confirmar tu cuenta y después entra aquí.");
+        if (!r.data || !r.data.session) return mensaje(msg, "warn", "No pudimos entrar. Intenta de nuevo.");
         arrancar();
       }).catch(function (er) { btn.disabled = false; M.error(er) });
+    };
+  }
+  function registro(cuerpo) {
+    var C = window.MOSTRADOR || {};
+    return fetch(C.url + "/functions/v1/mos-registro", { method: "POST", headers: { "Content-Type": "application/json", apikey: C.key }, body: JSON.stringify(cuerpo) })
+      .then(function (res) { return res.json() });
+  }
+  // Paso 2 del registro: escribir el código de 6 dígitos que llegó al correo.
+  function pantallaCodigo(em, pw) {
+    app.innerHTML = '<div class="auth"><div class="box"><div class="brand"><span class="logo">' + ic("store", 20, 2) + '</span><span>Mostrador</span></div>' +
+      '<h1 class="hero-t">Revisa tu correo</h1><p class="body">Te mandamos un código de 6 números a <b>' + esc(em) + '</b>. Escríbelo aquí para activar tu cuenta. ' +
+      '<span class="muted">Si no lo ves, busca en “Spam” o “Promociones”.</span></p>' +
+      '<form class="card mt" id="fc" novalidate><label class="f"><span>Código</span><input class="inp big" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="000000" style="text-align:center;letter-spacing:.3em" autofocus></label>' +
+      '<div id="fc-msg"></div><button class="btn block lg">Activar mi cuenta</button>' +
+      '<div class="row between mt small"><a href="#" id="fc-re">Mandar otro código</a><a href="#" id="fc-otro">Usar otro correo</a></div></form></div></div>';
+    var f = $("#fc"), msg = $("#fc-msg");
+    f.codigo.oninput = function () { var v = this.value.replace(/\D/g, ""); if (v !== this.value) this.value = v; if (v.length === 6) f.requestSubmit ? f.requestSubmit() : f.onsubmit(new Event("submit")) };
+    $("#fc-otro").onclick = function (e) { e.preventDefault(); pantallaAcceso("crear") };
+    $("#fc-re").onclick = function (e) {
+      e.preventDefault(); var a = this; a.style.pointerEvents = "none";
+      registro({ accion: "reenviar", email: em }).then(function (j) {
+        a.style.pointerEvents = "";
+        if (j.ya) return mensaje(msg, "info", "Tu cuenta ya estaba activada. Entra con tu correo y contraseña.");
+        mensaje(msg, j.ok ? "info" : "warn", j.ok ? "Listo, te mandamos un código nuevo." : (j.error || "No se pudo mandar"));
+      });
+    };
+    f.onsubmit = function (e) {
+      e.preventDefault();
+      var c = f.codigo.value.replace(/\D/g, ""); if (c.length !== 6) return mensaje(msg, "warn", "El código tiene 6 números.");
+      var b = $("button.btn", f); if (b.disabled) return; b.disabled = true; b.textContent = "Activando…";
+      registro({ accion: "verificar", email: em, codigo: c }).then(function (j) {
+        if (!j.ok) { b.disabled = false; b.textContent = "Activar mi cuenta"; f.codigo.select(); return mensaje(msg, "warn", j.error || "Código incorrecto") }
+        if (!pw) { M.toast("¡Cuenta activada! Ya puedes entrar ✓", "ok"); return pantallaAcceso("entrar") }
+        return M.sb.auth.signInWithPassword({ email: em, password: pw }).then(function (r) {
+          if (r.error) { b.disabled = false; b.textContent = "Activar mi cuenta"; return M.error(r.error) }
+          M.toast("¡Cuenta activada! ✓", "ok"); arrancar();
+        });
+      }).catch(function (er) { b.disabled = false; b.textContent = "Activar mi cuenta"; M.error(er) });
     };
   }
   function mensaje(el, tipo, t) { el.innerHTML = '<div class="note ' + tipo + '">' + esc(t) + "</div>" }

@@ -19,6 +19,16 @@ Se instala como app en Android, iPhone, tablet o PC, y **la caja sigue vendiendo
 | **Proveedores** | Con WhatsApp, RFC y día de visita. |
 | **Mi negocio** | Datos, prender/apagar funciones, días de aviso de caducidad. |
 
+## Registro con verificación de correo
+“Crear cuenta” usa la función `mos-registro` (el registro general de Supabase está cerrado para proteger las otras tiendas del proyecto).
+Con correo configurado, al registrarse llega un **código de 6 números** y la cuenta no entra hasta escribirlo
+(15 minutos de vigencia, 5 intentos, reenvío cada minuto, máximo 5 registros por hora por lugar).
+
+**Para activar el envío de códigos (Gmail):**
+1. En tu cuenta de Google activa la verificación en 2 pasos y crea una **contraseña de aplicación** (myaccount.google.com/apppasswords).
+2. En Supabase → Edge Functions → **Secrets** agrega `SMTP_USER` = tu Gmail y `SMTP_PASS` = la contraseña de aplicación (16 letras).
+Mientras no estén, las cuentas se crean ya activadas (sin código).
+
 ## Demo para mostrar a clientes
 En la pantalla de entrada: **“Ver la demo: tienda de ejemplo”** (Abarrotes La Esperanza, Coyoacán): 53 productos con foto,
 5 proveedores, ~750 ventas de los últimos 30 días, caducidades (una por cambiar con el proveedor, una vencida, varias por vencer),

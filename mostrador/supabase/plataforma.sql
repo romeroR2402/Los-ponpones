@@ -234,3 +234,13 @@ end $$;
 -- La tienda del dueño de la plataforma no vence.
 update mos_negocios set pagado_hasta = date '2099-12-31', notas_admin = 'Tienda del dueño de la plataforma'
 where creado_por = (select id from auth.users where email = 'romerorayo2402@gmail.com') and not es_demo;
+
+-- ---------- 6. Registro y verificación de correo (funciones mos-registro y mos-admin-usuarios) ----------
+create table if not exists mos_registros (id bigserial primary key, ip text not null default '', email text not null default '', creado timestamptz not null default now());
+create index if not exists mos_registros_ip on mos_registros(ip, creado desc);
+alter table mos_registros enable row level security;
+create table if not exists mos_verificaciones (
+  email text primary key, user_id uuid, codigo_hash text not null, expira timestamptz not null,
+  intentos int not null default 0, enviados int not null default 1, ultimo_envio timestamptz not null default now(), creado timestamptz not null default now()
+);
+alter table mos_verificaciones enable row level security;   -- sin políticas: sólo las funciones del servidor

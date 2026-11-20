@@ -90,7 +90,7 @@
     if (/Invalid login/i.test(m)) m = "Correo o contraseña incorrectos.";
     if (/duplicate key.*codigo/i.test(m)) m = "Ya tienes otro producto con ese código.";
     if (/duplicate key.*cfdi/i.test(m)) m = "Esa factura ya se había registrado.";
-    if (/Email not confirmed/i.test(m)) m = "Confirma tu correo: te mandamos un enlace.";
+    if (/Email not confirmed/i.test(m)) m = "Activa tu cuenta con el código que te mandamos al correo.";
     if (/Signups not allowed|signup.*disabled/i.test(m)) m = "Por ahora el registro está cerrado. Pide tu acceso al administrador.";
     if (/already registered/i.test(m)) m = "Ese correo ya tiene cuenta. Toca “Entrar”.";
     M.toast(m, "bad"); console.error(e);
