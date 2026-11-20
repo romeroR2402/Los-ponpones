@@ -515,13 +515,24 @@ function drawMine(m){
     h+=hs.length?hs.map(hcard).join(""):'<p class="empty">Aquí verás tus compras en cuanto hagas tu primer pedido.</p>'}
   if(!h)h='<h2 style="margin:14px 0 8px">Mis compras</h2><p class="empty">Aún no tienes pedidos. Cuando hagas uno, aquí verás cómo va.</p>';
   m.innerHTML=h}
+var MINXP=6;
+function reorder(id){var r=(hist||[]).filter(function(x){return x.id===id})[0];if(!r)return;
+  if(closedNow()){note("Estamos cerrados","Por ahora no recibimos pedidos. ¡Vuelve pronto!");return}
+  var add=[],skip=[];(r.items||[]).forEach(function(t){var it=parseLine(t);if(!it){skip.push(t);return}
+    var c=curOf(it),fs=String(it.fl||"").split(" + ").filter(Boolean);
+    if(agoP(it.p)||fs.some(function(x){return ago(x)})||(it.fr||[]).some(function(x){return ago(x)})||(it.qx&&ago("Queso extra"))){skip.push(name(it)+(det(it)?" ("+det(it)+")":""));return}
+    add.push({p:it.p,fruit:it.fruit,fl:it.fl,fr:(it.fr||[]).slice(),qx:!!it.qx,q:it.q,u:unit(c)})});
+  if(!add.length){note("No se pudo repetir","Hoy no tenemos lo de ese pedido"+(skip.length?": "+esc(skip.join(", ")):"")+". Elige algo del menú.");return}
+  cart=cart.concat(add);view=1;draw();openCart();
+  if(skip.length)document.querySelector(".sheet h2").insertAdjacentHTML("afterend",'<p class="l" style="color:var(--red);margin-top:0">Hoy no tenemos: '+esc(skip.join(", "))+'. Lo demás ya está en tu pedido.</p>');
+  else document.querySelector(".sheet h2").insertAdjacentHTML("afterend",'<p class="l" style="margin-top:0">Agregamos tu pedido anterior con los precios de hoy. Puedes editarlo antes de enviarlo.</p>')}
 function hcard(r){var d=new Date(r.created_at),pen=r.estado==="pendiente";
   return '<div class="oc"><div class="oh"><b>Pedido #'+r.id+'</b><span>'+fdate(d,{day:"numeric",month:"short"})+' · '+$(+r.total)+'</span></div><ul>'+(r.items||[]).map(function(l){return '<li>'+esc(l)+'</li>'}).join("")+'</ul>'+(r.nota?'<p class="l" style="margin:0 0 6px;font-size:13px">📝 '+esc(r.nota)+'</p>':'')+
    (pen?'<p class="ms" style="margin-top:4px">⏳ En preparación</p>':r.gusto==null?'<p class="ms" style="margin-top:4px">¿Te gustó?</p><div class="acts" style="margin-top:8px"><button class="btn alt grow" onclick="rateOpen('+r.id+',true)">👍 Sí, me gustó</button><button class="btn alt grow" onclick="rateOpen('+r.id+',false)">👎 No me gustó</button></div>'
-   :'<div class="rated">'+(r.gusto?'👍 Te gustó':'👎 No te gustó')+(r.comentario?' · “'+esc(r.comentario)+'”':'')+'<button class="lnkb" onclick="rateOpen('+r.id+','+r.gusto+')">Cambiar</button></div>')+'</div>'}
+   :'<div class="rated">'+(r.gusto?'👍 Te gustó':'👎 No te gustó')+(r.comentario?' · “'+esc(r.comentario)+'”':'')+'<button class="lnkb" onclick="rateOpen('+r.id+','+r.gusto+')">Cambiar</button></div>')+(pen?'':'<button class="btn alt grow" style="width:100%;margin-top:10px" onclick="reorder('+r.id+')">🔁 Pedir otra vez</button>')+'</div>'}
 function mcard(x){var hh=(hist||[]).filter(function(r){return r.id===x.id})[0];if(hh)x=Object.assign({},x,{items:hh.items||x.items,total:+hh.total});
   var tm=new Date(x.at).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"}),ok=x.st==="ok",gone=x.st==="gone",
-   ms=ok?RDY[x.t]:gone?"La tienda cerró este pedido. Si tienes dudas, escríbenos.":x.lu==1?"¡Eres el siguiente! Ya casi está.":x.lu?"Preparando… vas en el lugar #"+x.lu+" de la fila.":"Recibimos tu pedido. Cargando…",
+   ms=ok?RDY[x.t]:gone?"La tienda cerró este pedido. Si tienes dudas, escríbenos.":x.lu==1?"¡Eres el siguiente! Listo en aprox. "+MINXP+" min.":x.lu?"Preparando… vas en el lugar #"+x.lu+" de la fila. Listo en aprox. "+(x.lu*MINXP)+" min.":"Recibimos tu pedido. Cargando…",
    q=encodeURIComponent("Hola, pregunto por mi pedido"+(x.id?" #"+x.id:"")+" de Los Ponpones");
   return '<div class="oc"><div class="oh"><b>Pedido'+(x.id?" #"+x.id:"")+'</b><span>'+TYN[x.t]+' · '+tm+'</span></div>'+
    (gone?'':'<div class="stp"><span class="on">Enviado</span><span class="'+(x.id||ok?"on":"")+'">Preparando</span><span class="'+(ok?"on":"")+'">'+STP[x.t]+'</span></div><div class="pg'+(ok?" ok":" ld")+'"><i style="width:'+(ok?100:x.id?66:33)+'%"></i></div>')+
