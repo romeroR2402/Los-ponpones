@@ -386,5 +386,10 @@
               : "Abre el menú del navegador (⋮) y elige “Instalar app” o “Agregar a pantalla principal”.");
   };
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost"))
-    navigator.serviceWorker.register("sw.js").catch(function () {});
+    navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(function (reg) { return reg.update() }).catch(function () {});
+  // Cuando llega una versión nueva de la app, recarga una vez para usarla (sólo si ya había una versión anterior).
+  if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+    var recargado = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function () { if (recargado) return; recargado = true; location.reload() });
+  }
 })();

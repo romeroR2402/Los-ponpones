@@ -1,6 +1,6 @@
 // Mostrador: guarda la app en el celular para abrir rápido y vender aunque falle el internet.
 // Sólo atiende los archivos de esta carpeta; Supabase y otras apps del sitio pasan directo.
-var C = "mostrador-v11", BASE = new URL("./", self.location).href;
+var C = "mostrador-v12", BASE = new URL("./", self.location).href;
 var FILES = ["./", "index.html", "config.js", "js/iconos.js", "js/giros.js", "js/core.js", "js/app.js", "css/mostrador.css", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-180.png"];
 var CDN = ["https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"];
@@ -19,7 +19,8 @@ self.addEventListener("fetch", function (e) {
   var propio = href.indexOf(BASE) === 0 && FILES.indexOf(href.slice(BASE.length) || "./") >= 0;
   if (!propio && CDN.indexOf(href) < 0) return;
   // Primero la red (siempre la última versión); sin conexión, la copia guardada.
-  e.respondWith(fetch(r).then(function (res) {
+  // "no-cache": siempre pregunta a GitHub si hay versión nueva (antes se reusaba la copia guardada hasta 10 min)
+  e.respondWith(fetch(r, { cache: "no-cache" }).then(function (res) {
     if (res.ok) { var cp = res.clone(); caches.open(C).then(function (c) { c.put(href, cp) }) }
     return res;
   }).catch(function () {
