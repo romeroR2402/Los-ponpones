@@ -12,7 +12,7 @@ Se instala como app en Android, iPhone, tablet o PC, y **la caja sigue vendiendo
 | **Inicio** | Lo que vendiste hoy, ganancia estimada, lo que se acaba y lo que se vence. |
 | **Vender** | Busca, toca o **escanea** (cámara o lector USB). Granel por kilo **o por dinero** ("dame $45 de jamón"). Efectivo con cambio, tarjeta, transferencia o fiado. Ticket por WhatsApp. |
 | **Productos** | Alta escaneando el código: **≈25 mil productos de México ya vienen cargados** (nombre, marca, presentación, foto y categoría) y sólo pones el precio. Si no está, lo escribes una vez y queda para todas las tiendas. También: mínimos, costo y ganancia, caducidad. Campos extra según el giro (farmacia: sustancia activa, laboratorio, receta). |
-| **Entrada de mercancía** | 3 formas: escanear uno tras otro, **subir el XML de la factura (CFDI 4.0)** que se llena sola con costos con IVA y crea al proveedor, o buscar a mano. Fecha de caducidad por lote y "el proveedor me lo cambia". |
+| **Entrada de mercancía** | 4 formas: escanear uno tras otro, **subir el XML de la factura (CFDI 4.0)** que se llena sola con costos con IVA y crea al proveedor, **foto del ticket del proveedor** (Coca, Pepsi, Bimbo…: se lee en el celular con Tesseract, igual que en Los Ponpones; empareja cada renglón con tu producto, cantidad y costo, y lo que no tienes lo da de alta), o buscar a mano. Fecha de caducidad por lote y "el proveedor me lo cambia". |
 | **Alertas** | Pídele el cambio al proveedor · Ya vencieron · Vencen pronto · Agotados · Se están acabando. Botones para sacar mermas, pedir el cambio por WhatsApp y **armar pedido** al proveedor. Aviso en el celular una vez al día. |
 | **Ventas** | Hoy / 7 / 30 días, ticket promedio, lo más vendido, por forma de pago, cancelar venta (regresa existencias). |
 | **Lector de códigos** | Pistolas **Bluetooth en modo teclado (HID)** —Android, iPhone y PC— y **USB**: se detecta la ráfaga del lector en cualquier pantalla, sin tocar nada. Pistolas **BLE** con botón “Conectar lector” (Chrome Android/PC). Pantalla de prueba con instrucciones. En Vender agrega a la venta, en Entradas suma a la lista, en otras pantallas muestra el producto o lo da de alta desde el catálogo. |
@@ -66,6 +66,7 @@ Cómo actualizarlo: `supabase/catalogo/README.md`.
 3. En **Authentication → URL Configuration → Redirect URLs** agrega `https://romeror2402.github.io/Los-ponpones/mostrador/**`.
 
 ## Pruebas
+`qa/ticket.js`: lee de verdad la imagen de un ticket de Coca-Cola (8 casos: renglones, cantidades, costos, emparejar, nuevos, TOTAL, proveedor, inventario).
 `qa/demo.js`: 11 casos de la demo (entrar con un toque, datos llenos, vender, reiniciar, aislamiento).
 `qa/lector.js`: 15 casos de pistola (ráfagas tipo teclado en cada pantalla, escritura lenta que no se confunde, pistola BLE simulada).
 `qa/e2e.js` recorre 35 casos en dos giros (abarrotes y farmacia), móvil y escritorio, sin internet y aislamiento entre negocios.

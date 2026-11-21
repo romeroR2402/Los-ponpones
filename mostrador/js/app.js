@@ -880,7 +880,8 @@
       v.innerHTML = '<div class="pagehead"><h1>Entrada de mercancía</h1>' + (e.lineas.length ? '<button class="btn ghost sm" id="e-borrar">Empezar de nuevo</button>' : "") + "</div>" +
         '<div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))"><button class="kpi" id="e-esc" style="border:0;text-align:left;cursor:pointer;font:inherit"><b>' + ic("scan-barcode", 26) + '</b><span>Escanear productos</span><br><span class="muted xs">Uno tras otro, como en caja</span></button>' +
         '<label class="kpi" style="cursor:pointer"><b>' + ic("receipt", 26) + '</b><span>Subir factura XML</span><br><span class="muted xs">La del proveedor (CFDI). Se llena sola</span><input type="file" id="e-xml" accept=".xml,text/xml,application/xml" class="hide"></label>' +
-        '<button class="kpi" id="e-man" style="border:0;text-align:left;cursor:pointer;font:inherit"><b>' + ic("search", 26) + '</b><span>Buscar producto</span><br><span class="muted xs">Agregar a mano</span></button></div>' +
+        '<button class="kpi" id="e-man" style="border:0;text-align:left;cursor:pointer;font:inherit"><b>' + ic("search", 26) + '</b><span>Buscar producto</span><br><span class="muted xs">Agregar a mano</span></button>' +
+        '<button class="kpi" id="e-foto" style="border:0;text-align:left;cursor:pointer;font:inherit"><b>' + ic("camera", 26) + '</b><span>Foto del ticket</span><br><span class="muted xs">El de Coca, Pepsi, Bimbo… Se lee solo</span></button></div>' +
         '<div class="card mt"><label class="f" style="margin:0"><span>Proveedor</span><div class="row"><select class="inp" id="e-prov"><option value="">Sin proveedor</option>' + proveedores.map(function (p) { return '<option value="' + p.id + '"' + (p.id === e.proveedor_id ? " selected" : "") + ">" + esc(p.nombre) + "</option>" }).join("") + '</select><button class="btn alt" id="e-nprov">＋</button></div></label></div>' +
         (e.pendientes.length ? '<div class="note warn mt"><div class="grow"><b>' + e.pendientes.length + ' productos de la factura no están en tu catálogo.</b><br>Los damos de alta con el costo de la factura y un precio sugerido (+30 %). Luego puedes cambiar el precio.</div></div><div class="list">' + e.pendientes.map(function (c, i) {
           return '<div class="li"><span class="t"><b>' + esc(c.descripcion) + "</b><small>" + (c.codigo ? esc(c.codigo) + " · " : "") + M.cant(c.cantidad, "pza") + " · costo " + money(c.costo) + '</small></span><button class="btn sm alt" data-crear="' + i + '">Revisar</button></div>';
@@ -892,6 +893,7 @@
       $("#e-nprov", v).onclick = function () { formProveedor(null, function (p) { e.proveedor_id = p.id; render() }) };
       $("#e-esc", v).onclick = escanearEntrada;
       $("#e-man", v).onclick = elegirProducto;
+      $("#e-foto", v).onclick = function () { ticketAbrir() };
       $("#e-xml", v).onchange = function () { if (this.files[0]) leerXML(this.files[0]) };
       if ($("#e-borrar", v)) $("#e-borrar", v).onclick = function () { M.confirmar("¿Empezar de nuevo?", "Se borra lo que llevas capturado (no lo guardado).", "Sí, borrar", true).then(function (ok) { if (ok) { entrada = null; render() } }) };
       if ($("#e-guardar", v)) $("#e-guardar", v).onclick = guardarEntrada;
@@ -1190,6 +1192,174 @@
 
   M.iconoLector = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M3 5h2v14H3zM7 5h1v14H7zM10 5h2v14h-2zM14 5h1v14h-1zM17 5h1v14h-1zM20 5h1v14h-1z"/><rect x="1" y="11.3" width="22" height="1.4" fill="#e32d14"/></svg>';
   // =====================================================================
+  // FOTO DEL TICKET DEL PROVEEDOR → entrada de mercancía (igual que en Los Ponpones: Tesseract en el celular)
+  // =====================================================================
+  var tk = null;
+  var TK_SALTAR = /(sub ?-?total|\biva\b|ieps|impuesto|cambio|efectivo|tarjeta|\bpago|d[eé]bito|cr[eé]dito|ahorro|descuento|art[ií]culos|\brfc|folio|fecha|hora|cajer|ticket|gracias|tel[eé]fono|www|cliente|saldo|puntos|redondeo|recibido|transacc|autoriz|aprob|referencia|su compra|monedero|vendedor|ruta|pedido|remisi[oó]n|factura|domicilio|c\.?p\.?\s*\d)/i;
+  var TK_PROVEEDORES = ["coca", "femsa", "pepsi", "bimbo", "marinela", "barcel", "lala", "alpura", "sabritas", "gamesa", "jumex", "bonafont", "danone", "nestl", "sigma", "fud", "peñafiel"];
+  function tkNorm(t) { return String(t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim() }
+  function tkNum(t) { return parseFloat(String(t).replace(/,(?=\d{3}\b)/g, "").replace(",", ".")) }
+  // Lee los renglones: [cantidad] descripción [precio unitario] importe
+  function tkParsear(texto) {
+    var lineas = String(texto).split(/\n/).map(function (l) { return l.replace(/\s+/g, " ").trim() }).filter(Boolean), items = [], total = null, tienda = "";
+    lineas.forEach(function (l, i) {
+      if (i < 6 && !tienda) { var n = tkNorm(l); TK_PROVEEDORES.forEach(function (pv) { if (!tienda && n.indexOf(pv) >= 0) tienda = l }) }
+      var montos = l.match(/\d{1,6}(?:,\d{3})*[.,]\d{2}(?!\d)/g); if (!montos) return;
+      var importe = tkNum(montos[montos.length - 1]);
+      if (/\btotal\b/i.test(l) && !/sub/i.test(l)) { if (total === null) total = importe; return }
+      if (TK_SALTAR.test(l) || !(importe > 0)) return;
+      var resto = l, codigo = (l.match(/\b\d{8,14}\b/) || [""])[0];
+      var mc = resto.match(/^\s*(\d{1,4}(?:[.,]\d{1,3})?)\s*(?:pzas?|pz|cjs?|cajas?|paq|x)?\s+(?=[A-Za-zÁÉÍÓÚÑ])/i);
+      var cant = mc ? tkNum(mc[1]) : null; if (mc) resto = resto.slice(mc[0].length);
+      var pu = montos.length >= 2 ? tkNum(montos[montos.length - 2]) : null;
+      if (cant && !pu) pu = M.r2(importe / cant);
+      if (!cant && pu) { var q = importe / pu; cant = Math.abs(q - Math.round(q)) < 0.05 && Math.round(q) >= 1 ? Math.round(q) : 1; }
+      if (!cant) { cant = 1; pu = importe }
+      // Si cantidad × precio unitario no da el importe, casi siempre el lector se equivocó en el importe (p. ej. "1384" por "384"):
+      // confiamos en el precio unitario y marcamos el renglón para que lo revisen.
+      var dudoso = !!(pu && Math.abs(cant * pu - importe) > Math.max(1, importe * 0.05));
+      var nombre = resto.replace(/\d{1,6}(?:,\d{3})*[.,]\d{2}(?!\d)/g, " ").replace(/\b\d{8,14}\b/g, " ").replace(/[$*#@|_=~]/g, " ")
+        .replace(/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü0-9 .\/%-]/g, " ").replace(/\s+/g, " ").trim();
+      if (nombre.replace(/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü]/g, "").length < 3) return;
+      nombre = nombre.toLowerCase().replace(/(^|\s)\S/g, function (c) { return c.toUpperCase() }).slice(0, 60);
+      items.push({ nombre: nombre, cantidad: M.r3(cant), costo: M.r2(pu), codigo: codigo, dudoso: dudoso, importe: importe });
+    });
+    return { items: items, total: total, tienda: tienda.slice(0, 40) };
+  }
+  // Busca el producto de la tienda que más se parece al renglón del ticket
+  function tkEmparejar(it) {
+    if (it.codigo) { var pc = M.porCodigo(it.codigo); if (pc) return { id: pc.id, score: 1 } }
+    var UNIDAD = /^(ml|l|lt|lts|g|gr|kg|pz|pza|pzas|oz|cj|paq|x)$/;
+    var a = tkNorm(it.nombre).split(" ").filter(function (w) { return w.length > 1 || /\d/.test(w) }), mejor = null;
+    if (!a.length) return null;
+    M.productos.forEach(function (p) {
+      var b = tkNorm(p.nombre).split(" ").filter(function (w) { return w.length > 1 }); if (!b.length) return;
+      var comun = a.filter(function (w) { return b.some(function (x) { return x === w || (w.length > 3 && x.length > 3 && (x.indexOf(w) === 0 || w.indexOf(x) === 0)) }) });
+      if (!comun.some(function (w) { return /[a-z]{3}/.test(w) && !UNIDAD.test(w) })) return;   // debe compartir al menos una palabra de verdad (no sólo "600 ml")
+      var num = a.filter(function (w) { return /\d/.test(w) }), numOk = num.every(function (w) { return b.indexOf(w) >= 0 });
+      var sc = comun.length / Math.max(a.length, b.length) + (num.length && numOk ? 0.15 : 0) - (num.length && !numOk ? 0.2 : 0);
+      if (!mejor || sc > mejor.score) mejor = { id: p.id, score: sc };
+    });
+    return mejor && mejor.score >= 0.45 ? mejor : null;
+  }
+  function ticketAbrir() { tk = { paso: "elegir" }; ticketPintar() }
+  function cargarTesseract() {
+    if (window.Tesseract) return Promise.resolve();
+    return new Promise(function (ok, no) {
+      var sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/tesseract.js@6.0.1/dist/tesseract.min.js";
+      sc.onload = ok; sc.onerror = function () { no(new Error("No se pudo descargar el lector. Revisa tu internet.")) }; document.head.appendChild(sc);
+    });
+  }
+  // Foto más legible: tamaño medido, gris y más contraste
+  function ticketImagen(file) {
+    return new Promise(function (ok, no) {
+      var im = new Image(), u = URL.createObjectURL(file);
+      im.onload = function () {
+        var k = Math.min(1, 1800 / Math.max(im.width, im.height)), c = document.createElement("canvas"); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
+        var x = c.getContext("2d"); x.drawImage(im, 0, 0, c.width, c.height);
+        var d = x.getImageData(0, 0, c.width, c.height), a = d.data;
+        for (var i = 0; i < a.length; i += 4) { var g = .3 * a[i] + .59 * a[i + 1] + .11 * a[i + 2]; g = Math.max(0, Math.min(255, (g - 128) * 1.5 + 140)); a[i] = a[i + 1] = a[i + 2] = g }
+        x.putImageData(d, 0, 0); ok({ c: c, u: u });
+      };
+      im.onerror = function () { no(new Error("No se pudo abrir la imagen")) }; im.src = u;
+    });
+  }
+  function ticketLeer(file) {
+    if (!file) return;
+    tk = { paso: "leer", msg: "Abriendo la foto…", pct: 3 }; ticketPintar();
+    function avance(m, p) { tk.msg = m; tk.pct = p; var a = $("#tk-m"), b = $("#tk-b"); if (a) a.textContent = m; if (b) b.style.width = p + "%" }
+    var foto;
+    ticketImagen(file).then(function (im) { foto = im; tk.pv = im.u; ticketPintar(); avance("Preparando el lector… (la primera vez tarda un poco más)", 8); return cargarTesseract() })
+      .then(function () {
+        return Tesseract.createWorker("spa", 1, { logger: function (m) {
+          if (m.status === "recognizing text") avance("Leyendo el ticket… " + Math.round(m.progress * 100) + "%", 20 + Math.round(m.progress * 78));
+          else if (/load/.test(m.status)) avance("Preparando el lector… (la primera vez tarda un poco más)", Math.min(19, 8 + Math.round((m.progress || 0) * 11)));
+        } });
+      })
+      .then(function (w) { return w.recognize(foto.c).then(function (r) { return w.terminate().then(function () { return r }) }) })
+      .then(function (r) {
+        var pt = tkParsear(r.data.text);
+        pt.items.forEach(function (it) { var m = tkEmparejar(it); it.producto = m ? m.id : "nuevo" });
+        tk = { paso: "revisar", items: pt.items, total: pt.total, tienda: pt.tienda, texto: r.data.text, pv: tk.pv };
+        ticketPintar();
+      })
+      .catch(function (e) { tk = { paso: "elegir", err: (e && e.message) || String(e) }; ticketPintar() });
+  }
+  function ticketPintar() {
+    var t = tk, h;
+    if (t.paso === "elegir") {
+      h = '<h2>' + ic("camera", 22) + ' Foto del ticket</h2><p class="body">Toma una foto del ticket o nota de tu proveedor (Coca, Pepsi, Bimbo…). Que se vea <b>derecho, completo y con buena luz</b>.</p>' +
+        '<label class="btn block lg" for="tk-cam" style="cursor:pointer">' + ic("camera", 20) + ' Tomar foto</label><input type="file" id="tk-cam" accept="image/*" capture="environment" class="hide">' +
+        '<label class="btn alt block lg mt" for="tk-gal" style="cursor:pointer">' + ic("download", 20) + ' Elegir de la galería</label><input type="file" id="tk-gal" accept="image/*" class="hide">' +
+        '<p class="muted small mt">El ticket se lee aquí mismo en tu celular. Antes de guardar podrás corregir todo.</p>' + (t.err ? '<div class="note bad mt"><span>No se pudo leer: ' + esc(t.err) + "</span></div>" : "");
+    } else if (t.paso === "leer") {
+      h = '<h2>Leyendo el ticket…</h2>' + (t.pv ? '<img src="' + t.pv + '" alt="Ticket" style="max-height:220px;max-width:100%;display:block;margin:0 auto 12px;border-radius:12px">' : "") +
+        '<p class="body center" id="tk-m">' + esc(t.msg || "Preparando…") + '</p><div style="height:8px;background:var(--surface-2);border-radius:8px;overflow:hidden"><i id="tk-b" style="display:block;height:100%;background:var(--primary);width:' + (t.pct || 3) + '%;transition:width .3s"></i></div>';
+    } else {
+      var opciones = M.productos.slice().sort(function (a, b) { return a.nombre.localeCompare(b.nombre) });
+      h = '<h2>Revisa lo que leí</h2><p class="body small">Corrige nombres, cantidades o costos, quita con ✕ lo que no sea mercancía y elige a qué producto tuyo corresponde.' +
+        (t.tienda ? ' <b>Proveedor: ' + esc(t.tienda) + "</b>" : "") + "</p>" +
+        (t.items.length ? "" : '<div class="note warn"><span>No encontré renglones con precio. Prueba con otra foto más derecha y con más luz, o agrégalos abajo.</span></div>') +
+        '<div id="tk-l">' + t.items.map(function (r, i) {
+          var nuevo = r.producto === "nuevo";
+          return '<div class="card" style="padding:12px;margin-bottom:10px" data-i="' + i + '"><div class="row"><input class="inp grow" data-k="nombre" value="' + esc(r.nombre) + '" aria-label="Nombre en el ticket"><button class="ibtn" data-quitar="' + i + '" aria-label="Quitar renglón">✕</button></div>' +
+            '<div class="grid2 mt" style="margin-top:8px"><label class="f" style="margin:0"><span>Cantidad</span><input class="inp" data-k="cantidad" inputmode="decimal" value="' + r.cantidad + '"></label>' +
+            '<label class="f" style="margin:0"><span>Costo c/u</span><input class="inp" data-k="costo" inputmode="decimal" value="' + r.costo + '"></label></div>' +
+            '<label class="f" style="margin:8px 0 0"><span>Es mi producto…</span><select class="inp" data-k="producto"><option value="nuevo"' + (nuevo ? " selected" : "") + '>➕ Producto nuevo (lo doy de alta)</option>' +
+            opciones.map(function (p) { return '<option value="' + p.id + '"' + (p.id === r.producto ? " selected" : "") + ">" + esc(p.nombre) + "</option>" }).join("") + "</select></label>" +
+            (r.dudoso ? '<p class="xs" style="margin:6px 0 0;color:var(--warn)">⚠ Revisa: en el ticket leí importe ' + money(r.importe) + ", no cuadra con cantidad × costo.</p>" : "") +
+            (nuevo ? '<p class="xs muted" style="margin:6px 0 0">Se dará de alta con precio sugerido de ' + money(precioSugerido(r.costo || 0)) + " (lo cambias después).</p>" : "") + "</div>";
+        }).join("") + "</div>" +
+        '<button class="btn ghost sm" id="tk-mas">＋ Agregar renglón</button>' +
+        '<div class="total" style="margin:14px 0 4px"><span>Suma</span><b id="tk-s" style="font-size:24px"></b></div><p class="small" id="tk-w" style="color:var(--warn);margin:0 0 8px"></p>' +
+        '<details class="small mt"><summary>Ver el texto que leí del ticket</summary><pre style="white-space:pre-wrap;font-size:12px;background:var(--surface-2);padding:10px;border-radius:10px">' + esc(t.texto || "") + "</pre></details>" +
+        '<div class="acts"><button class="btn ghost" id="tk-otro">Leer otro</button><button class="btn" id="tk-ok">Pasar a la entrada</button></div>';
+    }
+    var hoja = M.hoja(h, { ancha: true });
+    if (t.paso === "elegir") { $("#tk-cam", hoja).onchange = $("#tk-gal", hoja).onchange = function () { ticketLeer(this.files[0]) } }
+    if (t.paso !== "revisar") return;
+    function suma() {
+      var sm = t.items.reduce(function (a, r) { return a + (M.num(r.cantidad) * M.num(r.costo)) }, 0);
+      $("#tk-s", hoja).textContent = money(sm);
+      $("#tk-w", hoja).textContent = t.total != null && Math.abs(t.total - sm) > 1 ? "El ticket dice TOTAL " + money(t.total) + ". Revisa si falta o sobra algo." : "";
+    }
+    $("#tk-l", hoja).oninput = $("#tk-l", hoja).onchange = function (e) {
+      var k = e.target.dataset.k; if (!k) return; var r = t.items[+e.target.closest("[data-i]").dataset.i];
+      r[k] = k === "nombre" || k === "producto" ? e.target.value : M.num(e.target.value);
+      if (k === "producto" && e.type === "change") ticketPintar(); else suma();
+    };
+    $("#tk-l", hoja).onclick = function (e) { var b = e.target.closest("[data-quitar]"); if (b) { t.items.splice(+b.dataset.quitar, 1); ticketPintar() } };
+    $("#tk-mas", hoja).onclick = function () { t.items.push({ nombre: "", cantidad: 1, costo: 0, producto: "nuevo" }); ticketPintar() };
+    $("#tk-otro", hoja).onclick = ticketAbrir;
+    $("#tk-ok", hoja).onclick = function () { ticketPasar(this) };
+    suma();
+  }
+  function ticketPasar(btn) {
+    var t = tk, filas = t.items.filter(function (r) { return (r.nombre || "").trim() && M.num(r.cantidad) > 0 });
+    if (!filas.length) return M.toast("No hay renglones con nombre y cantidad", "bad");
+    btn.disabled = true; btn.textContent = "Pasando…";
+    var nuevos = filas.filter(function (r) { return r.producto === "nuevo" });
+    var alta = nuevos.length ? M.sb.from("mos_productos").insert(nuevos.map(function (r) {
+      return { negocio_id: M.negocio.id, nombre: r.nombre.trim(), categoria: "General", unidad: M.unidadesNegocio()[0], costo: M.r2(M.num(r.costo)), precio: precioSugerido(M.num(r.costo) || 0) || 1, minimo: M.giro.alertas.minimo };
+    })).select() : Promise.resolve({ data: [] });
+    alta.then(function (res) {
+      if (res.error) throw res.error;
+      (res.data || []).forEach(function (p, k) { M.productos.push(p); nuevos[k].producto = p.id });
+      M.productos.sort(function (a, b) { return a.nombre.localeCompare(b.nombre) });
+      nuevaEntrada(); entrada.origen = "foto";
+      if (t.tienda && !entrada.proveedor_id && proveedores) {
+        var n = tkNorm(t.tienda), pv = proveedores.filter(function (x) { var pn = tkNorm(x.nombre).split(" ")[0]; return pn.length > 2 && n.indexOf(pn) >= 0 })[0];
+        if (pv) entrada.proveedor_id = pv.id;
+      }
+      filas.forEach(function (r) { var p = M.porId(r.producto); if (p) agregarLinea(p, M.r3(M.num(r.cantidad)), M.r2(M.num(r.costo))) });
+      tk = null; M.cerrarHoja();
+      M.toast(filas.length + " productos pasados a la entrada ✓ Revisa fechas de caducidad y guarda", "ok");
+      if (ruta() === "entradas") render(); else location.hash = "#/entradas";
+    }).catch(function (e) { btn.disabled = false; btn.textContent = "Pasar a la entrada"; M.error(e) });
+  }
+  M.tkParsear = tkParsear;   // para pruebas
+
+  // =====================================================================
   // RECORRIDO GUIADO: ilumina cada sección del menú y explica para qué sirve
   // =====================================================================
   function claveRecorrido() { return "mostrador-recorrido-" + (M.user && M.user.id) }
@@ -1202,7 +1372,7 @@
       vender: "Tu caja. Escanea o toca los productos y cobra en efectivo, tarjeta o transferencia" + (fiado ? " (o fiado)" : "") + "." +
         (gran ? " Lo de granel lo vendes por kilo o por dinero: “dame $20 de jamón”." : "") + " Funciona aunque se vaya el internet.",
       productos: "Tu catálogo. Escanea un código de barras y el producto aparece solo, con nombre y foto: tú sólo pones el precio. Aquí ves cuánto tienes de cada uno.",
-      entradas: "Cuando llega mercancía. Escanéala o sube la factura XML de tu proveedor y tu inventario se suma solo." + (cad ? " Aquí anotas la fecha de caducidad." : ""),
+      entradas: "Cuando llega mercancía. Escanéala, sube la factura XML o tómale foto al ticket de tu proveedor (Coca, Pepsi, Bimbo…) y tu inventario se suma solo." + (cad ? " Aquí anotas la fecha de caducidad." : ""),
       alertas: "Te avisa lo que se está acabando" + (cad ? ", lo que se va a vencer y lo que tu proveedor te debe cambiar" : "") + ". Desde aquí armas tu pedido y lo mandas por WhatsApp.",
       ventas: "Todas tus ventas: hoy, 7 y 30 días, cuánto ganaste y lo que más vendes. Aquí también cancelas una venta.",
       proveedores: "Tus proveedores con su WhatsApp, para pedirles mercancía o cambios con un solo toque.",
