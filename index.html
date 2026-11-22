@@ -389,6 +389,32 @@ details.tk-raw pre{white-space:pre-wrap;font-size:12px;background:var(--tile);bo
 @media(prefers-reduced-motion:reduce){.alrt{animation:none}}
 .avs{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 4px;font-size:13px;color:var(--mute);font-weight:700}
 .avs .btn.alt{background:var(--tile)}
+/* Celular de lado (horizontal): todo más compacto y barras abajo a los lados */
+@media (orientation:landscape) and (max-height:540px){
+  body{padding-bottom:84px}
+  header{padding:8px max(20px,env(safe-area-inset-right,0px)) 2px max(20px,env(safe-area-inset-left,0px))}
+  .lg{width:56px;height:56px}
+  .logo{font-size:19px}
+  .wl{font-size:11px}
+  main{padding-top:4px}
+  .promo{padding:12px 18px;margin:6px 0 10px;border-radius:22px}
+  .promo h2{font-size:20px;margin:2px 0 8px}
+  .pe{width:78px;height:78px}
+  .promo.fall{min-height:0;padding:14px 14px 12px 18px}
+  .promo.fall h2{font-size:24px}
+  .promo.fall .pe{width:96px;height:104px}
+  .promo.fall .sub{margin-bottom:8px}
+  .closed,.aviso,.inst{margin:6px 0 10px}
+  nav{left:max(12px,env(safe-area-inset-left,0px));transform:none;bottom:calc(8px + env(safe-area-inset-bottom,0px))}
+  nav button{padding:8px 10px}
+  .bar{left:auto;right:max(12px,env(safe-area-inset-right,0px));width:auto;min-width:260px;max-width:46%;bottom:calc(8px + env(safe-area-inset-bottom,0px));margin:0;padding:6px 6px 6px 16px}
+  .sheet{max-height:96%;max-width:640px;padding-top:14px}
+  .hero{height:110px;margin-bottom:8px}
+  .hero[style*="font-size"]{height:80px;font-size:44px!important}
+  .sheet h2{font-size:20px;margin-bottom:6px}
+  .qty{margin-top:8px}
+  .alrt{top:calc(6px + env(safe-area-inset-top,0px))}
+}
 </style>
 </head>
 <body>
