@@ -1,6 +1,6 @@
 // Casa de Los Ponpones: guarda la app en el celular para abrirla rápido y aunque falle la conexión.
 // Solo atiende los archivos de Los Ponpones; las otras apps de este sitio y Supabase pasan directo.
-var C = "ponpones-v1", BASE = new URL("./", self.location).href;
+var C = "ponpones-v2", BASE = new URL("./", self.location).href;
 var FILES = ["./", "index.html", "config.js", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png"];
 
 self.addEventListener("install", function (e) {
@@ -28,5 +28,14 @@ self.addEventListener("fetch", function (e) {
     return caches.match(href).then(function (m) {
       return m || (r.mode === "navigate" ? caches.match(BASE + "index.html") : Response.error());
     });
+  }));
+});
+
+// Al tocar el aviso de "Nuevo pedido", abre la app.
+self.addEventListener("notificationclick", function (e) {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (cs) {
+    for (var i = 0; i < cs.length; i++) { if (cs[i].url.indexOf(BASE) === 0 && "focus" in cs[i]) return cs[i].focus(); }
+    return self.clients.openWindow(BASE);
   }));
 });
