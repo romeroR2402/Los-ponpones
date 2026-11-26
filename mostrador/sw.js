@@ -1,6 +1,6 @@
 // Mostrador: guarda la app en el celular para abrir rápido y vender aunque falle el internet.
 // Sólo atiende los archivos de esta carpeta; Supabase y otras apps del sitio pasan directo.
-var C = "mostrador-v15", BASE = new URL("./", self.location).href;
+var C = "mostrador-v16", BASE = new URL("./", self.location).href;
 var FILES = ["./", "index.html", "config.js", "js/iconos.js", "js/giros.js", "js/core.js", "js/app.js", "js/admin.js", "admin.html", "css/mostrador.css", "manifest.webmanifest",
   "icons/icon-192.png", "icons/icon-512.png", "icons/apple-180.png"];
 var CDN = ["https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"];

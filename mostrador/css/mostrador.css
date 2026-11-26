@@ -253,3 +253,12 @@ img.foto.ok { opacity: 1 }
 @media (max-width: 420px) { .solo-amplio { display: none } }
 .al-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px } @media (min-width: 700px) { .al-grid { grid-template-columns: repeat(5, minmax(0,1fr)) } }
 body:has(#selbar) .toast { bottom: calc(150px + var(--safe-b)) }
+
+/* ---------- Aviso "Instala la app" (como Los Ponpones) ---------- */
+.inst { display: flex; align-items: center; gap: 10px; background: var(--surface, #fff); border: 1px solid var(--primary-soft); border-radius: var(--r-lg, 16px); padding: 10px 8px 10px 12px; margin: 0 0 14px; box-shadow: 0 4px 14px rgba(20, 80, 45, .08); animation: inst-in .45s cubic-bezier(.2, .8, .2, 1) both }
+.inst-ic { width: 40px; height: 40px; border-radius: 12px; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; flex: none }
+.inst-t { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25 } .inst-t b { font-size: 15px } .inst-t small { color: var(--muted, #6b7280); font-size: 12.5px }
+.inst .btn { flex: none } .inst-x { flex: none; background: none; border: 0; width: 32px; height: 32px; border-radius: 50%; color: var(--muted, #6b7280); font-size: 15px; cursor: pointer } .inst-x:hover { background: var(--canvas, #f5f7f6) }
+.inst-pasos { padding-left: 22px; line-height: 1.7; font-size: 15px } .inst-pasos li { margin-bottom: 6px }
+@keyframes inst-in { from { opacity: 0; transform: translateY(-6px) } to { opacity: 1; transform: none } }
+@media (prefers-reduced-motion: reduce) { .inst { animation: none } }

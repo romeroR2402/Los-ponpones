@@ -106,7 +106,7 @@
     app.innerHTML = '<div class="auth"><div class="box">' +
       '<div class="brand"><span class="logo">' + ic("store", 20, 2) + '</span><span>Mostrador</span></div>' +
       '<h1 class="hero-t">Tu negocio, en orden y sin complicaciones.</h1>' +
-      '<p class="body">Vende, escanea tu mercancía y entérate de lo que se acaba o se va a vencer.</p>' +
+      '<p class="body">Vende, escanea tu mercancía y entérate de lo que se acaba o se va a vencer.</p><div class="inst-slot mt"></div>' +
       '<div class="card mt"><div class="tabs" role="tablist"><button type="button" data-m="entrar" class="' + (modo === "entrar" ? "on" : "") + '">Entrar</button><button type="button" data-m="crear" class="' + (modo === "crear" ? "on" : "") + '">Crear cuenta</button></div>' +
       '<form id="fa" novalidate>' +
       (modo === "crear" ? '<label class="f"><span>Tu nombre</span><input class="inp" name="nombre" autocomplete="name" required></label>' : "") +
@@ -118,6 +118,7 @@
       "</form></div>" +
       '<div class="card mt" style="text-align:center"><p class="body small" style="margin:0 0 10px">¿Quieres verla funcionando antes de registrarte?</p>' +
       '<button class="btn alt block lg" id="ver-demo">' + ic("store", 20) + ' Ver la demo: tienda de ejemplo</button></div></div></div>';
+    M.pintarInstalar();
     $$(".tabs button").forEach(function (b) { b.onclick = function () { pantallaAcceso(b.dataset.m) } });
     var f = $("#fa"), msg = $("#fa-msg");
     $("#ver-demo").onclick = function () {
@@ -425,7 +426,7 @@
     var a = alertas(), persona = (M.user.user_metadata && M.user.user_metadata.nombre || "").split(" ")[0];
     var cad = M.tiene("caducidad");
     v.innerHTML = '<div class="pagehead"><div><p class="muted small" style="margin:0">' + esc(M.fecha(M.hoyISO())) + '</p><h1>Hola' + (persona ? ", " + esc(persona) : "") + '</h1></div>' +
-      '<div class="row"><a class="btn lg" href="#/vender">' + ic("receipt", 20) + ' Vender</a></div></div>' +
+      '<div class="row"><a class="btn lg" href="#/vender">' + ic("receipt", 20) + ' Vender</a></div></div><div class="inst-slot"></div>' +
       '<div class="kpis"><div class="kpi dark"><span class="muted small">Vendiste hoy</span><b id="k-hoy">…</b><span class="muted xs" id="k-n"></span></div>' +
       '<a class="kpi" href="#/ventas"><span class="muted small">Ganancia de hoy</span><b id="k-gan">…</b><span class="muted xs">estimada</span></a>' +
       '<a class="kpi ' + (a.bajo.length + a.agotados.length ? "warn" : "") + '" href="#/alertas"><span class="muted small">Se acaban o agotaron</span><b>' + (a.bajo.length + a.agotados.length) + '</b><span class="muted xs">productos</span></a>' +
@@ -436,6 +437,7 @@
       '<div class="sec"><h2>Atención</h2><a href="#/alertas" class="small">Ver todo →</a></div><div id="i-al"></div>' +
       '<div class="sec"><h2>Últimas ventas</h2><a href="#/ventas" class="small">Ver todas →</a></div><div id="i-ven"><div class="spin"></div></div>' +
       (puedeInventario() ? '<div class="sec"><h2>Accesos rápidos</h2></div><div class="row wrap"><a class="btn alt" href="#/entradas">' + ic("truck", 18) + ' Dar entrada a mercancía</a><button class="btn alt" id="i-nuevo">＋ Nuevo producto</button></div>' : "");
+    M.pintarInstalar();
     if ($("#i-esc", v)) $("#i-esc", v).onclick = escanearAlta;
     if ($("#i-nuevo", v)) $("#i-nuevo", v).onclick = function () { formProducto() };
     pintarListaAlertas($("#i-al", v), a, 5);

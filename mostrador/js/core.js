@@ -385,15 +385,39 @@
     navigator.bluetooth.getDevices().then(function (ds) { var d = ds.filter(function (x) { return x.id === id })[0]; if (d) reconectar(d, 1) }).catch(function () {});
   };
 
-  // ---------- Instalar como app ----------
+  // ---------- Instalar como app (igual que Los Ponpones) ----------
   M.instalar = null;
-  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); M.instalar = e; document.documentElement.classList.add("can-install") });
-  M.pedirInstalar = function () {
-    if (M.instalar) { M.instalar.prompt(); M.instalar = null; document.documentElement.classList.remove("can-install"); return }
-    var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    alert(ios ? "En iPhone: toca Compartir (cuadro con flecha) y elige “Agregar a pantalla de inicio”."
-              : "Abre el menú del navegador (⋮) y elige “Instalar app” o “Agregar a pantalla principal”.");
+  M.esApp = function () { return (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true };
+  M.esIOS = function () { return /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) };
+  function instNo() { try { return localStorage.getItem("mostrador-inst-no") === "1" } catch (e) { return false } }
+  function marcar() { document.documentElement.classList.toggle("can-install", !M.esApp() && !!(M.instalar || M.esIOS())) }
+  // Aviso "Instala la app": se pinta en cada lugar con <div class="inst-slot"></div>
+  M.avisoInstalar = function () {
+    if (instNo() || M.esApp() || !(M.instalar || M.esIOS())) return "";
+    return '<div class="inst"><span class="inst-ic">' + (window.ic ? ic("smartphone", 22) : "") + '</span><span class="inst-t"><b>Instala la app</b><small>Abre Mostrador desde tu pantalla de inicio, como cualquier app</small></span>' +
+      '<button class="btn sm" data-inst-si>Instalar</button><button class="inst-x" aria-label="No mostrar" data-inst-no>✕</button></div>';
   };
+  M.pintarInstalar = function () {
+    marcar();
+    M.$$(".inst-slot").forEach(function (el) {
+      el.innerHTML = M.avisoInstalar();
+      var si = M.$("[data-inst-si]", el), no = M.$("[data-inst-no]", el);
+      if (si) si.onclick = M.pedirInstalar;
+      if (no) no.onclick = function () { try { localStorage.setItem("mostrador-inst-no", "1") } catch (e) {} M.pintarInstalar() };
+    });
+  };
+  window.addEventListener("beforeinstallprompt", function (e) { e.preventDefault(); M.instalar = e; M.pintarInstalar() });
+  window.addEventListener("appinstalled", function () { M.instalar = null; try { localStorage.setItem("mostrador-inst-no", "1") } catch (e) {} M.pintarInstalar(); M.toast && M.toast("¡Listo! Mostrador quedó instalada en tu pantalla de inicio.", "ok") });
+  M.pedirInstalar = function () {
+    if (M.instalar) { var d = M.instalar; M.instalar = null; d.prompt(); d.userChoice.then(M.pintarInstalar, M.pintarInstalar); return }
+    if (M.esApp()) { M.toast("Ya estás usando Mostrador como app.", "ok"); return }
+    var ios = M.esIOS();
+    M.hoja('<h2>' + (ios ? "Instalar en iPhone" : "Instalar la app") + '</h2>' + (ios
+      ? '<ol class="inst-pasos"><li>En <b>Safari</b>, toca el botón <b>Compartir</b> (el cuadro con una flecha hacia arriba).</li><li>Elige <b>«Agregar a inicio»</b>.</li><li>Toca <b>Agregar</b>. ¡Listo!</li></ol>'
+      : '<ol class="inst-pasos"><li>Abre el menú del navegador (<b>⋮</b>).</li><li>Elige <b>«Instalar app»</b> o <b>«Agregar a pantalla principal»</b>.</li><li>Confirma. ¡Listo!</li></ol>') +
+      '<p class="muted small">Mostrador se abre en pantalla completa, sin barra del navegador, y funciona aunque se vaya el internet.</p><button class="btn block lg" data-cerrar>Entendido</button>');
+  };
+  marcar();
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost"))
     navigator.serviceWorker.register("sw.js", { updateViaCache: "none" }).then(function (reg) { return reg.update() }).catch(function () {});
   // Cuando llega una versión nueva de la app, recarga una vez para usarla (sólo si ya había una versión anterior).

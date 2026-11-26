@@ -2,6 +2,7 @@
 
 Una sola app que se adapta al giro del negocio: **abarrotes, minisúper, tlapalería, farmacia, papelería** y otros.
 Se instala como app en Android, iPhone, tablet o PC, y **la caja sigue vendiendo sin internet**.
+Igual que Los Ponpones: en la entrada y en Inicio aparece el aviso **«Instala la app»** (en Android abre la ventana de instalar; en iPhone muestra los pasos Compartir → Agregar a inicio). La ✕ lo oculta y ya abierta como app no vuelve a salir. Prueba: `qa/instalar.js`.
 
 **Link** (GitHub Pages, cuando se suba): https://romeror2402.github.io/Los-ponpones/mostrador/
 
