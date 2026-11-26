@@ -29,6 +29,20 @@ Con correo configurado, al registrarse llega un **código de 6 números** y la c
 2. En Supabase → Edge Functions → **Secrets** agrega `SMTP_USER` = tu Gmail y `SMTP_PASS` = la contraseña de aplicación (16 letras).
 Mientras no estén, las cuentas se crean ya activadas (sin código).
 
+## Administración de la plataforma (sólo tú)
+**https://romeror2402.github.io/Los-ponpones/mostrador/admin.html** (o “Administración” en el menú de la app, sólo visible para ti).
+Igual que el panel de psicoagenda:
+- **Resumen:** tiendas, con acceso (en prueba / pagando), por vencer, sin acceso, cobrado del mes, ingreso mensual estimado, pagos por confirmar, renovaciones y tiendas por estado.
+- **Tiendas:** buscador y filtros; cada tienda con dueño, ubicación, estado de acceso, productos, ventas de 30 días y último acceso. Botón **Acceso**:
+  confirmar/rechazar pagos que avisó, **registrar un pago y dar acceso** (1, 3, 6 o 12 meses; se suma desde su vencimiento), **dar días de prueba**,
+  **quitar / devolver acceso** con motivo, precio especial, **quién puede entrar** (activar/desactivar usuarios, cambiar contraseña), notas e historial de pagos.
+- **Pagos:** por confirmar e historial. **Crear acceso:** cuenta con contraseña para un cliente y mandarla por WhatsApp. **Cobro y prueba:** precio, días de prueba, banco, CLABE, WhatsApp.
+
+Del lado de la tienda: prueba de 30 días; 7 días antes aparece “Tu prueba termina en X días · Ver cómo pagar”; al vencer o si la bloqueas
+ve “Tu prueba gratis terminó / Tu tienda está pausada” con tus datos de pago y **“Avisar que ya pagué”**; cuando confirmas, vuelve a entrar.
+**Mi plan** (dueños) muestra hasta cuándo tiene acceso y sus pagos. El bloqueo es real: lo aplica la base de datos, no sólo la pantalla.
+Prueba: `qa/admin.js` (19 casos).
+
 ## Recorrido para usuarios nuevos
 La primera vez que alguien entra, la app ilumina cada sección del menú y explica para qué sirve (se adapta a celular/computadora
 y a las funciones de su giro). Al crear su tienda arranca solo y termina con “Agregar productos”. Se repite desde **“Cómo funciona”**

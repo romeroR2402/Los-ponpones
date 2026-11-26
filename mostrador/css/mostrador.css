@@ -242,3 +242,4 @@ img.foto.ok { opacity: 1 }
 .tour-card.centro { top: 50%; left: 50%; transform: translate(-50%, -50%); animation: fade .2s }
 .tour-ic { width: 42px; height: 42px; border-radius: 12px; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; flex: none }
 .tour-dots { display: flex; gap: 3px; flex-wrap: nowrap; max-width: 150px; overflow: hidden } .tour-dots i { flex: none; width: 5px; height: 5px; border-radius: 3px; background: var(--line) } .tour-dots i.on { width: 16px; background: var(--primary) }
+.side .side-admin { color: var(--primary); font-weight: 600 } .side .side-admin .i { color: var(--primary) }

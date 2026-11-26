@@ -92,6 +92,7 @@
     { id: "ventas", ic: "trending-up", t: "Ventas", icono: "📈" },
     { id: "proveedores", ic: "handshake", t: "Proveedores", icono: "🤝", roles: ["dueno", "encargado"] },
     { id: "lector", ic: "scan-barcode", t: "Lector de códigos", icono: "🏷️" },
+    { id: "plan", ic: "credit-card", t: "Mi plan", icono: "💳", roles: ["dueno"], sinDemo: true },
     { id: "ajustes", ic: "settings", t: "Mi negocio", icono: "⚙️", roles: ["dueno"] }
   ];
 

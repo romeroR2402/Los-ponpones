@@ -17,7 +17,10 @@
     cargando();
     M.cargarNegocio().then(function (n) {
       if (!M.user) return pantallaAcceso();
+      revisarAdmin();
+      if (M.negocio && !M.usuarioActivo) return pantallaPausada("usuario");
       if (!n) return onboarding();
+      if (!M.plan().conAcceso) return pantallaPausada("plan");
       return entrarApp();
     }).catch(function (e) {
       app.innerHTML = '<div class="auth"><div class="box center"><div class="empty"><div class="ic">' + ic("triangle-alert", 40, 1.5) + '</div><b>No pudimos conectar</b>Revisa tu internet e inténtalo otra vez.</div><button class="btn" onclick="location.reload()">Reintentar</button></div></div>';
@@ -288,7 +291,7 @@
     var marca = '<a class="brand" href="#/inicio"><span class="logo">' + ic(M.giro.ic || "store", 20, 2) + '</span><span class="ellipsis">' + esc(M.negocio.nombre) + "</span></a>";
     app.innerHTML = '<div class="shell"><nav class="side" aria-label="Menú">' + marca + mods.map(function (m) {
         return '<a href="#/' + m.id + '" data-r="' + m.id + '">' + ic(m.ic, 20) + esc(m.t) + (m.id === "alertas" ? '<span class="n hide" data-n></span>' : "") + "</a>";
-      }).join("") + '<div class="grow"></div><a href="#" id="side-tour">' + ic("sparkles", 20) + 'Cómo funciona</a><a href="#" class="install" onclick="M.pedirInstalar();return false">' + ic("download", 20) + 'Instalar app</a><a href="#" id="side-salir">' + ic("log-out", 20) + "Cerrar sesión</a></nav>" +
+      }).join("") + (M.esSuperAdmin ? '<a href="admin.html" class="side-admin">' + ic("shield-check", 20) + "Administración</a>" : "") + '<div class="grow"></div><a href="#" id="side-tour">' + ic("sparkles", 20) + 'Cómo funciona</a><a href="#" class="install" onclick="M.pedirInstalar();return false">' + ic("download", 20) + 'Instalar app</a><a href="#" id="side-salir">' + ic("log-out", 20) + "Cerrar sesión</a></nav>" +
       '<div style="min-width:0"><header class="top"><div class="in">' + marca.replace('class="brand"', 'class="brand grow"') +
       '<div class="tsearch search"><span class="lupa">' + ic("search", 18) + '</span><input class="inp" id="top-q" placeholder="Buscar un producto…" autocomplete="off" aria-label="Buscar un producto"></div><div class="grow only-desk"></div>' +
       '<span id="net"></span><a class="ibtn" id="lec" href="#/lector" title="Lector de códigos" aria-label="Lector de códigos" style="text-decoration:none;position:relative">' + ic("scan-barcode", 21) + '<i id="lec-dot" class="hide" style="position:absolute;top:8px;right:8px;width:9px;height:9px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 2px var(--surface)"></i></a>' +
@@ -296,6 +299,7 @@
       '<span class="row" style="gap:10px;margin-left:4px"><span class="hola">Hola,<b>' + esc(nom.split(/[\s@]/)[0]) + '</b></span><span class="avatar" title="' + esc(nom) + '">' + esc(iniciales(nom)) + "</span></span></div></header>" +
       (M.negocio.es_demo ? '<div class="demo-bar">' + ic("sparkles", 18) + '<span class="grow"><b>Tienda de ejemplo.</b> Vende, escanea y mueve lo que quieras: es una demostración.</span>' +
         '<button class="btn sm ghost" id="demo-reset">Reiniciar demo</button><button class="btn sm" id="demo-salir">Crear mi tienda</button></div>' : "") +
+      avisoPlan() +
       '<main id="view" tabindex="-1"></main></div></div>' +
       '<nav class="tabbar" aria-label="Menú">' + movil.map(function (m) {
         return '<a href="#/' + m.id + '" data-r="' + m.id + '">' + ic(m.ic, 22) + esc(m.corto || m.t) + (m.id === "alertas" ? '<span class="n hide" data-n></span>' : "") + "</a>";
@@ -329,7 +333,8 @@
     var extra = M.modulosActivos().filter(function (m) { return !m.movil });
     var h = M.hoja('<h2>' + esc(M.negocio.nombre) + '</h2><div class="list">' + extra.map(function (m) {
       return '<a class="li" href="#/' + m.id + '" data-cerrar><span class="thumb">' + ic(m.ic, 20) + '</span><span class="t"><b>' + esc(m.t) + "</b></span>" + ic("chevron-right", 18) + "</a>";
-    }).join("") + '<button class="li" id="mm-tour"><span class="thumb">' + ic("sparkles", 20) + '</span><span class="t"><b>Cómo funciona la app</b><small>Recorrido de cada sección</small></span></button>' +
+    }).join("") + (M.esSuperAdmin ? '<a class="li" href="admin.html"><span class="thumb">' + ic("shield-check", 20) + '</span><span class="t"><b>Administración</b><small>Tus tiendas, pagos y accesos</small></span>' + ic("chevron-right", 18) + "</a>" : "") +
+      '<button class="li" id="mm-tour"><span class="thumb">' + ic("sparkles", 20) + '</span><span class="t"><b>Cómo funciona la app</b><small>Recorrido de cada sección</small></span></button>' +
       '<button class="li install" id="mm-inst"><span class="thumb">' + ic("download", 20) + '</span><span class="t"><b>Instalar como app</b></span></button>' +
       '<button class="li" id="mm-salir"><span class="thumb">' + ic("log-out", 20) + '</span><span class="t"><b>Cerrar sesión</b><small>' + esc(M.user.email) + "</small></span></button></div>");
     $$("a.li", h).forEach(function (a) { a.addEventListener("click", function () { setTimeout(M.cerrarHoja, 0) }) });
@@ -1360,6 +1365,103 @@
   M.tkParsear = tkParsear;   // para pruebas
 
   // =====================================================================
+  // PLAN DE LA TIENDA: aviso de prueba, acceso pausado y "Mi plan"
+  // =====================================================================
+  var plataforma = null;
+  function cargarPlataforma() {
+    if (plataforma) return Promise.resolve(plataforma);
+    return M.sb.from("mos_plataforma").select("*").eq("id", 1).maybeSingle().then(function (r) { plataforma = r.data || {}; return plataforma }).catch(function () { return {} });
+  }
+  function revisarAdmin() {
+    if (M.esSuperAdmin !== undefined) return;
+    M.esSuperAdmin = false;
+    M.sb.rpc("mos_es_superadmin").then(function (r) { M.esSuperAdmin = !!r.data; if (M.esSuperAdmin && $("#view")) pintarShell() });
+  }
+  function avisoPlan() {
+    if (!M.negocio || M.negocio.es_demo || M.rol !== "dueno") return "";
+    var p = M.plan(); if (!p.conAcceso || p.dias == null || p.dias > 7) return "";
+    var txt = p.k === "prueba" ? (p.dias <= 0 ? "Tu prueba gratis termina hoy." : "Tu prueba gratis termina en " + p.dias + (p.dias === 1 ? " día." : " días."))
+                               : (p.dias <= 0 ? "Tu plan vence hoy." : "Tu plan vence en " + p.dias + (p.dias === 1 ? " día." : " días."));
+    return '<div class="demo-bar">' + ic("hourglass", 18) + '<span class="grow"><b>' + txt + "</b> Paga para no perder el acceso a tu tienda.</span>" +
+      '<a class="btn sm" href="#/plan">Ver cómo pagar</a></div>';
+  }
+  function datosPago(pl, n) {
+    var precio = +((n && n.precio_mensual) || pl.precio_mensual || 0);
+    var filas = [["Mensualidad", precio ? money(precio) + " al mes" : ""], ["Banco", pl.banco], ["Titular", pl.titular], ["CLABE / tarjeta", pl.clabe]].filter(function (x) { return x[1] });
+    return '<div class="card" style="text-align:left">' + (filas.length ? filas.map(function (x) {
+      return '<div class="row between" style="padding:6px 0;border-bottom:1px solid var(--line-2)"><span class="muted small">' + x[0] + "</span><b" + (x[0].indexOf("CLABE") === 0 ? ' style="font-family:ui-monospace,monospace"' : "") + ">" + esc(x[1]) + "</b>" +
+        (x[0].indexOf("CLABE") === 0 ? '<button class="btn sm ghost" data-copiar="' + esc(x[1]) + '">' + ic("copy", 14) + "</button>" : "") + "</div>";
+    }).join("") : '<p class="muted small" style="margin:0">Pide los datos de pago al administrador.</p>') +
+      (pl.nota_pago ? '<p class="small body" style="margin:10px 0 0">' + esc(pl.nota_pago) + "</p>" : "") + "</div>";
+  }
+  function formPago(pl, n) {
+    var precio = +((n && n.precio_mensual) || pl.precio_mensual || 0);
+    return '<form class="card mt" id="fpago" novalidate style="text-align:left"><h3 style="margin:0 0 10px">¿Ya pagaste? Avísanos</h3>' +
+      '<div class="grid2"><label class="f"><span>Monto</span><input class="inp" name="monto" inputmode="decimal" value="' + (precio || "") + '"></label>' +
+      '<label class="f"><span>Meses que pagas</span><select class="inp" name="meses"><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">1 año</option></select></label></div>' +
+      '<div class="grid2"><label class="f"><span>Cómo pagaste</span><select class="inp" name="metodo"><option>Transferencia</option><option>Depósito</option><option>Efectivo</option><option>Otro</option></select></label>' +
+      '<label class="f"><span>Referencia o folio</span><input class="inp" name="referencia" maxlength="60" placeholder="Opcional"></label></div>' +
+      '<button class="btn block lg">' + ic("badge-check", 18) + " Avisar que ya pagué</button>" +
+      (pl.whatsapp ? '<a class="btn ghost block mt" target="_blank" rel="noopener" id="fpago-wa" href="#">' + ic("smartphone", 18) + " Mandar comprobante por WhatsApp</a>" : "") + "</form>";
+  }
+  function activarPago(el, alAvisar) {
+    $$("[data-copiar]", el).forEach(function (b) { b.onclick = function () { M.copiar ? M.copiar(b.dataset.copiar) : (navigator.clipboard && navigator.clipboard.writeText(b.dataset.copiar), M.toast("Copiado ✓", "ok")) } });
+    var f = $("#fpago", el); if (!f) return;
+    var wa = $("#fpago-wa", el);
+    if (wa) wa.onclick = function () {
+      this.href = M.wa(plataforma.whatsapp, "Hola, soy de " + M.negocio.nombre + " (" + M.user.email + "). Te mando el comprobante de pago de Mostrador: " + money(M.num(f.monto.value)) + (f.referencia.value ? ", referencia " + f.referencia.value : "") + ".");
+    };
+    f.onsubmit = function (e) {
+      e.preventDefault(); var m = M.num(f.monto.value); if (!(m > 0)) return M.toast("Escribe el monto que pagaste", "bad");
+      var b = $("button.btn", f); b.disabled = true;
+      M.sb.rpc("mos_reportar_pago", { n: M.negocio.id, p: { monto: m, meses: +f.meses.value, metodo: f.metodo.value, referencia: f.referencia.value.trim() } }).then(function (r) {
+        b.disabled = false; if (r.error) return M.error(r.error);
+        M.toast("Listo, le avisamos al administrador ✓ En cuanto lo confirme se activa tu tienda.", "ok"); if (alAvisar) alAvisar();
+      });
+    };
+  }
+  function listaPagos(pagos) {
+    if (!pagos || !pagos.length) return "";
+    return '<div class="sec"><h2>Tus pagos</h2></div><div class="list">' + pagos.map(function (p) {
+      return '<div class="li"><span class="thumb">' + ic("banknote", 20) + '</span><span class="t"><b>' + money(p.monto) + " · " + p.meses + (p.meses === 1 ? " mes" : " meses") + "</b><small>" + M.fecha(p.creado) + (p.hasta ? " · cubre hasta " + M.fecha(p.hasta) : "") + "</small></span>" +
+        '<span class="badge ' + ({ confirmado: "ok", pendiente: "warn", rechazado: "bad" }[p.estado]) + '">' + ({ confirmado: "Confirmado", pendiente: "Por confirmar", rechazado: "Rechazado" }[p.estado]) + "</span></div>";
+    }).join("") + "</div>";
+  }
+  // Pantalla cuando la tienda no tiene acceso (prueba vencida, bloqueada) o el usuario está desactivado
+  function pantallaPausada(tipo) {
+    var n = M.negocio || {}, p = M.plan(n), dueno = M.rol === "dueno";
+    var titulo = tipo === "usuario" ? "Tu acceso está desactivado" : p.k === "bloqueada" ? "Tu tienda está pausada" : "Tu prueba gratis terminó";
+    var texto = tipo === "usuario" ? "El administrador desactivó tu usuario en " + esc(n.nombre || "esta tienda") + ". Habla con el dueño de la tienda o con el administrador."
+      : p.k === "bloqueada" ? (n.motivo_bloqueo ? "Motivo: <strong>" + esc(n.motivo_bloqueo) + "</strong>. " : "") + "Tus datos están a salvo. Paga para volver a usar tu tienda."
+      : "Tu prueba terminó el " + M.fecha(n.prueba_hasta || n.pagado_hasta) + ". Tus productos y ventas están guardados: en cuanto pagues vuelves a entrar tal como lo dejaste.";
+    app.innerHTML = '<div class="auth"><div class="box" style="max-width:480px"><div class="brand"><span class="logo">' + ic("store", 20, 2) + '</span><span class="ellipsis">' + esc(n.nombre || "Mostrador") + "</span></div>" +
+      '<div class="empty" style="padding:20px 0 8px"><div class="ic">' + ic(tipo === "usuario" ? "lock" : "hourglass", 44, 1.5) + "</div><b>" + titulo + '</b><span class="body">' + texto + "</span></div>" +
+      '<div id="pp-cont"></div><div class="acts"><button class="btn ghost" id="pp-rev">' + ic("refresh-cw", 17) + ' Ya me dieron acceso</button><button class="btn ghost" id="pp-salir">' + ic("log-out", 17) + " Salir</button></div></div></div>";
+    $("#pp-salir").onclick = salir;
+    $("#pp-rev").onclick = function () { M.usuarioActivo = undefined; arrancar() };
+    if (tipo === "usuario" || !dueno) { if (tipo !== "usuario") $("#pp-cont").innerHTML = '<p class="body center">Pídele al dueño de la tienda que pague para volver a usarla.</p>'; return }
+    Promise.all([cargarPlataforma(), M.sb.from("mos_pagos").select("*").eq("negocio_id", n.id).order("creado", { ascending: false }).limit(10)]).then(function (x) {
+      var pl = x[0], pagos = (x[1] && x[1].data) || [], pend = pagos.some(function (q) { return q.estado === "pendiente" });
+      var c = $("#pp-cont"); if (!c) return;
+      c.innerHTML = (pend ? '<div class="note info"><span>Ya nos avisaste de un pago. En cuanto el administrador lo confirme, tu tienda se activa sola (toca “Ya me dieron acceso”).</span></div>' : "") +
+        '<h3 style="margin:8px 0">Cómo pagar</h3>' + datosPago(pl, n) + formPago(pl, n) + listaPagos(pagos);
+      activarPago(c, function () { pantallaPausada(tipo) });
+    });
+  }
+  VISTAS.plan = function (v) {
+    cargando(v);
+    Promise.all([cargarPlataforma(), M.sb.from("mos_pagos").select("*").eq("negocio_id", M.negocio.id).order("creado", { ascending: false }).limit(20)]).then(function (x) {
+      var pl = x[0], pagos = (x[1] && x[1].data) || [], p = M.plan(), n = M.negocio;
+      var estado = p.k === "activa" ? '<span class="badge ok">Activa</span> hasta el <b>' + M.fecha(p.vence) + "</b>" : '<span class="badge warn">Prueba gratis</span> hasta el <b>' + M.fecha(p.vence) + "</b>";
+      v.innerHTML = '<div class="pagehead"><h1>Mi plan</h1></div><div class="kpis"><div class="kpi dark"><span class="muted small">Tu tienda</span><b style="font-size:20px">' + (p.k === "activa" ? "Activa" : "En prueba") + '</b><span class="muted xs">hasta el ' + M.fecha(p.vence) + "</span></div>" +
+        '<div class="kpi ' + (p.dias <= 7 ? "warn" : "") + '"><span class="muted small">Te quedan</span><b>' + Math.max(0, p.dias) + '</b><span class="muted xs">' + (p.dias === 1 ? "día" : "días") + "</span></div></div>" +
+        '<p class="body mt">' + estado + ". Para seguir usando Mostrador, paga antes de esa fecha; lo que pagues se suma a partir de ahí.</p>" +
+        '<div class="sec"><h2>Cómo pagar</h2></div>' + datosPago(pl, n) + formPago(pl, n) + listaPagos(pagos);
+      activarPago(v, function () { render() });
+    });
+  };
+
+  // =====================================================================
   // RECORRIDO GUIADO: ilumina cada sección del menú y explica para qué sirve
   // =====================================================================
   function claveRecorrido() { return "mostrador-recorrido-" + (M.user && M.user.id) }
@@ -1377,6 +1479,7 @@
       ventas: "Todas tus ventas: hoy, 7 y 30 días, cuánto ganaste y lo que más vendes. Aquí también cancelas una venta.",
       proveedores: "Tus proveedores con su WhatsApp, para pedirles mercancía o cambios con un solo toque.",
       lector: "Conecta tu pistola lectora de códigos (Bluetooth o USB) y pruébala. Una vez conectada, sirve en cualquier pantalla.",
+      plan: "Tu plan de Mostrador: hasta cuándo tienes acceso, cómo pagar y avisar que ya pagaste.",
       ajustes: "Los datos de tu negocio y las funciones que usas: granel, fiado, caducidades… Prende sólo lo que necesites."
     }[id] || "";
   }

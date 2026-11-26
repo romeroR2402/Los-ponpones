@@ -51,7 +51,7 @@
   // ---------- Capacidades y permisos ----------
   M.tiene = function (cap) { return !!(M.negocio && M.negocio.capacidades && M.negocio.capacidades[cap]) };
   M.puede = function (mod) { return !mod.roles || mod.roles.indexOf(M.rol) >= 0 };
-  M.modulosActivos = function () { return GIROS.modulos.filter(function (m) { return M.puede(m) && (!m.capacidad || M.tiene(m.capacidad)) }) };
+  M.modulosActivos = function () { return GIROS.modulos.filter(function (m) { return M.puede(m) && (!m.capacidad || M.tiene(m.capacidad)) && !(m.sinDemo && M.negocio && M.negocio.es_demo) }) };
   M.diasAviso = function () { var c = M.negocio && M.negocio.capacidades; return (c && c.diasAviso) || (M.giro && M.giro.alertas.caducidadDias) || 7 };
   M.unidadesNegocio = function () {
     var u = (M.giro ? M.giro.unidades : ["pza"]).slice();
@@ -214,10 +214,11 @@
     return sb.auth.getSession().then(function (r) {
       M.user = r.data.session ? r.data.session.user : null;
       if (!M.user) return null;
-      return sb.from("mos_miembros").select("rol, negocio:mos_negocios(*)").eq("user_id", M.user.id).order("creado").then(function (q) {
+      return sb.from("mos_miembros").select("rol, activo, negocio:mos_negocios(*)").eq("user_id", M.user.id).order("creado").then(function (q) {
         if (q.error) throw q.error;
         var preferido = localStorage.getItem("mostrador-negocio"), fila = null;
         (q.data || []).forEach(function (f) { if (!fila || (f.negocio && f.negocio.id === preferido)) fila = f });
+        M.usuarioActivo = !fila || fila.activo !== false;
         if (fila && fila.negocio) usarNegocio(fila.negocio, fila.rol);
         else if (!fila) { M.negocio = null; M.rol = null }
         return M.negocio;
@@ -235,6 +236,14 @@
     guardar("mostrador-negocio-copia", { negocio: n, rol: rol });
   }
   M.usarNegocio = usarNegocio;
+
+  // Estado del plan de la tienda (lo decide el servidor; aquí sólo se muestra): demo, bloqueada, activa, prueba o vencida.
+  M.plan = function (n) {
+    n = n || M.negocio || {};
+    var hoy = M.hoyISO(), vence = n.pagado_hasta && n.pagado_hasta >= hoy ? n.pagado_hasta : n.prueba_hasta;
+    var k = n.es_demo ? "demo" : n.bloqueado ? "bloqueada" : n.pagado_hasta && n.pagado_hasta >= hoy ? "activa" : n.prueba_hasta && n.prueba_hasta >= hoy ? "prueba" : "vencida";
+    return { k: k, vence: vence, dias: M.diasHasta(vence), conAcceso: k === "demo" || k === "activa" || k === "prueba" };
+  };
 
   // ---------- Copia local y ventas sin internet ----------
   function leer(k) { try { return JSON.parse(localStorage.getItem(k) || "null") } catch (e) { return null } }

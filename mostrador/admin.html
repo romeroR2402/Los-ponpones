@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Administración · Mostrador</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#f5f7f6">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/mostrador.css?v=14">
+<style>
+.adm-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20 }
+.adm-wrap { max-width: 1240px; margin: 0 auto; padding: 18px 16px 60px }
+.adm-tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-bottom: 18px } .adm-tabs::-webkit-scrollbar { display: none }
+.adm-tabs button { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 8px 14px; border-radius: var(--r-full); border: 1px solid var(--line); background: var(--surface); font: 600 14px var(--font); color: var(--body); cursor: pointer }
+.adm-tabs button.on { background: var(--primary-soft); color: var(--primary); border-color: var(--primary-line) }
+.adm-tabs .n { background: var(--bad); color: #fff; border-radius: 99px; font-size: 11px; padding: 0 6px; min-width: 18px; text-align: center }
+.adm-kpis { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 12px } @media (min-width: 900px) { .adm-kpis { grid-template-columns: repeat(4, minmax(0,1fr)) } }
+.tbl-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: auto }
+.tbl td .t b { display: block } .tbl td small { color: var(--muted) }
+.pill { display: inline-flex; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 700; white-space: nowrap }
+.p-ok { background: var(--ok-soft); color: var(--ok) } .p-warn { background: var(--warn-soft); color: var(--warn) } .p-bad { background: var(--bad-soft); color: var(--bad) } .p-calm { background: var(--info-soft); color: var(--info) } .p-mute { background: var(--surface-2); color: var(--body) }
+.box { border: 1px solid var(--line); border-radius: var(--r-md); padding: 14px; margin-top: 12px; background: var(--surface) } .box h4 { margin: 0 0 10px; font-size: 15px }
+.ren { display: flex; justify-content: space-between; gap: 10px; width: 100%; padding: 10px 0; border: 0; border-bottom: 1px solid var(--line-2); background: none; font: inherit; text-align: left; cursor: pointer } .ren:last-child { border-bottom: 0 }
+.cred { background: var(--primary-soft); border-radius: var(--r-md); padding: 14px; font-size: 15px } .cred b { font-family: ui-monospace, monospace; font-size: 16px }
+@media (max-width: 760px) { .solo-desk { display: none } }
+</style>
+</head>
+<body>
+<div id="adm"><div class="spin"></div></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js?v=14"></script>
+<script src="js/iconos.js?v=14"></script>
+<script src="js/giros.js?v=14"></script>
+<script src="js/admin.js?v=14"></script>
+</body>
+</html>
