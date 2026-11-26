@@ -359,6 +359,8 @@
     if (!mod || !VISTAS[r]) { location.hash = "#/inicio"; return }
     $$("[data-r]").forEach(function (a) { a.classList.toggle("on", a.dataset.r === r) });
     var v = $("#view"); v.innerHTML = ""; window.scrollTo(0, 0); document.body.setAttribute("data-r", r);
+    var sb0 = $("#selbar"); if (sb0) sb0.parentNode.removeChild(sb0);
+    if (r !== "productos") selProd = null;
     document.title = mod.t + " · " + M.negocio.nombre;
     VISTAS[r](v);
     pintarContadores();
@@ -637,12 +639,16 @@
   VISTAS.productos = function (v) {
     var cats = categorias().filter(function (c) { return M.productos.some(function (p) { return p.categoria === c }) });
     v.innerHTML = '<div class="pagehead"><h1>Productos <span class="muted" style="font-weight:400">' + M.productos.length + "</span></h1>" +
-      (puedeInventario() ? '<div class="row"><button class="btn alt" id="p-esc">' + ic("scan-barcode", 18) + ' Escanear</button><button class="btn" id="p-nuevo">' + ic("plus", 18, 2.2) + ' Nuevo</button></div>' : "") + "</div>" +
+      (puedeInventario() ? '<div class="row wrap"><button class="btn ghost" id="p-sel">' + ic("circle-check", 18) + (selProd ? " Listo" : " Seleccionar") + '</button><button class="btn alt" id="p-varios">' + ic("package-open", 18) + ' Agregar varios</button><button class="btn alt" id="p-esc">' + ic("scan-barcode", 18) + ' Escanear</button><button class="btn" id="p-nuevo">' + ic("plus", 18, 2.2) + ' Nuevo</button></div>' : "") + "</div>" +
       '<div class="search"><span class="lupa">' + ic("search", 18) + '</span><input class="inp" id="p-q" placeholder="Buscar por nombre, código o categoría" value="' + esc(filtroProd.q) + '" aria-label="Buscar"><button class="ibtn" id="p-esc2" aria-label="Buscar escaneando">' + ic("camera", 20) + '</button></div>' +
       '<div class="chips mt" id="p-f">' + [["todos", "Todos"], ["bajo", "Se acaban"], ["agotados", "Agotados"]].concat(M.tiene("caducidad") ? [["cad", "Con caducidad"]] : []).concat(cats.map(function (c) { return ["c:" + c, c] }))
         .map(function (f) { return '<button class="chip' + (filtroProd.f === f[0] ? " on" : "") + '" data-f="' + esc(f[0]) + '">' + esc(f[1]) + "</button>" }).join("") + "</div>" +
       '<div id="p-lista" class="mt"></div>';
-    if ($("#p-nuevo", v)) { $("#p-nuevo", v).onclick = function () { formProducto() }; $("#p-esc", v).onclick = escanearAlta }
+    if ($("#p-nuevo", v)) {
+      $("#p-nuevo", v).onclick = function () { formProducto() }; $("#p-esc", v).onclick = escanearAlta;
+      $("#p-varios", v).onclick = function () { altaLote() };
+      $("#p-sel", v).onclick = function () { selProd = selProd ? null : {}; render() };
+    }
     $("#p-esc2", v).onclick = function () { M.escanear(function (c) { var p = M.porCodigo(c); if (p) detalleProducto(p); else if (puedeInventario()) altaPorCodigo(c); else codigoDesconocido(c) }) };
     $("#p-q", v).oninput = function () { filtroProd.q = this.value; pintar() };
     $("#p-q", v).onkeydown = function (e) { if (e.key === "Enter") { var p = M.porCodigo(this.value.trim()); if (p) { detalleProducto(p); this.value = ""; filtroProd.q = ""; pintar() } } };
@@ -661,20 +667,173 @@
         if ($("#pe-esc", el)) { $("#pe-esc", el).onclick = escanearAlta; $("#pe-man", el).onclick = function () { formProducto() } } return }
       if (!l.length) { el.innerHTML = '<div class="card empty"><b>Sin resultados</b>Prueba con otra búsqueda o filtro.</div>'; return }
       var cad = M.tiene("caducidad"), lim = l.slice(0, 300);
-      el.innerHTML = '<div class="list hidden-desk">' + lim.map(function (p) {
-        return '<button class="li" data-p="' + p.id + '">' + thumb(p) + '<span class="t"><b class="ellipsis">' + esc(p.nombre) + "</b><small>" + esc(p.categoria || "") + (p.codigo ? " · " + esc(p.codigo) : "") + "</small>" +
+      var ck = function (p) { return selProd ? '<span class="selchk"><input type="checkbox" tabindex="-1" aria-label="Seleccionar ' + esc(p.nombre) + '"' + (selProd[p.id] ? " checked" : "") + "></span>" : "" };
+      productosFiltrados = l;
+      el.innerHTML = (selProd ? '<div class="note info"><span class="grow">Toca los productos que quieres cambiar. <a href="#" id="p-todos">' + (l.every(function (p) { return selProd[p.id] }) ? "Quitar todos" : "Seleccionar los " + l.length + " de esta lista") + "</a></span></div>" : "") +
+        '<div class="list hidden-desk">' + lim.map(function (p) {
+        return '<button class="li' + (selProd && selProd[p.id] ? " sel" : "") + '" data-p="' + p.id + '">' + ck(p) + thumb(p) + '<span class="t"><b class="ellipsis">' + esc(p.nombre) + "</b><small>" + esc(p.categoria || "") + (p.codigo ? " · " + esc(p.codigo) : "") + "</small>" +
           '<span class="row wrap" style="gap:4px;margin-top:4px">' + estadoStock(p) + (cad && p.maneja_caducidad ? badgeCad(proximaCaducidad(p)) : "") + '</span></span><b>' + money(p.precio) + "</b></button>";
       }).join("") + "</div>" +
         '<div class="card only-desk" style="padding:0;overflow:auto"><table class="tbl"><thead><tr><th>Producto</th><th>Categoría</th><th>Existencia</th>' + (cad ? "<th>Caducidad</th>" : "") + '<th class="right">Precio</th>' + (esDueno() ? '<th class="right">Costo</th><th class="right">Ganas</th>' : "") + "</tr></thead><tbody>" +
         lim.map(function (p) {
           var g = p.precio - p.costo;
-          return '<tr data-p="' + p.id + '"><td><div class="row">' + thumb(p) + '<div style="min-width:0"><b>' + esc(p.nombre) + '</b><div class="muted xs">' + esc(p.codigo || "Sin código") + "</div></div></div></td><td>" + esc(p.categoria || "") + "</td><td>" + estadoStock(p) + "</td>" +
+          return '<tr data-p="' + p.id + '"' + (selProd && selProd[p.id] ? ' class="sel"' : "") + '><td><div class="row">' + ck(p) + thumb(p) + '<div style="min-width:0"><b>' + esc(p.nombre) + '</b><div class="muted xs">' + esc(p.codigo || "Sin código") + "</div></div></div></td><td>" + esc(p.categoria || "") + "</td><td>" + estadoStock(p) + "</td>" +
             (cad ? "<td>" + (p.maneja_caducidad ? badgeCad(proximaCaducidad(p)) || '<span class="muted">—</span>' : '<span class="muted">—</span>') + "</td>" : "") + '<td class="right"><b>' + money(p.precio) + "</b></td>" +
             (esDueno() ? '<td class="right muted">' + money(p.costo) + '</td><td class="right">' + (p.costo > 0 ? money(g) + ' <span class="muted xs">' + Math.round(g / (p.precio || 1) * 100) + "%</span>" : '<span class="muted">—</span>') + "</td>" : "") + "</tr>";
         }).join("") + "</tbody></table></div>" + (l.length > lim.length ? '<p class="muted center small mt">Mostrando 300 de ' + l.length + ". Usa el buscador para encontrar el resto.</p>" : "");
-      $$("[data-p]", el).forEach(function (b) { b.onclick = function () { detalleProducto(M.porId(b.dataset.p)) } });
+      $$("[data-p]", el).forEach(function (b) { b.onclick = function () {
+        if (!selProd) return detalleProducto(M.porId(b.dataset.p));
+        if (selProd[b.dataset.p]) delete selProd[b.dataset.p]; else selProd[b.dataset.p] = true; pintar();
+      } });
+      if ($("#p-todos", el)) $("#p-todos", el).onclick = function (e) {
+        e.preventDefault(); var todos = l.every(function (p) { return selProd[p.id] });
+        l.forEach(function (p) { if (todos) delete selProd[p.id]; else selProd[p.id] = true }); pintar();
+      };
+      pintarSelProd();
     }
   };
+  // ---------- Editar varios productos a la vez ----------
+  var selProd = null, productosFiltrados = [];
+  function pintarSelProd() {
+    var bar = $("#selbar"); if (bar) bar.parentNode.removeChild(bar);
+    if (!selProd || ruta() !== "productos") return;
+    var ids = Object.keys(selProd); if (!ids.length) return;
+    bar = document.createElement("div"); bar.className = "selbar"; bar.id = "selbar";
+    bar.innerHTML = '<span class="grow"><b>' + ids.length + (ids.length === 1 ? " producto" : " productos") + "</b></span>" +
+      '<button class="btn sm ghost" data-sb="quitar">' + ic("trash-2", 16) + ' <span class="solo-amplio">Quitar</span></button><button class="btn sm" data-sb="editar">' + ic("pencil", 16) + " Cambiar en lote</button>" +
+      '<button class="ibtn" data-sb="x" aria-label="Quitar selección">✕</button>';
+    document.body.appendChild(bar);
+    bar.onclick = function (e) {
+      var b = e.target.closest("[data-sb]"); if (!b) return;
+      if (b.dataset.sb === "x") { selProd = {}; render(); return }
+      if (b.dataset.sb === "editar") return editarLote(Object.keys(selProd));
+      if (b.dataset.sb === "quitar") {
+        var ids2 = Object.keys(selProd);
+        M.confirmar("¿Quitar " + ids2.length + " productos del catálogo?", "Ya no aparecerán para vender. Su historial se conserva.", "Quitar", true).then(function (ok) {
+          if (ok) aplicarLote(ids2, { activo: false }, ids2.length + " productos quitados");
+        });
+      }
+    };
+  }
+  function aplicarLote(ids, cambios, msg) {
+    return M.sb.rpc("mos_productos_lote", { n: M.negocio.id, ids: ids, p: cambios }).then(function (r) {
+      if (r.error) return M.error(r.error);
+      M.cerrarHoja(); selProd = {};
+      return M.cargarProductos().then(function () { M.toast(msg + " ✓", "ok"); render() });
+    });
+  }
+  function editarLote(ids) {
+    var ps = ids.map(M.porId).filter(Boolean);
+    var h = M.hoja('<h2>' + ic("pencil", 22) + " Cambiar " + ps.length + ' productos</h2><p class="body small">Sólo se cambia lo que llenes; lo demás se queda igual.</p><form id="el" novalidate>' +
+      '<div class="card" style="padding:12px"><label class="f" style="margin:0 0 8px"><span>Precio de venta</span><select class="inp" name="pmodo"><option value="">No cambiar</option><option value="fijo">Poner el mismo precio a todos</option><option value="sube">Subir un porcentaje</option><option value="baja">Bajar un porcentaje</option></select></label>' +
+      '<input class="inp hide" name="pval" inputmode="decimal" placeholder=""><p class="xs muted hide" id="el-ej" style="margin:6px 0 0"></p></div>' +
+      '<div class="grid2 mt"><label class="f"><span>Te cuesta</span><input class="inp" name="costo" inputmode="decimal" placeholder="No cambiar"></label>' +
+      '<label class="f"><span>Avísame cuando queden</span><input class="inp" name="minimo" inputmode="decimal" placeholder="No cambiar"></label></div>' +
+      '<label class="f"><span>Categoría</span><input class="inp" name="categoria" list="el-cats" placeholder="No cambiar"><datalist id="el-cats">' + categorias().map(function (c) { return '<option value="' + esc(c) + '">' }).join("") + "</datalist></label>" +
+      (M.tiene("caducidad") ? '<label class="f"><span>¿Caducan?</span><select class="inp" name="cad"><option value="">No cambiar</option><option value="si">Sí, estos productos caducan</option><option value="no">No caducan</option></select></label>' : "") +
+      '<details class="small"><summary>Ver los ' + ps.length + ' productos</summary><p class="muted">' + ps.map(function (p) { return esc(p.nombre) + " (" + money(p.precio) + ")" }).join(" · ") + "</p></details>" +
+      '<div class="acts"><button type="button" class="btn ghost" data-cerrar>Cancelar</button><button class="btn" id="el-ok">Aplicar a ' + ps.length + "</button></div></form>", { ancha: true });
+    var f = $("#el", h);
+    function ejemplo() {
+      var m = f.pmodo.value, v = M.num(f.pval.value), p = ps[0];
+      f.pval.classList.toggle("hide", !m); $("#el-ej", h).classList.toggle("hide", !m || !v);
+      f.pval.placeholder = m === "fijo" ? "Ej. 25" : "Ej. 10 (por ciento)";
+      if (!m || !v || !p) return;
+      var nuevo = m === "fijo" ? v : Math.round(p.precio * (1 + (m === "sube" ? v : -v) / 100) * 2) / 2;
+      $("#el-ej", h).textContent = "Ejemplo: " + p.nombre + " pasa de " + money(p.precio) + " a " + money(nuevo) + ".";
+    }
+    f.pmodo.onchange = f.pval.oninput = ejemplo;
+    f.onsubmit = function (e) {
+      e.preventDefault(); var c = {}, m = f.pmodo.value, v = M.num(f.pval.value);
+      if (m) { if (!(v > 0)) return M.toast("Escribe el precio o el porcentaje", "bad"); if (m === "fijo") c.precio = v; else c.precio_pct = m === "sube" ? v : -v }
+      if (f.costo.value.trim()) c.costo = M.num(f.costo.value);
+      if (f.minimo.value.trim()) c.minimo = M.num(f.minimo.value);
+      if (f.categoria.value.trim()) c.categoria = f.categoria.value.trim();
+      if (f.cad && f.cad.value) c.maneja_caducidad = f.cad.value === "si";
+      if (!Object.keys(c).length) return M.toast("No llenaste nada para cambiar", "bad");
+      $("#el-ok", h).disabled = true;
+      aplicarLote(ids, c, ps.length + " productos actualizados");
+    };
+  }
+  // ---------- Agregar varios productos nuevos de una vez ----------
+  var alta = null;
+  function altaLote() { alta = alta || { filas: [] }; altaPintar() }
+  M.altaLoteAgregar = function (code) { altaAgregar(code) };
+  function altaAgregar(code) {
+    code = String(code || "").trim(); if (!alta || !code) return;
+    if ($("#al-l")) altaLeer();   // guarda lo escrito ANTES de mover los renglones
+    if (M.porCodigo(code)) { M.sonar(false); return M.toast("Ya tienes ese producto: " + M.porCodigo(code).nombre, "bad") }
+    var ya = alta.filas.filter(function (f) { return f.codigo === code })[0];
+    var camara = !!$("#scan-man");   // con la cámara abierta se sigue escaneando; la lista se ve al cerrarla
+    if (ya) { ya.existencia = M.r3(M.num(ya.existencia) + 1); M.sonar(true); if (camara) return M.toast("+1 " + (ya.nombre || ya.codigo)); return altaPintar(true) }
+    var fila = { codigo: code, nombre: "", categoria: "", precio: "", costo: "", existencia: "", caducidad: "", buscando: true };
+    alta.filas.unshift(fila); M.sonar(true); if (!camara) altaPintar(true);
+    M.buscarCodigo(code).then(function (r) {
+      if (!alta) return;
+      if ($("#al-l")) altaLeer();   // primero guarda lo que ya escribieron, luego completa con el catálogo
+      fila.buscando = false;
+      if (r) { fila.nombre = String(fila.nombre || "").trim() || r.nombre; fila.categoria = String(fila.categoria || "").trim() || r.categoria || ""; fila.imagen = r.imagen || ""; fila.marca = r.marca || ""; fila.cat = true }
+      if (!$("#scan-man")) altaPintar(true); else if (r) M.toast("✓ " + r.nombre);
+    });
+  }
+  function altaLeer() {
+    $$("#al-l [data-i]").forEach(function (c) {
+      var f = alta.filas[+c.dataset.i]; if (!f) return;
+      $$("[data-k]", c).forEach(function (x) { f[x.dataset.k] = x.value });
+    });
+  }
+  function altaPintar(sinLeer) {
+    if (!sinLeer && $("#al-l")) altaLeer();
+    var cad = M.tiene("caducidad"), F = alta.filas;
+    var h = M.hoja('<div id="altalote"></div><h2>' + ic("package-open", 22) + ' Agregar varios productos</h2><p class="body small">Escanea uno tras otro (cámara o pistola) y llena precios y cantidades. Los que ya existen en el catálogo salen con su nombre.</p>' +
+      '<div class="row wrap"><button class="btn" id="al-esc">' + ic("scan-barcode", 18) + ' Escanear uno tras otro</button><form id="al-man" class="row grow" style="min-width:220px"><input class="inp" placeholder="O escribe el código" inputmode="numeric"><button class="btn alt">OK</button></form>' +
+      '<button class="btn ghost" id="al-sin">＋ Sin código</button></div>' +
+      '<div id="al-l" class="mt">' + (F.length ? F.map(function (f, i) {
+        return '<div class="card" style="padding:12px;margin-bottom:10px" data-i="' + i + '"><div class="row"><span class="thumb">' + imgOIcono({ imagen: f.imagen, categoria: f.categoria }, 22) + '</span><div class="grow">' +
+          '<input class="inp" data-k="nombre" value="' + esc(f.nombre) + '" placeholder="' + (f.buscando ? "Buscando en el catálogo…" : "Nombre del producto") + '"><small class="muted">' + (f.codigo ? esc(f.codigo) + (f.cat ? " · del catálogo" : f.buscando ? "" : " · nuevo: escribe el nombre") : "Sin código") + "</small></div>" +
+          '<button class="ibtn" data-quitar="' + i + '" aria-label="Quitar">✕</button></div>' +
+          '<div class="al-grid mt" style="margin-top:8px"><label class="f" style="margin:0"><span>Precio *</span><input class="inp" data-k="precio" inputmode="decimal" value="' + esc(f.precio) + '" placeholder="$0"></label>' +
+          '<label class="f" style="margin:0"><span>Te cuesta</span><input class="inp" data-k="costo" inputmode="decimal" value="' + esc(f.costo) + '" placeholder="$0"></label>' +
+          '<label class="f" style="margin:0"><span>Tienes</span><input class="inp" data-k="existencia" inputmode="decimal" value="' + esc(f.existencia) + '" placeholder="0"></label>' +
+          (cad ? '<label class="f" style="margin:0"><span>Caduca</span><input class="inp" type="date" data-k="caducidad" value="' + esc(f.caducidad) + '"></label>' : "") +
+          '<label class="f" style="margin:0"><span>Categoría</span><input class="inp" data-k="categoria" list="al-cats" value="' + esc(f.categoria) + '"></label></div></div>';
+      }).join("") : '<div class="card empty"><div class="ic">' + ic("scan-barcode", 40, 1.5) + "</div><b>Escanea tu primer producto</b>Puedes escanear muchos seguidos.</div>") + "</div>" +
+      '<datalist id="al-cats">' + categorias().map(function (c) { return '<option value="' + esc(c) + '">' }).join("") + "</datalist>" +
+      (F.length ? '<div class="acts"><button class="btn ghost" id="al-vaciar">Empezar de nuevo</button><button class="btn" id="al-ok">' + ic("badge-check", 17) + " Guardar " + F.length + (F.length === 1 ? " producto" : " productos") + "</button></div>" : ""), { ancha: true });
+    $("#al-esc", h).onclick = function () { altaLeer(); M.escanear(function (c) { altaAgregar(c) }, { continuo: true, titulo: "Escanea los productos nuevos", alCerrar: function () { altaPintar() } }) };
+    $("#al-man", h).onsubmit = function (e) { e.preventDefault(); altaAgregar($("input", this).value) };
+    $("#al-sin", h).onclick = function () { altaLeer(); alta.filas.unshift({ codigo: "", nombre: "", categoria: "", precio: "", costo: "", existencia: "", caducidad: "" }); altaPintar(true) };
+    $("#al-l", h).onclick = function (e) { var b = e.target.closest("[data-quitar]"); if (b) { altaLeer(); alta.filas.splice(+b.dataset.quitar, 1); altaPintar(true) } };
+    if ($("#al-vaciar", h)) $("#al-vaciar", h).onclick = function () { alta = { filas: [] }; altaPintar() };
+    if ($("#al-ok", h)) $("#al-ok", h).onclick = function () { altaLeer(); altaGuardar(this) };
+  }
+  function altaGuardar(btn) {
+    var F = alta.filas, mal = F.filter(function (f) { return !String(f.nombre).trim() || !(M.num(f.precio) > 0) });
+    if (mal.length) return M.toast(mal.length + (mal.length === 1 ? " producto no tiene" : " productos no tienen") + " nombre o precio", "bad");
+    var cad = M.tiene("caducidad");
+    var faltaFecha = cad && F.some(function (f) { return M.num(f.existencia) > 0 && PERECEDEROS.indexOf(f.categoria) >= 0 && !f.caducidad });
+    (faltaFecha ? M.confirmar("Faltan fechas de caducidad", "Algunos productos que suelen caducar no tienen fecha. Sin fecha no te podremos avisar. ¿Guardar así?", "Guardar así") : Promise.resolve(true)).then(function (ok) {
+      if (!ok) return; btn.disabled = true; btn.textContent = "Guardando…";
+      M.sb.from("mos_productos").insert(F.map(function (f) {
+        return { negocio_id: M.negocio.id, nombre: String(f.nombre).trim().slice(0, 120), codigo: f.codigo || null, categoria: String(f.categoria || "").trim() || "General", unidad: M.unidadesNegocio()[0],
+          precio: M.r2(M.num(f.precio)), costo: M.r2(M.num(f.costo)), minimo: M.giro.alertas.minimo, maneja_caducidad: !!(cad && (f.caducidad || PERECEDEROS.indexOf(f.categoria) >= 0)),
+          imagen: f.imagen || "", atributos: f.marca ? { marca: f.marca } : {} };
+      })).select().then(function (r) {
+        if (r.error) throw r.error;
+        var nuevos = r.data || [], items = [];
+        nuevos.forEach(function (p, i) {
+          M.productos.push(p); var f = F[i];
+          if (p.codigo && !f.cat) M.aportarCatalogo({ codigo: p.codigo, nombre: p.nombre, categoria: p.categoria });
+          if (M.num(f.existencia) > 0) items.push({ producto_id: p.id, cantidad: M.r3(M.num(f.existencia)), costo: p.costo, caducidad: f.caducidad || "" });
+        });
+        M.productos.sort(function (a, b) { return a.nombre.localeCompare(b.nombre) });
+        var ent = items.length ? M.sb.rpc("mos_entrada", { p: { negocio_id: M.negocio.id, origen: "escaner", items: items } }).then(function (x) { if (x.error) throw x.error }) : Promise.resolve();
+        return ent.then(function () { return Promise.all([M.cargarProductos(), cargarLotes()]) }).then(function () {
+          var n = nuevos.length; alta = null; M.cerrarHoja(); M.toast(n + (n === 1 ? " producto agregado" : " productos agregados") + " ✓", "ok"); render();
+        });
+      }).catch(function (e) { btn.disabled = false; btn.textContent = "Guardar"; M.error(e) });
+    });
+  }
   // Escanear para dar de alta (o abrir si ya existe)
   function escanearAlta() {
     M.escanear(function (c) {
@@ -1033,14 +1192,26 @@
     el.innerHTML = secs.map(function (s) {
       if (max && n >= max) return "";
       var it = max ? s.items.slice(0, max - n) : s.items; n += it.length;
-      return (max ? "" : '<div class="sec"><div><h2>' + esc(s.t) + ' <span class="muted" style="font-weight:400">' + s.items.length + '</span></h2><p class="muted small" style="margin:0">' + esc(s.a) + "</p></div></div>") +
+      var esLote = s.fila === filaLote && puedeInventario() && !max;
+      return (max ? "" : '<div class="sec"><div><h2>' + esc(s.t) + ' <span class="muted" style="font-weight:400">' + s.items.length + '</span></h2><p class="muted small" style="margin:0">' + esc(s.a) + "</p></div>" +
+        (esLote && s.items.length > 1 ? '<button class="btn ghost sm" data-todos="' + s.items.map(function (x) { return x.l.id }).join(",") + '">Seleccionar todos</button>' : "") + "</div>") +
         '<div class="list' + (max ? "" : "") + '" style="' + (max ? "margin-bottom:8px" : "") + '">' + it.map(function (x) { return s.fila(x, s.t) }).join("") + "</div>";
     }).join("");
+    if (!max) pintarSelLotes();
+    el.onchange = function (e) {
+      var c = e.target.closest("[data-sel]"); if (!c) return;
+      if (c.checked) selLotes[c.dataset.sel] = true; else delete selLotes[c.dataset.sel];
+      pintarSelLotes();
+    };
     el.onclick = function (e) {
+      if (e.target.closest("[data-sel]") || e.target.closest("label.selchk")) return;
+      var todos = e.target.closest("[data-todos]");
+      if (todos) { var ids = todos.dataset.todos.split(","), ya = ids.every(function (i) { return selLotes[i] }); ids.forEach(function (i) { if (ya) delete selLotes[i]; else selLotes[i] = true }); render(); return }
       var b = e.target.closest("[data-acc]"); if (!b) { var r = e.target.closest("[data-pid]"); if (r) detalleProducto(M.porId(r.dataset.pid)); return }
       e.stopPropagation();
       var acc = b.dataset.acc, l = lotes.filter(function (x) { return x.id === b.dataset.l })[0];
       if (acc === "wa") return pedirCambio(l);
+      if (acc === "cambiado") return cambioProveedor([l]);
       var p = M.porId(l.producto_id);
       var txt = acc === "cambiado" ? ["¿El proveedor ya te lo cambió?", "Sacamos " + M.cant(l.cantidad, p.unidad) + " vencidos de " + p.nombre + ". Lo nuevo dalo de entrada normalmente.", "Sí, ya me lo cambió"]
         : ["¿Ya lo sacaste?", "Se descuentan " + M.cant(l.cantidad, p.unidad) + " de " + p.nombre + " como merma.", "Sí, ya lo saqué"];
@@ -1057,8 +1228,85 @@
     var acciones = puedeInventario() ? (x.l.cambio_proveedor === "pendiente"
       ? '<button class="btn sm alt" data-acc="wa" data-l="' + x.l.id + '">' + ic("smartphone", 16) + ' Pedir cambio</button><button class="btn sm" data-acc="cambiado" data-l="' + x.l.id + '">Ya me lo cambió</button>'
       : x.d < 0 ? '<button class="btn sm" data-acc="merma" data-l="' + x.l.id + '">Ya lo saqué</button>' : "") : "";
-    return '<div class="li" data-pid="' + x.p.id + '" style="cursor:pointer;flex-wrap:wrap">' + thumb(x.p) + '<span class="t"><b>' + esc(x.p.nombre) + "</b><small>" + M.cant(x.l.cantidad, x.p.unidad) + " · caduca el " + M.fecha(x.l.caducidad) + '</small><span style="display:block;margin-top:4px">' + badgeCad(x.d) + "</span></span>" +
+    var chk = puedeInventario() && ruta() === "alertas" ? '<label class="selchk" aria-label="Seleccionar ' + esc(x.p.nombre) + '"><input type="checkbox" data-sel="' + x.l.id + '"' + (selLotes[x.l.id] ? " checked" : "") + "></label>" : "";
+    return '<div class="li' + (selLotes[x.l.id] ? " sel" : "") + '" data-pid="' + x.p.id + '" style="cursor:pointer;flex-wrap:wrap">' + chk + thumb(x.p) + '<span class="t"><b>' + esc(x.p.nombre) + "</b><small>" + M.cant(x.l.cantidad, x.p.unidad) + " · caduca el " + M.fecha(x.l.caducidad) + '</small><span style="display:block;margin-top:4px">' + badgeCad(x.d) + "</span></span>" +
       (acciones ? '<span class="row" style="flex-basis:100%;justify-content:flex-end;gap:6px">' + acciones + "</span>" : "") + "</div>";
+  }
+  // ---------- Operaciones en lote sobre caducidades ----------
+  var selLotes = {};
+  function lotesSel() { return lotes.filter(function (l) { return selLotes[l.id] && l.cantidad > 0 && M.porId(l.producto_id) }) }
+  function pintarSelLotes() {
+    var bar = $("#selbar"); if (bar) bar.parentNode.removeChild(bar);
+    var L = lotesSel(); if (!L.length || ruta() !== "alertas") return;
+    var hayPend = L.some(function (l) { return l.cambio_proveedor === "pendiente" });
+    bar = document.createElement("div"); bar.className = "selbar"; bar.id = "selbar";
+    bar.innerHTML = '<span class="grow"><b>' + L.length + (L.length === 1 ? " seleccionado" : " seleccionados") + "</b></span>" +
+      '<button class="btn sm ghost" data-sb="wa">' + ic("smartphone", 16) + ' <span class="solo-amplio">Pedir cambio</span></button>' +
+      '<button class="btn sm alt" data-sb="cambio">' + ic("refresh-cw", 16) + " Me los cambió" + (hayPend ? "" : "") + "</button>" +
+      '<button class="btn sm" data-sb="merma">' + ic("trash-2", 16) + " Sacar</button>" +
+      '<button class="ibtn" data-sb="x" aria-label="Quitar selección">✕</button>';
+    document.body.appendChild(bar);
+    bar.onclick = function (e) {
+      var b = e.target.closest("[data-sb]"); if (!b) return;
+      var a = b.dataset.sb, Ls = lotesSel();
+      if (a === "x") { selLotes = {}; render(); return }
+      if (a === "wa") return pedirCambioVarios(Ls);
+      if (a === "cambio") return cambioProveedor(Ls);
+      if (a === "merma") mermarVarios(Ls);
+    };
+  }
+  function trasLote(msg) { selLotes = {}; return Promise.all([M.cargarProductos(), cargarLotes()]).then(function () { M.toast(msg, "ok"); render() }) }
+  function mermarVarios(L) {
+    var piezas = L.map(function (l) { var p = M.porId(l.producto_id); return "• " + M.cant(l.cantidad, p.unidad) + " de " + p.nombre }).join("\n");
+    M.confirmar("¿Sacar " + L.length + (L.length === 1 ? " lote" : " lotes") + " como merma?", "Se descuentan de tu inventario:\n" + piezas, "Sí, sacarlos", true).then(function (ok) {
+      if (!ok) return;
+      M.sb.rpc("mos_mermar_lotes", { ids: L.map(function (l) { return l.id }), nota: "Merma por caducidad" }).then(function (r) {
+        if (r.error) return M.error(r.error); trasLote(r.data + (r.data === 1 ? " lote sacado ✓" : " lotes sacados ✓"));
+      });
+    });
+  }
+  // El proveedor cambió producto vencido por nuevo: sale lo viejo y entra lo nuevo con su nueva fecha.
+  function cambioProveedor(L) {
+    if (!L.length) return;
+    var h = M.hoja('<h2>' + ic("refresh-cw", 22) + " Cambio del proveedor</h2>" +
+      '<p class="body small">Sale lo vencido y entra lo nuevo que te dio el proveedor. Revisa cuántos te dio y su nueva fecha de caducidad.</p>' +
+      (L.length > 1 ? '<div class="card" style="padding:12px"><div class="row wrap" style="align-items:flex-end"><label class="f grow" style="margin:0;min-width:160px"><span>Misma fecha para todos</span><input class="inp" type="date" id="cp-todos"></label>' +
+        '<button class="btn alt" id="cp-aplicar">Poner a todos</button></div></div>' : "") +
+      '<div id="cp-l" class="mt">' + L.map(function (l) {
+        var p = M.porId(l.producto_id);
+        return '<div class="card" style="padding:12px;margin-bottom:10px" data-l="' + l.id + '"><div class="row">' + thumb(p) + '<div class="grow"><b>' + esc(p.nombre) + '</b><br><small class="muted">Sale: ' + M.cant(l.cantidad, p.unidad) + " que caducaban el " + M.fecha(l.caducidad) + "</small></div></div>" +
+          '<div class="grid2 mt" style="margin-top:8px"><label class="f" style="margin:0"><span>Te dieron (' + M.unidad(p.unidad).c + ')</span><input class="inp" data-k="cant" inputmode="decimal" value="' + M.r3(l.cantidad) + '"></label>' +
+          '<label class="f" style="margin:0"><span>Nueva caducidad</span><input class="inp" type="date" data-k="cad"></label></div></div>';
+      }).join("") + '</div><div class="acts"><button class="btn ghost" data-cerrar>Cancelar</button><button class="btn" id="cp-ok">' + ic("badge-check", 17) + " Guardar " + (L.length === 1 ? "cambio" : L.length + " cambios") + "</button></div>", { ancha: true });
+    if ($("#cp-aplicar", h)) $("#cp-aplicar", h).onclick = function () { var d = $("#cp-todos", h).value; if (!d) return M.toast("Elige la fecha", "bad"); $$('[data-k="cad"]', h).forEach(function (x) { x.value = d }) };
+    $("#cp-ok", h).onclick = function () {
+      var items = $$("#cp-l [data-l]", h).map(function (c) { return { lote_id: c.dataset.l, cantidad_nueva: M.num($('[data-k="cant"]', c).value), caducidad_nueva: $('[data-k="cad"]', c).value } });
+      var sinFecha = items.filter(function (i) { return i.cantidad_nueva > 0 && !i.caducidad_nueva }).length, b = this;
+      (sinFecha ? M.confirmar("Faltan fechas", sinFecha + (sinFecha === 1 ? " producto no tiene" : " productos no tienen") + " nueva fecha de caducidad. Sin fecha no te podremos avisar cuando se venzan. ¿Guardar así?", "Guardar así") : Promise.resolve(true)).then(function (ok) {
+        if (!ok) return; b.disabled = true;
+        M.sb.rpc("mos_cambio_proveedor", { p: { items: items } }).then(function (r) {
+          if (r.error) { b.disabled = false; return M.error(r.error) }
+          M.cerrarHoja(); trasLote((r.data === 1 ? "Cambio guardado" : r.data + " cambios guardados") + ": salió lo vencido y entró lo nuevo ✓");
+        });
+      });
+    };
+  }
+  // Un solo mensaje por proveedor con todos los productos a cambiar
+  function pedirCambioVarios(L) {
+    cargarProveedores().then(function () {
+      var grupos = {};
+      L.forEach(function (l) { var k = l.proveedor_id || "sin"; (grupos[k] = grupos[k] || []).push(l) });
+      function mensaje(ls, prov) {
+        return "Hola" + (prov ? " " + prov.nombre : "") + ", soy de " + M.negocio.nombre + ". ¿Me pueden cambiar en su próxima visita estos productos?\n" +
+          ls.map(function (l) { var p = M.porId(l.producto_id); return "• " + M.cant(l.cantidad, p.unidad) + " de " + p.nombre + " (" + (M.diasHasta(l.caducidad) < 0 ? "venció" : "vence") + " el " + M.fecha(l.caducidad) + ")" }).join("\n") + "\nGracias.";
+      }
+      var ks = Object.keys(grupos);
+      var h = M.hoja('<h2>' + ic("smartphone", 22) + " Pedir cambio</h2><p class=\"body small\">Un mensaje por proveedor con todo lo que te debe cambiar.</p><div class=\"list\">" + ks.map(function (k) {
+        var prov = proveedores.filter(function (x) { return x.id === k })[0], ls = grupos[k];
+        var url = prov && prov.telefono ? M.wa(prov.telefono, mensaje(ls, prov)) : "https://wa.me/?text=" + encodeURIComponent(mensaje(ls, prov));
+        return '<a class="li" target="_blank" rel="noopener" href="' + url + '"><span class="thumb">' + ic("handshake", 20) + '</span><span class="t"><b>' + esc(prov ? prov.nombre : "Sin proveedor") + "</b><small>" + ls.length + (ls.length === 1 ? " producto" : " productos") + (prov && !prov.telefono ? " · sin WhatsApp guardado" : "") + "</small></span>" + ic("chevron-right", 18) + "</a>";
+      }).join("") + "</div>");
+    });
   }
   function filaProd(p) {
     return '<div class="li" data-pid="' + p.id + '" style="cursor:pointer">' + thumb(p) + '<span class="t"><b>' + esc(p.nombre) + "</b><small>Mínimo " + M.cant(p.minimo, p.unidad) + "</small></span>" + estadoStock(p) + "</div>";
@@ -1571,6 +1819,7 @@
     if (hoja) {
       var man = $("#scan-man", hoja);
       if (man) { $("input", man).value = code; man.dispatchEvent(new Event("submit", { cancelable: true })); return } // cámara abierta
+      if ($("#altalote", hoja)) return altaAgregar(code)                                                // agregar varios
       if (!$(".sheet[data-carrito]")) { M.sonar(false); return M.toast("Termina o cierra esta ventana antes de escanear otro producto", "bad") }
     }
     var p = M.porCodigo(code);

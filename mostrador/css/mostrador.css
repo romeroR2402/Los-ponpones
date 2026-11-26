@@ -243,3 +243,13 @@ img.foto.ok { opacity: 1 }
 .tour-ic { width: 42px; height: 42px; border-radius: 12px; background: var(--primary-soft); color: var(--primary); display: grid; place-items: center; flex: none }
 .tour-dots { display: flex; gap: 3px; flex-wrap: nowrap; max-width: 150px; overflow: hidden } .tour-dots i { flex: none; width: 5px; height: 5px; border-radius: 3px; background: var(--line) } .tour-dots i.on { width: 16px; background: var(--primary) }
 .side .side-admin { color: var(--primary); font-weight: 600 } .side .side-admin .i { color: var(--primary) }
+/* Operaciones en lote */
+.selchk { display: grid; place-items: center; flex: none; width: 28px; height: 28px; cursor: pointer }
+.selchk input { width: 20px; height: 20px; accent-color: var(--primary); cursor: pointer; margin: 0 }
+.li.sel, .tbl tr.sel { background: var(--primary-soft) }
+.selbar { position: fixed; left: 12px; right: 12px; bottom: calc(76px + var(--safe-b)); z-index: 30; display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--primary-line); border-radius: var(--r-lg); box-shadow: 0 10px 30px rgba(16,24,20,.18); animation: up .2s ease-out }
+@media (min-width: 900px) { .selbar { left: 264px; right: 24px; bottom: 20px; max-width: 900px } }
+@media (max-width: 420px) { .solo-amplio { display: none } }
+.al-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 8px } @media (min-width: 700px) { .al-grid { grid-template-columns: repeat(5, minmax(0,1fr)) } }
+body:has(#selbar) .toast { bottom: calc(150px + var(--safe-b)) }

@@ -29,6 +29,16 @@ Con correo configurado, al registrarse llega un **código de 6 números** y la c
 2. En Supabase → Edge Functions → **Secrets** agrega `SMTP_USER` = tu Gmail y `SMTP_PASS` = la contraseña de aplicación (16 letras).
 Mientras no estén, las cuentas se crean ya activadas (sin código).
 
+## Operaciones en lote
+- **Alertas → caducidades:** casillas para elegir varios lotes (o “Seleccionar todos”) y una barra con
+  **Sacar** (merma de todos), **Me los cambió** (el proveedor cambió lo vencido por nuevo: sale lo viejo y entra lo nuevo con su nueva fecha;
+  una fecha para todos o una por producto, y cuántos te dio) y **Pedir cambio** (un solo WhatsApp por proveedor con la lista).
+- **Productos → Seleccionar:** elegir varios (o todos los de la lista filtrada) y **Cambiar en lote**: precio fijo o subir/bajar %,
+  costo, mínimo, categoría, si caducan; o **Quitar** del catálogo.
+- **Productos → Agregar varios:** escanear uno tras otro (cámara, pistola o tecleando), los del catálogo salen con nombre;
+  se llenan precio, costo, cuántos hay, caducidad y categoría en una lista y se guardan todos juntos (con su entrada de inventario).
+- También en lote: factura XML y foto del ticket (entrada de mercancía). SQL: `supabase/lotes.sql`. Prueba: `qa/lotes.js` (12 casos).
+
 ## Administración de la plataforma (sólo tú)
 **https://romeror2402.github.io/Los-ponpones/mostrador/admin.html** (o “Administración” en el menú de la app, sólo visible para ti).
 Igual que el panel de psicoagenda:
