@@ -424,6 +424,15 @@ details.tk-raw pre{white-space:pre-wrap;font-size:12px;background:var(--tile);bo
 @keyframes dzin{from{stroke-dashoffset:400}to{stroke-dashoffset:0}}
 @media(prefers-reduced-motion:reduce){.bld .tp,.bld .dz{animation:none}}
 .sw{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+/* Corte de caja */
+.ct{background:var(--tile);border-radius:16px;padding:8px 12px;margin-top:8px}
+.ct-r{display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:14px;font-variant-numeric:tabular-nums}
+.ct-r.tot{border-top:1px solid var(--line);margin-top:4px;padding-top:8px;font-weight:800;font-size:15px}
+.ct-r.neg b{color:var(--red)}
+.ct-r.ok b{color:var(--okfg)}
+.cj{background:var(--okbg);color:var(--okfg);border-radius:12px;padding:8px 12px;font-size:14px}
+.ck{display:flex;gap:10px;align-items:center;margin:12px 0 0;font-weight:600;font-size:14px;cursor:pointer}
+.ck input{width:20px;height:20px;margin:0;flex:none}
 </style>
 </head>
 <body>
@@ -455,8 +464,8 @@ try{localStorage.removeItem("pp_admin");sessionStorage.clear()}catch(e){}
 var HASH="33a47409e796ed31bb5a7518ee4c9613583cfc0dee84df119a90061b25fb5dc6";
 async function sha(t){var b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(t));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,"0")}).join("")}
 function openLogin(err){document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Acceso del dueño</h2><p class="l">Escribe tu contraseña para ver las ventas y cambiar precios.</p><input id="pw" type="password" autocomplete="off" placeholder="Contraseña" onkeydown="if(event.key===\'Enter\')login()"><div class="change" style="color:var(--red);font-size:16px">'+(err||"")+'</div><button class="btn big" onclick="login()">Entrar</button><button class="btn big alt" style="margin-top:8px" onclick="closeS()">Cancelar</button></div></div>'}
-async function login(){var v=document.getElementById("pw").value,ok=false;try{if(sbOn()){var rr=await fetch(SB.url.replace(/\/$/,"")+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:SB.key,"Content-Type":"application/json"},body:JSON.stringify({email:SB.email,password:v})});var dd=await rr.json();if(rr.ok&&dd.access_token){tok=dd.access_token;ok=true}}else ok=(await sha(v))===HASH}catch(e){openLogin("No se pudo verificar. Revisa tu conexión y que la app esté en tu enlace seguro (https).");return}if(ok){admin=true;closeS();view=2;draw();pull();loadShop().then(function(){syncAll().then(function(){loadRep();loadInv();loadComp();loadOps();opsSeen()});if(shopOk&&!shop.abierta)askOpen()})}else openLogin("Contraseña incorrecta")}
-function logout(){comp=null;compErr="";ops=null;opsNew=0;firstOps=true;rep=null;inv=[];invOk=false;admin=false;tok=null;lastSig="";firstPull=true;view=1;draw()}
+async function login(){var v=document.getElementById("pw").value,ok=false;try{if(sbOn()){var rr=await fetch(SB.url.replace(/\/$/,"")+"/auth/v1/token?grant_type=password",{method:"POST",headers:{apikey:SB.key,"Content-Type":"application/json"},body:JSON.stringify({email:SB.email,password:v})});var dd=await rr.json();if(rr.ok&&dd.access_token){tok=dd.access_token;ok=true}}else ok=(await sha(v))===HASH}catch(e){openLogin("No se pudo verificar. Revisa tu conexión y que la app esté en tu enlace seguro (https).");return}if(ok){admin=true;closeS();view=2;draw();pull();loadShop().then(function(){syncAll().then(function(){loadRep();loadInv();loadComp();loadCaja();loadOps();opsSeen()});if(shopOk&&!shop.abierta)askOpen()})}else openLogin("Contraseña incorrecta")}
+function logout(){caja=null;cajaPrev=null;comp=null;compErr="";ops=null;opsNew=0;firstOps=true;rep=null;inv=[];invOk=false;admin=false;tok=null;lastSig="";firstPull=true;view=1;draw()}
 var away=0;
 document.addEventListener("visibilitychange",function(){if(document.hidden)away=Date.now();else if(admin&&away&&Date.now()-away>60000)logout()});
 var ORD=ld("pp_me",{t:"rec",n:"",tel:"",dir:""}),clients=ld("pp_clients",[]),TY=[["suc","En sucursal"],["rec","Recoger"],["env","Envío"]];
@@ -628,14 +637,14 @@ async function saveShop(p){var old=JSON.stringify(shop);Object.assign(shop,p);sh
     if(!r||!r.length)throw new Error("sin permiso");shopOk=true}
   catch(e){shop=JSON.parse(old);shopErr="No se pudo guardar ("+(e&&e.message)+"). Revisa que corriste el SQL de la tienda en Supabase.";if(e&&e.message==="401")logout()}
   draw()}
-function setOpen(v){closeS();saveShop({abierta:v})}
+function setOpen(v){closeS();saveShop({abierta:v});if(sbOn()&&tok)loadCaja().then(function(){if(cajaErr)return;if(v&&!caja)cajaOpen();else if(!v&&caja)corteStart()})}
 function tAgo(i){var x=AGL[i],a=shop.agotado.slice(),j=a.indexOf(x);j>-1?a.splice(j,1):a.push(x);saveShop({agotado:a})}
 function note(t,d){document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>'+t+'</h2><p class="l">'+d+'</p><button class="btn big" onclick="closeS()">Entendido</button></div></div>'}
 function askOpen(){document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><div class="hero" style="font-size:64px">🌙</div><h2>La tienda está cerrada</h2><p class="l">Los clientes no pueden hacer pedidos. ¿Quieres abrirla ahora?</p><button class="btn big" onclick="setOpen(true)">Abrir tienda</button><button class="btn big alt" onclick="closeS()">Ahora no</button></div></div>'}
 function shopHtml(){if(!sbOn())return "";var o=shop.abierta,i=0;
   var h='<div class="shop"><div class="oh"><b>Tienda</b><span class="stt'+(o?"":" off")+'"><i></i>'+(o?"Abierta":"Cerrada")+'</span></div><p class="l" style="margin:6px 0 0">'+(!shopOk?"Falta conectar: corre el SQL de la tienda en Supabase.":o?"Los clientes pueden hacer pedidos.":"Los clientes ven el menú, pero no pueden pedir.")+'</p>'+
    '<div class="acts"><button class="btn grow'+(o?" alt":"")+'" onclick="setOpen('+!o+')">'+(o?"Cerrar tienda":"Abrir tienda")+'</button></div>';
-  h+=temaHtml()+avisoEdit();
+  h+=cajaHtml()+temaHtml()+avisoEdit();
   h+=AGG.map(function(g){return '<p class="l">'+g[0]+'</p><div class="chips">'+g[1].map(function(x){var k=i++;return '<button class="chip'+(ago(x)?" out":"")+'" onclick="tAgo('+k+')">'+esc(x)+(ago(x)?" · agotado":"")+'</button>'}).join("")+'</div>'}).join("");
   return h+'<p class="l" style="font-size:13px">Toca un producto o ingrediente para marcarlo como agotado. Tócalo otra vez cuando vuelva a haber.</p>'+(shopErr?'<div class="change" style="color:var(--red);font-size:14px">'+esc(shopErr)+'</div>':'')+'</div>'}
 function payHtml(){return '<div class="pay"><b>Pago por transferencia · '+PAGO.banco+'</b><small>A nombre de '+PAGO.titular+'</small>'+
@@ -646,7 +655,7 @@ var lastId=0,syncErr="";
 function newId(){lastId=Math.max(Date.now(),(lastId||0)+1);return lastId}
 function cRow(c){return{id:c.id,nombre:c.n||"",telefono:c.tel||"",digitos:c.d||"",direccion:c.dir||"",pedidos:c.k||0,updated_at:new Date().toISOString()}}
 function cObj(r){return{id:+r.id,n:r.nombre,tel:r.telefono,d:r.digitos,dir:r.direccion,k:r.pedidos}}
-function vRow(s){return{id:s.id,created_at:new Date(s.t).toISOString(),items:s.items,total:s.total,pagado:s.paid||s.total}}
+function vRow(s){return{id:s.id,created_at:new Date(s.t).toISOString(),items:s.items,total:s.total,pagado:s.paid||s.total,metodo:s.metodo||"efectivo"}}
 function vObj(r){return{id:+r.id,t:Date.parse(r.created_at),items:r.items||[],total:+r.total,paid:+r.pagado}}
 function sbUp(t,rows){return sbFetch("/rest/v1/"+t,{method:"POST",headers:Object.assign(sbH(true),{Prefer:"resolution=merge-duplicates,return=minimal"}),body:JSON.stringify(rows)},true)}
 function pushC(c){if(sbOn()&&admin&&tok)sbUp("clientes",[cRow(c)]).catch(function(){})}
@@ -793,6 +802,7 @@ function tkDraw(){var t=tk,h='<div class="ov" onclick="if(event.target===this)cl
     h+=t.items.length?t.items.map(function(r,i){return '<div class="tk-r"><input aria-label="Producto" value="'+esc(r.n)+'" oninput="tk.items['+i+'].n=this.value"><input aria-label="Precio" type="number" inputmode="decimal" step="any" min="0" value="'+r.c+'" oninput="tk.items['+i+'].c=parseFloat(this.value)||0;tkSum()"><button class="x" aria-label="Quitar" onclick="tk.items.splice('+i+',1);tkDraw()">✕</button><select aria-label="Artículo del inventario" onchange="tk.items['+i+'].inv=this.value"><option value="">Otro gasto (no está en mi inventario)</option>'+inv.map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===r.inv?" selected":"")+'>📦 '+esc(x.nombre)+'</option>'}).join("")+'</select></div>'}).join(""):'<p class="empty">No encontré productos con precio. Prueba con otra foto más clara, o agrégalos a mano.</p>';
     h+='<button class="btn alt sm" style="margin-top:10px" onclick="tk.items.push({n:\'\',c:0,inv:\'\'});tkDraw()">+ Agregar renglón</button>';
     h+='<div class="tk-sum"><span>Suma de lo que vas a guardar</span><span id="tk_s"></span></div><p class="tk-warn" id="tk_w"></p>';
+    h+='<label class="ck"><input type="checkbox" '+(t.caja?"checked":"")+' onchange="tk.caja=this.checked">💵 Lo pagué con dinero de la caja</label>';
     h+='<p class="l">Nota (tienda o lugar)</p><input id="tk_n" maxlength="200" value="'+esc(t.nota||"")+'" oninput="tk.nota=this.value">';
     h+='<details class="tk-raw"><summary>Ver el texto que leí del ticket</summary><pre>'+esc(t.raw||"")+'</pre></details>'+(t.err?'<div class="change" style="color:var(--red);font-size:14px">'+esc(t.err)+'</div>':'');
     h+='<button class="btn big" id="tk_ok" onclick="tkSave()">Guardar '+t.items.length+(t.items.length===1?" compra":" compras")+'</button><button class="btn big alt" onclick="tkOpen()">Leer otro ticket</button>'}
@@ -804,14 +814,14 @@ async function tkRead(f){if(!f)return;tk={st:"read",msg:"Abriendo la foto…",pc
   try{var im=await tkImg(f);tk.pv=im.u;tkDraw();set("Preparando el lector… (la primera vez tarda más)",8);await loadTess();
     var w=await Tesseract.createWorker("spa",1,{logger:function(m){if(m.status==="recognizing text")set("Leyendo el ticket… "+Math.round(m.progress*100)+"%",20+Math.round(m.progress*78));else if(/load/.test(m.status))set("Preparando el lector… (la primera vez tarda más)",Math.min(19,8+Math.round((m.progress||0)*11)))}});
     var r=await w.recognize(im.c);await w.terminate();var pt=parseTicket(r.data.text);
-    tk={st:"review",items:pt.items,total:pt.total,raw:r.data.text,nota:pt.tienda?"Ticket "+pt.tienda:"Ticket"};tkDraw()}
+    tk={st:"review",items:pt.items,total:pt.total,raw:r.data.text,nota:pt.tienda?"Ticket "+pt.tienda:"Ticket",caja:!!caja};tkDraw()}
   catch(x){tk={st:"pick",err:"No se pudo leer: "+(x&&x.message||x)};tkDraw()}}
 async function tkSave(){var t=tk,rs=t.items.filter(function(r){return (r.n||"").trim()&&(+r.c||0)>0});if(!rs.length){t.err="No hay renglones con nombre y precio para guardar.";tkDraw();return}
-  var nota=(t.nota||"").trim().slice(0,200)||null,rows=rs.map(function(r){var it=inv.filter(function(x){return x.id===r.inv})[0];return{id:newId(),item_id:it?it.id:null,nombre:(it?it.nombre:r.n.trim()).slice(0,60),cantidad:null,unidad:null,costo:Math.round(r.c*100)/100,nota:nota}}),b=document.getElementById("tk_ok");if(b){b.disabled=true;b.textContent="Guardando…"}
+  var nota=(t.nota||"").trim().slice(0,200)||null,rows=rs.map(function(r){var it=inv.filter(function(x){return x.id===r.inv})[0];return{id:newId(),item_id:it?it.id:null,nombre:(it?it.nombre:r.n.trim()).slice(0,60),cantidad:null,unidad:null,costo:Math.round(r.c*100)/100,nota:nota,de_caja:!!t.caja}}),b=document.getElementById("tk_ok");if(b){b.disabled=true;b.textContent="Guardando…"}
   try{await sbFetch("/rest/v1/compras",{method:"POST",headers:Object.assign(sbH(true),{Prefer:"return=minimal"}),body:JSON.stringify(rows)},true)}catch(x){t.err="No se pudo guardar ("+(x&&x.message)+").";tkDraw();return}
   var now=new Date().toISOString();comp=comp||[];rows.slice().reverse().forEach(function(r){r.created_at=now;comp.unshift(r)});var tot=rows.reduce(function(a,r){return a+r.costo},0);tk=null;draw();
   document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><div class="hero" style="font-size:64px">🧾</div><h2>Ticket guardado</h2><p class="l">Guardé '+rows.length+(rows.length===1?" compra":" compras")+' por <b>'+m2(tot)+'</b>. Ya cuentan en tu ganancia bruta.</p><button class="btn big" onclick="closeS()">Listo</button></div></div>'}
-function openCompra(id){cpEd={id:id||"",nombre:"",cant:"",costo:"",nota:""};rCompra()}
+function openCompra(id){cpEd={id:id||"",nombre:"",cant:"",costo:"",nota:"",caja:!!caja};rCompra()}
 function rCompra(err){var e=cpEd,it=inv.filter(function(x){return x.id===e.id})[0];
   var h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>🧾 Registrar compra</h2><p class="l" style="margin-top:0">Anota lo que pagaste para calcular tu ganancia.</p><p class="l">¿Qué compraste?</p><select id="cp_i" onchange="cpEd.id=this.value;rCompra()"><option value="">Otro gasto (escribir)</option>'+
     inv.map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===e.id?" selected":"")+'>'+esc(x.nombre)+'</option>'}).join("")+'</select>';
@@ -819,12 +829,13 @@ function rCompra(err){var e=cpEd,it=inv.filter(function(x){return x.id===e.id})[
   h+='<p class="l">¿Cuánto pagaste en total?</p><input id="cp_c" type="number" inputmode="decimal" min="0" step="any" placeholder="$ 0" value="'+esc(e.costo)+'" oninput="cpEd.costo=this.value">';
   h+='<p class="l">¿Cuántos compraste? (opcional)</p><input id="cp_q" type="number" inputmode="decimal" min="0" step="any" placeholder="'+(it?esc(it.unidad):"cantidad")+'" value="'+esc(e.cant)+'" oninput="cpEd.cant=this.value">';
   if(it&&it.cantidad!=null)h+='<p class="l" style="font-size:13px">Se sumará a tu inventario (hoy: '+esc(invTxt(it))+').</p>';
+  h+='<label class="ck"><input type="checkbox" '+(e.caja?"checked":"")+' onchange="cpEd.caja=this.checked">💵 Lo pagué con dinero de la caja</label>';
   h+='<p class="l">Nota (opcional)</p><input id="cp_t" maxlength="200" placeholder="Ej. Tienda La Esperanza" value="'+esc(e.nota)+'" oninput="cpEd.nota=this.value">'+
     (err?'<div class="change" style="color:var(--red);font-size:14px">'+esc(err)+'</div>':'')+'<button class="btn big" id="cp_ok" onclick="saveCompra()">Guardar compra</button><button class="btn big alt" onclick="closeS()">Cancelar</button></div></div>';
   document.getElementById("ov").innerHTML=h}
 async function saveCompra(){var e=cpEd,it=inv.filter(function(x){return x.id===e.id})[0],c=parseFloat(String(e.costo).replace(",",".")),q=parseFloat(String(e.cant).replace(",","."));
   var nm=it?it.nombre:(e.nombre||"").trim();if(!nm){rCompra("Escribe qué compraste.");return}if(!(c>=0)){rCompra("Escribe cuánto pagaste (un número).");return}
-  var row={id:newId(),item_id:it?it.id:null,nombre:nm,cantidad:q>0?q:null,unidad:it?it.unidad:null,costo:c,nota:(e.nota||"").trim()||null},b=document.getElementById("cp_ok");if(b){b.disabled=true;b.textContent="Guardando…"}
+  var row={id:newId(),item_id:it?it.id:null,nombre:nm,cantidad:q>0?q:null,unidad:it?it.unidad:null,costo:c,nota:(e.nota||"").trim()||null,de_caja:!!e.caja},b=document.getElementById("cp_ok");if(b){b.disabled=true;b.textContent="Guardando…"}
   try{await sbFetch("/rest/v1/compras",{method:"POST",headers:Object.assign(sbH(true),{Prefer:"return=minimal"}),body:JSON.stringify(row)},true)}
   catch(x){rCompra(x&&x.message==="404"?"Falta activar el registro de compras en la base de datos.":"No se pudo guardar ("+(x&&x.message)+").");return}
   row.created_at=new Date().toISOString();comp=comp||[];comp.unshift(row);
@@ -966,7 +977,7 @@ function name(it){return P[it.p].n+(it.fruit?(it.fr.every(function(x){return FR.
 function det(it){return [it.fl,it.fr&&it.fr.join(", "),it.qx?"Queso extra":""].filter(Boolean).join(" · ")}
 function vin(){var m=document.getElementById("main");m.classList.remove("vin");void m.offsetWidth;m.classList.add("vin")}
 var barN=0;
-function tab(n){if(n!==view&&!((n==2||n==3||n==5)&&!admin))vin();if((n==2||n==3||n==5)&&!admin){openLogin();return}view=n;armed=false;if(n==3)ackAlert();if(n==2){loadRep();loadComp();loadOps();opsSeen()}if(n==4)loadHist();if(n==5){loadInv();loadComp()}draw()}
+function tab(n){if(n!==view&&!((n==2||n==3||n==5)&&!admin))vin();if((n==2||n==3||n==5)&&!admin){openLogin();return}view=n;armed=false;if(n==3)ackAlert();if(n==2){loadRep();loadComp();loadCaja();loadOps();opsSeen()}if(n==4)loadHist();if(n==5){loadInv();loadComp()}draw()}
 var FLWAF='<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="10" fill="#E9A64A" stroke="#B8742A" stroke-width="2"/><path d="M13 4V36M20 4V36M27 4V36M4 13H36M4 20H36M4 27H36" stroke="#C4832F" stroke-width="2.4"/><path d="M8 8h3M15 8h3M8 15h3" stroke="#F8D08A" stroke-width="2" stroke-linecap="round"/></svg>',
  FLMAR='<svg viewBox="0 0 56 26" aria-hidden="true"><rect x="6" y="3" width="48" height="20" rx="10" fill="#E8B064" stroke="#B8742A" stroke-width="2"/><ellipse cx="9" cy="13" rx="7" ry="10" fill="#F2C987" stroke="#B8742A" stroke-width="2"/><path d="M9 7a5 6 0 1 0 1 12" fill="none" stroke="#B8742A" stroke-width="1.6"/><path d="M18 5l5 16 6-16 6 16 6-16 6 16" fill="none" stroke="#5A2E12" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 var SWC={"Cajeta":"#A8642A","Lechera":"#F3E3C3","Maple":"#C98A2E","Chocolate de avellana":"#4A2716","Mermelada de fresa":"#D7263D","Mermelada de frutos rojos":"#7B1E4A",
@@ -1129,29 +1140,103 @@ function openCart(){
 function rm(i){cart.splice(i,1);openCart();draw()}
 var paid=0;
 function tot(){return cart.reduce(function(a,i){return a+i.u*i.q},0)}
-function openPay(){paid=0;rp()}
+var caja=null,cajaPrev=null,cajaErr="",ct=null,pmet="efectivo";
+function mChips(cur,vr,rr){return [["efectivo","💵 Efectivo"],["transferencia","🏦 Transferencia / tarjeta"]].map(function(m){return '<button class="chip'+(cur===m[0]?" on":"")+'" onclick="'+vr+'=\''+m[0]+'\';'+(rr||"rp()")+'">'+m[1]+'</button>'}).join("")}
+function hoyISO(){var d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)}
+function hm(t){return new Date(t).toLocaleTimeString("es-MX",{hour:"numeric",minute:"2-digit"})}
+function difTxt(d){return Math.abs(d)<.5?"✅ cuadró":d>0?"sobraron "+money(d):"faltaron "+money(-d)}
+async function loadCaja(){if(!(sbOn()&&admin&&tok))return;
+  try{var r=await sbFetch("/rest/v1/cortes?select=*&order=abierto_at.desc&limit=15",{},true)||[];caja=r.filter(function(x){return !x.cerrado_at})[0]||null;cajaPrev=r.filter(function(x){return x.cerrado_at});cajaErr=""}
+  catch(e){cajaErr=e&&e.message==="404"?"Falta activar el corte de caja en la base de datos.":"No se pudo cargar la caja ("+(e&&e.message)+")."}
+  if(view==2)draw()}
+function cajaHtml(){if(!sbOn())return "";var h='<p class="l">Caja</p>';
+  if(cajaErr)return h+'<p class="l" style="color:var(--red);font-size:13px">'+esc(cajaErr)+'</p>';
+  if(caja)h+='<div class="cj">💵 <b>Caja abierta</b> desde '+hm(caja.abierto_at)+' · fondo '+money(+caja.fondo)+'</div><div class="acts"><button class="btn grow" onclick="corteStart()">🧾 Hacer corte de caja</button></div>';
+  else h+='<div class="acts"><button class="btn alt grow" onclick="cajaOpen()">💵 Abrir caja (fondo inicial)</button></div>';
+  var u=(cajaPrev||[])[0];if(u)h+='<p class="l" style="font-size:12px;margin:6px 0 0">Último corte: '+fdate(new Date(u.cerrado_at),{weekday:"short",day:"numeric",month:"short"})+' · '+difTxt(+u.diferencia||0)+(u.retiro!=null?' · para retirar '+money(+u.retiro):'')+' <button class="lnkb" onclick="cortesHist()">Ver historial</button></p>';
+  return h}
+function cajaOpen(err){var u=(cajaPrev||[])[0],def=u&&u.fondo_manana!=null?+u.fondo_manana:"";
+  document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>💵 Abrir caja</h2><p class="l" style="margin-top:0">¿Con cuánto efectivo empiezas? Es el fondo para dar cambio.</p><div class="chips">'+[200,300,500,1000].map(function(v){return '<button class="chip" onclick="document.getElementById(\'cj_f\').value='+v+'">$'+v+'</button>'}).join("")+'</div>'+
+    '<input id="cj_f" type="number" inputmode="decimal" min="0" step="any" placeholder="$ 0" value="'+def+'">'+(err?'<div class="change" style="color:var(--red);font-size:14px">'+esc(err)+'</div>':'')+'<button class="btn big" id="cj_ok" onclick="cajaOpenOk()">Abrir caja</button><button class="btn big alt" onclick="closeS()">Ahora no</button></div></div>'}
+async function cajaOpenOk(){var f=parseFloat(String(document.getElementById("cj_f").value).replace(",","."));if(!(f>=0)){cajaOpen("Escribe con cuánto efectivo empiezas (puede ser 0).");return}
+  var b=document.getElementById("cj_ok");if(b){b.disabled=true;b.textContent="Abriendo…"}
+  var row={id:newId(),fecha:hoyISO(),abierto_at:new Date().toISOString(),fondo:f};
+  try{await sbFetch("/rest/v1/cortes",{method:"POST",headers:Object.assign(sbH(true),{Prefer:"return=minimal"}),body:JSON.stringify(row)},true)}catch(x){cajaOpen("No se pudo abrir la caja ("+(x&&x.message)+").");return}
+  caja=row;closeS();draw()}
+async function corteStart(){if(!caja)return;var a=encodeURIComponent(caja.abierto_at);
+  document.getElementById("ov").innerHTML='<div class="ov"><div class="sheet"><h2>🧾 Corte de caja</h2><p class="empty">Calculando…</p></div></div>';
+  try{var vs=await allRows("/rest/v1/ventas?select=total,metodo&created_at=gte."+a+"&order=id.asc"),
+      os=await allRows("/rest/v1/orders?select=total,pagado_metodo&pagado=eq.true&pagado_at=gte."+a+"&order=id.asc"),
+      cs=await allRows("/rest/v1/compras?select=costo,de_caja&created_at=gte."+a+"&order=id.asc"),
+      lc=await allRows("/rest/v1/compras?select=item_id,costo&item_id=not.is.null&order=created_at.desc")}
+  catch(x){note("No se pudo calcular el corte","Revisa tu internet e intenta otra vez ("+esc(x&&x.message)+").");return}
+  var ef=function(m){return !m||m==="efectivo"},S=function(arr,f,c){return arr.reduce(function(t,x){return t+(c(x)?+x[f]||0:0)},0)},last={};
+  lc.forEach(function(r){if(last[r.item_id]==null)last[r.item_id]=+r.costo});
+  ct={vce:S(vs,"total",function(x){return ef(x.metodo)}),vt:S(vs,"total",function(){return 1}),poe:S(os,"total",function(x){return ef(x.pagado_metodo)}),pt:S(os,"total",function(){return 1}),
+    gc:S(cs,"costo",function(x){return x.de_caja}),gt:S(cs,"costo",function(){return 1}),n:vs.length+os.length,last:last,contado:"",fondoM:String(+caja.fondo),marcar:true,nota:"",
+    out:inv.filter(function(it){return invSt(it)==="out"}).map(function(it){return it.id})};
+  ct.esperado=+caja.fondo+ct.vce+ct.poe-ct.gc;corteDraw()}
+function ctRow(t,v,c){return '<div class="ct-r'+(c||"")+'"><span>'+t+'</span><b>'+(v<0?"−":"")+money(Math.abs(v))+'</b></div>'}
+function ctCalc(){var c=ct,cont=parseFloat(String(c.contado).replace(",",".")),fm=parseFloat(String(c.fondoM).replace(",","."))||0,rep=0,sin=[];
+  c.out.forEach(function(id){if(c.last[id]!=null)rep+=c.last[id];else{var it=inv.filter(function(x){return x.id===id})[0];if(it)sin.push(it.nombre)}});
+  return{cont:cont>=0?cont:null,fm:fm,rep:rep,sin:sin,dif:cont>=0?cont-c.esperado:null,ret:cont>=0?cont-fm-rep:null,gan:c.vt+c.pt-c.gt}}
+function ctRes(){var k=ctCalc(),c=ct,h=ctRow("Ventas del turno (todas)",c.vt+c.pt)+ctRow("− Compras del turno",-c.gt)+ctRow("Ganancia del turno",k.gan," tot"+(k.gan<0?" neg":" ok"));
+  if(k.cont!=null)h+='<div style="height:8px"></div>'+ctRow("Efectivo contado",k.cont)+ctRow("− Fondo para mañana",-k.fm)+ctRow("− Para reponer lo que se acabó",-k.rep)+ctRow(k.ret<0?"No alcanza, te faltan":"Puedes retirar",k.ret<0?-k.ret:k.ret," tot"+(k.ret<0?" neg":" ok"));
+  else h+='<p class="l" style="font-size:12px;margin:6px 0 0">Escribe cuánto efectivo contaste para ver cuánto puedes retirar.</p>';
+  return h}
+function ctUp(){var k=ctCalc(),d=document.getElementById("ct_d"),r=document.getElementById("ct_res");
+  if(d)d.innerHTML=k.dif==null?"":'<b style="color:'+(Math.abs(k.dif)<.5?"var(--okfg)":"var(--red)")+'">'+(Math.abs(k.dif)<.5?"✅ ¡La caja cuadra!":k.dif>0?"Sobran "+money(k.dif):"Faltan "+money(-k.dif))+'</b>';if(r)r.innerHTML=ctRes()}
+function ctOut(id){var j=ct.out.indexOf(id);j>-1?ct.out.splice(j,1):ct.out.push(id);corteDraw()}
+function corteDraw(err){var c=ct,k=ctCalc();
+  var h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>🧾 Corte de caja</h2><p class="l" style="margin-top:0">Desde '+hm(caja.abierto_at)+' · '+c.n+(c.n===1?" cobro":" cobros")+'</p>'+
+    '<div class="ct">'+ctRow("Fondo inicial",+caja.fondo)+ctRow("+ Ventas en efectivo (caja)",c.vce)+ctRow("+ Pedidos cobrados en efectivo",c.poe)+ctRow("− Compras pagadas con la caja",-c.gc)+ctRow("Debería haber en la caja",c.esperado," tot")+'</div>'+
+    (c.vt+c.pt>c.vce+c.poe?'<p class="l" style="font-size:12px;margin:6px 0 0">Además cobraste '+money(c.vt+c.pt-c.vce-c.poe)+' por transferencia o tarjeta (no está en la caja).</p>':'')+
+    '<p class="l">1. ¿Cuánto efectivo contaste en la caja?</p><input id="ct_c" type="number" inputmode="decimal" min="0" step="any" placeholder="$ 0" value="'+esc(c.contado)+'" oninput="ct.contado=this.value;ctUp()"><div id="ct_d" style="margin-top:6px"></div>'+
+    '<p class="l">2. ¿Qué se te acabó hoy? <small class="hint">toca lo que ya no tienes</small></p><div class="chips">'+inv.map(function(it){var on=c.out.indexOf(it.id)>-1;return '<button class="chip'+(on?" out":"")+'" onclick="ctOut(\''+it.id+'\')">'+esc(it.nombre)+(on&&c.last[it.id]!=null?' · '+money(c.last[it.id]):'')+'</button>'}).join("")+'</div>'+
+    '<p class="l" style="font-size:13px">Para reponerlo: <b>'+money(k.rep)+'</b> <small class="hint">según tu última compra'+(k.sin.length?'; sin precio: '+esc(k.sin.join(", ")):'')+'</small></p>'+
+    '<label class="ck"><input type="checkbox" '+(c.marcar?"checked":"")+' onchange="ct.marcar=this.checked">Marcar lo que se acabó como agotado en el menú</label>'+
+    '<p class="l">3. ¿Cuánto efectivo dejas de fondo para mañana?</p><input id="ct_f" type="number" inputmode="decimal" min="0" step="any" value="'+esc(c.fondoM)+'" oninput="ct.fondoM=this.value;ctUp()">'+
+    '<div class="ct" id="ct_res"></div><p class="l">Nota (opcional)</p><input id="ct_n" maxlength="300" value="'+esc(c.nota)+'" oninput="ct.nota=this.value">'+
+    (err?'<div class="change" style="color:var(--red);font-size:14px">'+esc(err)+'</div>':'')+'<button class="btn big" id="ct_ok" onclick="corteSave()">Guardar corte y cerrar caja</button><button class="btn big alt" onclick="closeS()">Todavía no</button></div></div>';
+  document.getElementById("ov").innerHTML=h;ctUp()}
+async function corteSave(){var c=ct,k=ctCalc();if(k.cont==null){corteDraw("Escribe cuánto efectivo contaste en la caja.");return}
+  var b=document.getElementById("ct_ok");if(b){b.disabled=true;b.textContent="Guardando…"}
+  var reps=c.out.map(function(id){var it=inv.filter(function(x){return x.id===id})[0];return{id:id,nombre:it?it.nombre:id,costo:c.last[id]==null?null:c.last[id]}});
+  var body={cerrado_at:new Date().toISOString(),ventas_efectivo:c.vce+c.poe,ventas_total:c.vt+c.pt,gastos_caja:c.gc,compras_total:c.gt,esperado:c.esperado,contado:k.cont,diferencia:Math.round(k.dif*100)/100,reponer:reps,reposicion:k.rep,fondo_manana:k.fm,retiro:Math.round(k.ret*100)/100,nota:(c.nota||"").trim()||null};
+  try{var r=await sbFetch("/rest/v1/cortes?id=eq."+caja.id,{method:"PATCH",headers:Object.assign(sbH(true),{Prefer:"return=representation"}),body:JSON.stringify(body)},true);if(!r||!r.length)throw new Error("no se encontró la caja abierta")}
+  catch(x){corteDraw("No se pudo guardar ("+(x&&x.message)+").");return}
+  if(c.marcar)for(var i=0;i<c.out.length;i++){var it=inv.filter(function(x){return x.id===c.out[i]})[0];if(!it||invSt(it)==="out")continue;
+    try{var q=await sbFetch("/rest/v1/inventario?id=eq."+encodeURIComponent(it.id),{method:"PATCH",headers:Object.assign(sbH(true),{Prefer:"return=representation"}),body:JSON.stringify({cantidad:0,updated_at:new Date().toISOString()})},true);if(q&&q[0])Object.assign(it,q[0]);invLink(it,0)}catch(x){}}
+  cajaPrev=[r[0]].concat(cajaPrev||[]);caja=null;ct=null;draw();
+  document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><div class="hero" style="font-size:64px">🧾</div><h2>Corte guardado</h2><div class="ct">'+ctRow("Debería haber",body.esperado)+ctRow("Contaste",body.contado)+'<div class="ct-r"><span>Resultado</span><b>'+difTxt(body.diferencia)+'</b></div>'+ctRow("Ganancia del turno",body.ventas_total-body.compras_total," tot")+ctRow(body.retiro<0?"No alcanza, te faltan":"Puedes retirar",Math.abs(body.retiro)," tot"+(body.retiro<0?" neg":" ok"))+'</div>'+
+    '<p class="l">Deja <b>'+money(body.fondo_manana)+'</b> de fondo'+(body.reposicion?' y aparta <b>'+money(body.reposicion)+'</b> para reponer':'')+'.</p><button class="btn big" onclick="closeS()">Listo</button></div></div>'}
+function cortesHist(){var a=cajaPrev||[];
+  document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>Historial de cortes</h2>'+(a.length?a.map(function(u){return '<div class="op"><div class="oh"><b>'+fdate(new Date(u.abierto_at),{weekday:"long",day:"numeric",month:"short"})+'</b><span>'+hm(u.abierto_at)+' – '+hm(u.cerrado_at)+'</span></div>'+
+    '<div class="ct-r"><span>Fondo · contado</span><b>'+money(+u.fondo)+' · '+money(+u.contado)+'</b></div><div class="ct-r"><span>Caja</span><b>'+difTxt(+u.diferencia||0)+'</b></div><div class="ct-r"><span>Ganancia del turno</span><b>'+money((+u.ventas_total||0)-(+u.compras_total||0))+'</b></div><div class="ct-r"><span>Para retirar</span><b>'+money(+u.retiro||0)+'</b></div>'+
+    ((u.reponer||[]).length?'<small>Se acabó: '+esc(u.reponer.map(function(x){return x.nombre}).join(", "))+'</small>':'')+(u.nota?'<p>📝 '+esc(u.nota)+'</p>':'')+'</div>'}).join(""):'<p class="empty">Aún no hay cortes.</p>')+'<button class="btn big alt" onclick="closeS()">Cerrar</button></div></div>'}
+function openPay(){paid=0;pmet="efectivo";rp()}
 function qkOpen(){var h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>📋 Mandar a la fila</h2><ul class="pay-l">'+cart.map(function(i){return '<li>'+i.q+" × "+esc(name(i))+(det(i)?" ("+esc(det(i))+")":"")+" — "+$(i.u*i.q)+'</li>'}).join("")+'</ul><div class="tot"><span>Total</span><span>'+$(tot())+'</span></div>'+
   '<p class="l">Nombre (opcional)</p><input id="qk_n" maxlength="80" placeholder="Ej. Ana, mesa 2… (si no, dice Mostrador)"><p class="l">Nota (opcional)</p><input id="qk_t" maxlength="200" placeholder="Ej. para llevar, sin coco">'+
   '<button class="btn big" onclick="qkSend()">📋 Mandar a la fila</button><p class="l" style="font-size:12px;text-align:center;margin:6px 0 0">Lo cobras después en 📋 Pedidos con «💵 Cobrar».</p><button class="btn big alt" onclick="openForm()">Con datos del cliente (teléfono o envío)</button><button class="btn big alt" onclick="openCart()">✏️ Regresar a editar</button></div></div>';
   document.getElementById("ov").innerHTML=h}
 function qkSend(){var n=document.getElementById("qk_n").value.trim()||"Mostrador",nt=document.getElementById("qk_t").value.trim();addOrder({t:"suc",n:n,tel:"",dir:"",items:itemLines(),total:tot(),nota:nt});cart=[];closeS();view=3;draw()}
 var opay=null,upArm=0;
-function payO(id){var o=orders.filter(function(x){return x.id===id})[0];if(!o)return;opay={o:o,p:0};rpO()}
+function payO(id){var o=orders.filter(function(x){return x.id===id})[0];if(!o)return;opay={o:o,p:0,m:"efectivo"};rpO()}
 function ochg(){var t=opay.o.total,p=opay.p;return p?(p>=t?"Cambio: "+$(p-t):"Faltan "+$(t-p)):""}
 function rpO(err){var o=opay.o,t=o.total;
-  document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>💵 Cobrar pedido #'+o.no+'</h2><p class="l" style="margin-top:0">'+esc(o.n||"")+'</p><ul class="pay-l">'+o.items.map(function(l){return '<li>'+esc(l)+'</li>'}).join("")+'</ul><div class="tot"><span>Total</span><span>'+$(t)+'</span></div><p class="l">¿Con cuánto pagan?</p><div class="chips"><button class="chip" onclick="opay.p='+t+';rpO()">Exacto</button>'+[50,100,200,500].map(function(v){return '<button class="chip" onclick="opay.p='+v+';rpO()">$'+v+'</button>'}).join("")+'</div>'+
+  document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>💵 Cobrar pedido #'+o.no+'</h2><p class="l" style="margin-top:0">'+esc(o.n||"")+'</p><ul class="pay-l">'+o.items.map(function(l){return '<li>'+esc(l)+'</li>'}).join("")+'</ul><div class="tot"><span>Total</span><span>'+$(t)+'</span></div><p class="l">¿Cómo pagan?</p><div class="chips">'+mChips(opay.m,"opay.m","rpO()")+'</div><p class="l">¿Con cuánto pagan? <small class="hint">si es en efectivo</small></p><div class="chips"><button class="chip" onclick="opay.p='+t+';rpO()">Exacto</button>'+[50,100,200,500].map(function(v){return '<button class="chip" onclick="opay.p='+v+';rpO()">$'+v+'</button>'}).join("")+'</div>'+
   '<input type="number" inputmode="numeric" placeholder="Otra cantidad" value="'+(opay.p||"")+'" oninput="opay.p=+this.value||0;document.getElementById(\'ochg\').textContent=ochg()"><div class="change" id="ochg">'+ochg()+'</div>'+(err?'<div class="change" style="color:var(--red);font-size:14px">'+esc(err)+'</div>':'')+
   '<button class="btn big" id="op_ok" onclick="payOk()">Confirmar cobro</button><button class="btn big alt" onclick="closeS()">Cancelar</button></div></div>'}
 async function payOk(){var o=opay.o,p=opay.p||o.total;if(p<o.total){rpO("Faltan "+$(o.total-p)+" para completar");return}var b=document.getElementById("op_ok");if(b){b.disabled=true;b.textContent="Guardando…"}
-  if(sbOn()&&tok){try{var r=await sbFetch("/rest/v1/orders?id=eq."+o.id,{method:"PATCH",headers:Object.assign(sbH(true),{Prefer:"return=representation"}),body:JSON.stringify({pagado:true,pagado_con:p,pagado_at:new Date().toISOString()})},true);if(!r||!r.length)throw new Error("no se encontró el pedido")}catch(x){rpO("No se pudo guardar ("+(x&&x.message)+").");return}}
+  if(sbOn()&&tok){try{var r=await sbFetch("/rest/v1/orders?id=eq."+o.id,{method:"PATCH",headers:Object.assign(sbH(true),{Prefer:"return=representation"}),body:JSON.stringify({pagado:true,pagado_con:p,pagado_at:new Date().toISOString(),pagado_metodo:opay.m||"efectivo"})},true);if(!r||!r.length)throw new Error("no se encontró el pedido")}catch(x){rpO("No se pudo guardar ("+(x&&x.message)+").");return}}
   o.pg=true;o.pc=p;lastSig="";sv("pp_orders",orders);draw();
   document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><div class="hero" style="font-size:64px">✅</div><h2>Pedido #'+o.no+' cobrado · '+$(o.total)+'</h2><p class="l">Pagó '+$(p)+(p>o.total?' · <b>Cambio: '+$(p-o.total)+'</b>':'')+'</p><button class="btn big" onclick="closeS()">Listo</button></div></div>'}
 async function unpayO(id){var o=orders.filter(function(x){return x.id===id})[0];if(!o)return;if(upArm!==id){upArm=id;draw();return}upArm=0;
-  if(sbOn()&&tok){try{await sbFetch("/rest/v1/orders?id=eq."+id,{method:"PATCH",body:JSON.stringify({pagado:false,pagado_con:null,pagado_at:null})},true)}catch(x){return}}
+  if(sbOn()&&tok){try{await sbFetch("/rest/v1/orders?id=eq."+id,{method:"PATCH",body:JSON.stringify({pagado:false,pagado_con:null,pagado_at:null,pagado_metodo:null})},true)}catch(x){return}}
   o.pg=false;o.pc=null;lastSig="";sv("pp_orders",orders);draw()}
 function rp(){
   var t=tot(),ch=paid-t;
-  var h='<div class="ov"><div class="sheet"><h2>Cobrar</h2><ul class="pay-l">'+cart.map(function(i){return '<li>'+i.q+" × "+esc(name(i))+(det(i)?" ("+esc(det(i))+")":"")+" — "+$(i.u*i.q)+'</li>'}).join("")+'</ul><div class="tot"><span>Total</span><span>'+$(t)+'</span></div><p class="l">¿Con cuánto pagan?</p><div class="chips">'+
+  var h='<div class="ov"><div class="sheet"><h2>Cobrar</h2><ul class="pay-l">'+cart.map(function(i){return '<li>'+i.q+" × "+esc(name(i))+(det(i)?" ("+esc(det(i))+")":"")+" — "+$(i.u*i.q)+'</li>'}).join("")+'</ul><div class="tot"><span>Total</span><span>'+$(t)+'</span></div><p class="l">¿Cómo pagan?</p><div class="chips">'+mChips(pmet,"pmet")+'</div><p class="l">¿Con cuánto pagan? <small class="hint">si es en efectivo</small></p><div class="chips">'+
     '<button class="chip" onclick="sp('+t+')">Exacto</button>'+[50,100,200,500].map(function(v){return '<button class="chip" onclick="sp('+v+')">$'+v+'</button>'}).join("")+'</div>'+
     '<input type="number" inputmode="numeric" placeholder="Otra cantidad" value="'+(paid||"")+'" oninput="paid=+this.value||0;uc()">'+
     '<div class="change" id="chg">'+chg(ch)+'</div>'+
@@ -1164,7 +1249,7 @@ function sp(v){paid=v;rp()}
 function done(){
   var t=tot();
   if(paid&&paid<t){document.getElementById("chg").textContent="Faltan "+$(t-paid)+" para completar";return}
-  var sl={id:newId(),t:Date.now(),items:cart,total:t,paid:paid||t};sales.push(sl);sv("pp_sales",sales);pushV(sl);if(rep)rep.v.push({id:sl.id,t:sl.t,total:sl.total,items:sl.items});
+  var sl={id:newId(),t:Date.now(),items:cart,total:t,paid:paid||t,metodo:pmet};sales.push(sl);sv("pp_sales",sales);pushV(sl);if(rep)rep.v.push({id:sl.id,t:sl.t,total:sl.total,items:sl.items});
   var pg=sl.paid,cb=pg-t;cart=[];closeS();draw();
   document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><div class="hero" style="font-size:64px">✅</div><h2>Venta registrada · '+$(t)+'</h2><p class="l">Pagó '+$(pg)+(cb>0?' · <b>Cambio: '+$(cb)+'</b>':'')+'</p><button class="btn big" onclick="closeS()">Listo</button><button class="btn big alt" style="color:var(--ink)" onclick="closeS();reopenSale('+sl.id+')">↩️ Regresar a editar</button><p class="l" style="font-size:12px;text-align:center">Regresar quita esta venta y te devuelve los productos al carrito para corregir y cobrar otra vez.</p></div></div>';
 }
