@@ -685,16 +685,18 @@ function nice(m){if(m<=0)return 100;var st=[5,10,20,25,50,100,200,250,500,1000,2
 function barP(x,y,w,h,round,fill){h=Math.max(h,1);var r=round?Math.min(4,w/2,h):0;return '<path fill="'+fill+'" d="M'+x+' '+(y+h)+'V'+(y+r)+'Q'+x+' '+y+' '+(x+r)+' '+y+'H'+(x+w-r)+'Q'+(x+w)+' '+y+' '+(x+w)+' '+(y+r)+'V'+(y+h)+'Z"/>'}
 function fdate(d,o){return d.toLocaleDateString("es-MX",o)}
 function readout(v){return '<b>'+fdate(v.d,{weekday:"long",day:"numeric",month:"short"})+'</b> · Caja '+money(v.c)+' · Pedidos '+money(v.p)+' · <b>Total '+money(v.t)+'</b>'}
+function axL(v){if(v<1000)return money(v);var k=Math.round(v/100)/10;return "$"+(k%1?k.toFixed(1):k)+"k"}
 function chartHtml(){var vals=repVals().vals,N=vals.length,mx=Math.max.apply(null,vals.map(function(v){return v.t})),top=nice(mx),
-  W=340,H=180,L=38,Rr=6,T=18,B=22,pw=W-L-Rr,ph=H-T-B,sw=pw/N,bw=Math.max(4,Math.min(26,sw*.62)),sel=repSel==null?N-1:repSel,mi=-1;
+  W=340,H=180,L=Math.max(30,10+Math.max.apply(null,[0,1,2,3,4].map(function(j){return axL(top*j/4).length}))*6),Rr=6,T=18,B=22,pw=W-L-Rr,ph=H-T-B,sw=pw/N,bw=Math.max(4,Math.min(26,sw*.62)),sel=repSel==null?N-1:repSel,mi=-1;
   vals.forEach(function(v,i){if(v.t>0&&(mi<0||v.t>vals[mi].t))mi=i});
   var g='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Ventas por día, últimos '+N+' días">';
-  for(var j=0;j<=4;j++){var yy=T+ph-ph*j/4;g+='<line class="gl" x1="'+L+'" x2="'+(W-Rr)+'" y1="'+yy+'" y2="'+yy+'"/><text class="ax" x="'+(L-6)+'" y="'+(yy+3.5)+'" text-anchor="end">'+money(top*j/4)+'</text>'}
+  for(var j=0;j<=4;j++){var yy=T+ph-ph*j/4;g+='<line class="gl" x1="'+L+'" x2="'+(W-Rr)+'" y1="'+yy+'" y2="'+yy+'"/><text class="ax" x="'+(L-6)+'" y="'+(yy+3.5)+'" text-anchor="end">'+axL(top*j/4)+'</text>'}
   vals.forEach(function(v,i){var x=L+sw*i+(sw-bw)/2,cx=L+sw*i+sw/2,base=T+ph,hc=v.c/top*ph,hp=v.p/top*ph;
     g+='<g class="bh'+(i===sel?" sel":"")+'" onclick="repPick('+i+')" onmouseenter="repPick('+i+')"><rect class="hl" x="'+(L+sw*i)+'" y="'+T+'" width="'+sw+'" height="'+(ph+B)+'" rx="6"/>';
     if(v.c>0)g+=barP(x,base-hc,bw,hc,!(v.p>0),"var(--s1)");
     if(v.p>0){var yb=base-(v.c>0?Math.max(hc,1)+2:0);g+=barP(x,yb-hp,bw,hp,true,"var(--s2)")}
-    if(v.t>0&&(i===N-1||i===mi))g+='<text class="vl" x="'+cx+'" y="'+(base-Math.max(hc,v.c>0?1:0)-(v.c>0&&v.p>0?2:0)-(v.p>0?Math.max(hp,1):0)-5)+'" text-anchor="middle">'+money(v.t)+'</text>';
+    if(v.t>0&&(i===N-1||i===mi)){var lt=money(v.t),hw=lt.length*3.1,an=cx-hw<L?"start":cx+hw>W-Rr?"end":"middle",lx=an==="start"?Math.max(cx-bw/2,L):an==="end"?Math.min(cx+bw/2,W-Rr):cx;
+      g+='<text class="vl" x="'+lx+'" y="'+Math.max(10,base-Math.max(hc,v.c>0?1:0)-(v.c>0&&v.p>0?2:0)-(v.p>0?Math.max(hp,1):0)-5)+'" text-anchor="'+an+'">'+lt+'</text>'}
     if(N<=7||i%5===(N-1)%5)g+='<text class="ax" x="'+cx+'" y="'+(H-6)+'" text-anchor="middle">'+(N<=7?fdate(v.d,{weekday:"short"}).replace(".","").slice(0,3)+" "+v.d.getDate():v.d.getDate())+'</text>';
     g+='</g>'});
   return g+'</svg><p class="readout">'+(mx>0?readout(vals[sel]):"Aún no hay ventas en estos días. Cuando cobres o despaches pedidos aparecerán aquí.")+'</p>'}
