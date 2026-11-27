@@ -433,6 +433,16 @@ details.tk-raw pre{white-space:pre-wrap;font-size:12px;background:var(--tile);bo
 .cj{background:var(--okbg);color:var(--okfg);border-radius:12px;padding:8px 12px;font-size:14px}
 .ck{display:flex;gap:10px;align-items:center;margin:12px 0 0;font-weight:600;font-size:14px;cursor:pointer}
 .ck input{width:20px;height:20px;margin:0;flex:none}
+/* Lista de compras */
+.falt{display:flex;align-items:center;gap:10px;background:#FDE3D9;color:#7A2414;border-radius:18px;padding:10px 10px 10px 14px;margin:12px 0 4px;cursor:pointer}
+.falt span{flex:1;min-width:0;font-size:13px}
+.falt span b{display:block;font-size:15px}
+.falt .btn{flex:none;background:#7A2414;color:#fff}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .falt{background:#4A1E16;color:#FFD9CC}:root:not([data-theme="light"]) .falt .btn{background:#FFD9CC;color:#4A1E16}}
+:root[data-theme="dark"] .falt{background:#4A1E16;color:#FFD9CC}:root[data-theme="dark"] .falt .btn{background:#FFD9CC;color:#4A1E16}
+.sl-r{padding:10px 0;border-bottom:1px solid var(--line)}
+.sl-r .oh b{font-size:15px}
+.st.low{background:#FFE8B5;color:#7A5200}
 </style>
 </head>
 <body>
@@ -516,9 +526,9 @@ function vib(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
 function sysNotif(t,b){try{if(window.Notification&&Notification.permission==="granted"&&navigator.serviceWorker&&navigator.serviceWorker.controller)navigator.serviceWorker.ready.then(function(r){r.showNotification(t,{body:b,icon:"icons/icon-192.png",badge:"icons/icon-192.png",tag:"pedido",renotify:true,vibrate:[300,100,300]})})}catch(e){}}
 function newOrderAlert(n){alertN+=n;sysNotif("🔔 ¡Nuevo pedido!",alertN===1?"Tienes un pedido nuevo en la fila":"Tienes "+alertN+" pedidos nuevos en la fila");showAlert('🔔 ¡Nuevo pedido!'+(alertN>1?' ('+alertN+')':''))}
 function editAlert(ids){sysNotif("✏️ Cambiaron un pedido","El cliente cambió el pedido #"+ids.join(", #"));showAlert('✏️ Cambiaron el pedido #'+ids.join(", #"))}
-function showAlert(txt){alertOn=true;chime();vib([400,150,400,150,400]);
+function showAlert(txt,go){alertOn=true;chime();vib([400,150,400,150,400]);
   var b=document.getElementById("alrt");if(!b){b=document.createElement("div");b.id="alrt";b.className="alrt";b.setAttribute("role","alert");document.body.appendChild(b)}
-  b.innerHTML=txt+' <button class="btn sm" onclick="ackAlert();tab(3)">Ver</button>';
+  b.innerHTML=txt+' <button class="btn sm" onclick="ackAlert();'+(go==="lista"?'tab(5);shopList()':'tab(3)')+'">Ver</button>';
   if(!alertT)alertT=setInterval(function(){if(alertOn){chime();vib([300,120,300])}},15000)}
 var edSeen={};
 async function prepO(id){var o=orders.filter(function(x){return x.id===id})[0];if(!o)return;
@@ -545,7 +555,8 @@ async function pull(){
     firstPull=false;
     orders=rows.map(function(r){return{id:r.id,no:r.id,t:r.tipo,n:r.nombre,tel:r.telefono||"",dir:r.direccion||"",items:r.items||[],nota:r.nota||"",total:+r.total,pg:!!r.pagado,pc:r.pagado_con==null?null:+r.pagado_con,prep:!!r.preparando,edAt:r.editado_at||null,st:r.estado==="pendiente"?"pen":"ok",at:Date.parse(r.created_at)}});
     draw()}catch(e){if(e&&e.message==="401")logout()}}
-setInterval(function(){pull();mine();loadShop();checkOps();if(!admin&&my.some(function(x){return x.st==="pen"}))loadHist()},10000);
+var invTick=0;
+setInterval(function(){pull();mine();loadShop();checkOps();if(admin&&tok&&++invTick%3===0)loadInv();if(!admin&&my.some(function(x){return x.st==="pen"}))loadHist()},10000);
 document.addEventListener("visibilitychange",function(){if(!document.hidden){mine();loadHist();loadShop().then(syncAll)}});
 async function sendDB(u){
   var o=ORD,bt=document.getElementById("sb");if(bt){bt.disabled=true;bt.textContent="Enviando…"}
@@ -735,20 +746,41 @@ function repHtml(){var h='<h2 style="margin:6px 0 8px">Resumen de ventas</h2>';
   return h}
 async function loadInv(){if(!(sbOn()&&admin&&tok))return;
   try{inv=await sbFetch("/rest/v1/inventario?select=*&order=orden.asc,nombre.asc",{},true)||[];invOk=true;invErr=""}catch(e){invErr="No se pudo cargar el inventario ("+(e&&e.message)+")."}
-  if(view==5)draw()}
+  faltCheck();if(view==5)draw()}
 function invSt(it){return it.cantidad==null?"inf":+it.cantidad<=0?"out":"qty"}
+function isLow(it){return it.cantidad!=null&&+it.cantidad>0&&it.minimo!=null&&+it.cantidad<=+it.minimo}
+function faltan(){return inv.filter(function(it){return invSt(it)==="out"||isLow(it)})}
+var faltPrev=null;
+function lastCost(id){var c=(comp||[]).filter(function(x){return x.item_id===id})[0];return c?+c.costo:null}
+function faltHtml(){if(!admin)return "";var f=faltan();if(!f.length)return "";
+  return '<div class="falt" onclick="shopList()" role="button"><span><b>🛒 Te '+(f.length===1?"falta 1 producto":"faltan "+f.length+" productos")+'</b>'+esc(f.slice(0,4).map(function(x){return x.nombre}).join(", ")+(f.length>4?"…":""))+'</span><button class="btn sm">Ver lista</button></div>'}
+function shopList(){var f=faltan(),tot=0,sin=0;
+  var h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>🛒 Lista de compras</h2><p class="l" style="margin-top:0">Lo que se acabó o está por acabarse. Cuando lo compres, pulsa «Ya lo compré» y se quita de la lista.</p>';
+  if(!f.length)h+='<p class="empty">✅ ¡Tienes todo! No falta nada.</p>';
+  h+=f.map(function(it){var lc=lastCost(it.id),low=isLow(it);if(lc!=null)tot+=lc;else sin++;
+    return '<div class="sl-r"><div class="oh"><b>'+esc(it.nombre)+'</b><span class="st '+(low?"low":"out")+'">'+(low?"Quedan "+fmtN(it.cantidad)+" "+esc(it.unidad):"Se acabó")+'</span></div><small style="color:var(--mute)">'+(lc!=null?"Última vez pagaste "+m2(lc):"Sin precio registrado")+'</small>'+
+      '<div class="acts"><button class="btn grow" onclick="openCompra(\''+it.id+'\')">🧾 Ya lo compré</button><button class="btn alt sm" onclick="slInf(\''+it.id+'\')">Ya tengo (∞)</button></div></div>'}).join("");
+  if(f.length)h+='<div class="tot sm"><span>Estimado'+(sin?' <small class="hint">sin contar '+sin+' sin precio</small>':'')+'</span><span>'+m2(tot)+'</span></div>'+
+    '<a class="btn big lnk" href="https://wa.me/?text='+encodeURIComponent("🛒 Lista de compras · Los Ponpones\n"+f.map(function(it){var lc=lastCost(it.id);return "• "+it.nombre+(isLow(it)?" (quedan "+fmtN(it.cantidad)+" "+it.unidad+")":"")+(lc!=null?" — aprox. $"+lc:"")}).join("\n")+(tot?"\nTotal aprox.: $"+tot:""))+'" target="_blank" rel="noopener">📤 Compartir lista por WhatsApp</a>';
+  document.getElementById("ov").innerHTML=h+'<button class="btn big alt" onclick="closeS()">Cerrar</button></div></div>'}
+async function slInf(id){var it=inv.filter(function(x){return x.id===id})[0];if(!it)return;
+  try{var r=await sbFetch("/rest/v1/inventario?id=eq."+encodeURIComponent(id),{method:"PATCH",headers:Object.assign(sbH(true),{Prefer:"return=representation"}),body:JSON.stringify({cantidad:null,updated_at:new Date().toISOString()})},true);if(r&&r[0])Object.assign(it,r[0])}catch(x){return}
+  invLink(it,null);faltPrev=faltSig();draw();shopList()}
+function faltSig(){return faltan().map(function(x){return x.id}).sort().join(",")}
+function faltCheck(){var sg=faltSig();if(faltPrev!==null&&sg!==faltPrev){var nuevos=faltan().filter(function(x){return (","+faltPrev+",").indexOf(","+x.id+",")<0});
+    if(nuevos.length)showAlert("🛒 Se acabó: "+esc(nuevos.map(function(x){return x.nombre}).join(", ")),"lista");draw()}faltPrev=sg}
 function fmtN(n){n=+n;return n%1?String(Math.round(n*100)/100):String(n)}
 function invTxt(it){var s=invSt(it);return s==="inf"?"∞ Sin límite":s==="out"?"Se acabó":fmtN(it.cantidad)+" "+it.unidad}
 function cuando(ts){var d=new Date(ts),n=new Date(),y=new Date();y.setDate(y.getDate()-1);
   return d.toDateString()===n.toDateString()?"hoy "+d.toLocaleTimeString("es-MX",{hour:"numeric",minute:"2-digit"}):d.toDateString()===y.toDateString()?"ayer":fdate(d,{day:"numeric",month:"short"})}
-function drawInv(m){var h='<h2 style="margin:14px 0 2px">Inventario</h2><p class="l" style="margin:0">Solo tú lo ves. Toca un artículo para decir cuánto tienes.</p>';
+function drawInv(m){var h=faltHtml()+'<h2 style="margin:14px 0 2px">Inventario</h2><p class="l" style="margin:0">Solo tú lo ves. Toca un artículo para decir cuánto tienes.</p>';
   if(!sbOn()){m.innerHTML=h+'<p class="empty">El inventario necesita la conexión con la nube.</p>';return}
   if(invErr)h+='<div class="change" style="color:var(--red);font-size:14px">'+esc(invErr)+'</div>';
   if(!invOk){m.innerHTML=h+(invErr?'':'<p class="empty">Cargando inventario…</p>');return}
   var c={inf:0,qty:0,out:0},cats=[];inv.forEach(function(it){c[invSt(it)]++;if(cats.indexOf(it.categoria)<0)cats.push(it.categoria)});
   h+='<div class="inv-sum"><span>∞ '+c.inf+' sin límite</span><span>'+c.qty+' con cantidad</span><span'+(c.out?' class="out"':'')+'>'+c.out+(c.out===1?" se acabó":" se acabaron")+'</span></div>';
   h+=cats.map(function(cn){return '<div class="inv-g"><h3>'+esc(cn)+'</h3>'+inv.filter(function(it){return it.categoria===cn}).map(function(it){
-    return '<button class="inv-r" onclick="openInv(\''+it.id+'\')"><span>'+esc(it.nombre)+'<small>'+(it.vinculo?'En el menú: '+esc(it.vinculo)+' · ':'')+'Actualizado '+cuando(it.updated_at)+'</small></span><span class="st '+invSt(it)+'">'+esc(invTxt(it))+'</span></button>'}).join("")+'</div>'}).join("");
+    return '<button class="inv-r" onclick="openInv(\''+it.id+'\')"><span>'+esc(it.nombre)+'<small>'+(it.vinculo?'En el menú: '+esc(it.vinculo)+' · ':'')+'Actualizado '+cuando(it.updated_at)+'</small></span><span class="st '+(isLow(it)?"low":invSt(it))+'">'+(isLow(it)?"⚠️ ":"")+esc(invTxt(it))+'</span></button>'}).join("")+'</div>'}).join("");
   h=h.replace('<div class="inv-g">','<div class="acts"><button class="btn grow" onclick="openCompra()">🧾 Registrar compra</button><button class="btn alt grow" onclick="tkOpen()">📷 Leer ticket</button></div><div class="inv-g">');
   h+=comprasHtml();
   h+='<h2 style="margin-top:26px">Agregar artículo</h2><input id="in_n" placeholder="Nombre (ej. Chispas de chocolate)" maxlength="60"><input id="in_c" list="in_cats" placeholder="Categoría (ej. Desechables)" maxlength="40"><datalist id="in_cats">'+cats.map(function(x){return '<option value="'+esc(x)+'">'}).join("")+'</datalist><input id="in_u" placeholder="Unidad (piezas, kg, frascos…)" maxlength="20"><div class="change" id="in_e" style="color:var(--red);font-size:14px"></div><button class="btn" onclick="addInv()">Agregar al inventario</button>';
@@ -821,14 +853,14 @@ async function tkSave(){var t=tk,rs=t.items.filter(function(r){return (r.n||"").
   try{await sbFetch("/rest/v1/compras",{method:"POST",headers:Object.assign(sbH(true),{Prefer:"return=minimal"}),body:JSON.stringify(rows)},true)}catch(x){t.err="No se pudo guardar ("+(x&&x.message)+").";tkDraw();return}
   var now=new Date().toISOString();comp=comp||[];rows.slice().reverse().forEach(function(r){r.created_at=now;comp.unshift(r)});var tot=rows.reduce(function(a,r){return a+r.costo},0);tk=null;draw();
   document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><div class="hero" style="font-size:64px">🧾</div><h2>Ticket guardado</h2><p class="l">Guardé '+rows.length+(rows.length===1?" compra":" compras")+' por <b>'+m2(tot)+'</b>. Ya cuentan en tu ganancia bruta.</p><button class="btn big" onclick="closeS()">Listo</button></div></div>'}
-function openCompra(id){cpEd={id:id||"",nombre:"",cant:"",costo:"",nota:"",caja:!!caja};rCompra()}
+function openCompra(id){var lc=id?lastCost(id):null;cpEd={id:id||"",nombre:"",cant:"",costo:lc!=null?String(lc):"",nota:"",caja:!!caja};rCompra()}
 function rCompra(err){var e=cpEd,it=inv.filter(function(x){return x.id===e.id})[0];
   var h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>🧾 Registrar compra</h2><p class="l" style="margin-top:0">Anota lo que pagaste para calcular tu ganancia.</p><p class="l">¿Qué compraste?</p><select id="cp_i" onchange="cpEd.id=this.value;rCompra()"><option value="">Otro gasto (escribir)</option>'+
     inv.map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===e.id?" selected":"")+'>'+esc(x.nombre)+'</option>'}).join("")+'</select>';
   if(!it)h+='<input id="cp_n" maxlength="60" placeholder="Ej. Harina, gas, servilletas" value="'+esc(e.nombre)+'" oninput="cpEd.nombre=this.value">';
   h+='<p class="l">¿Cuánto pagaste en total?</p><input id="cp_c" type="number" inputmode="decimal" min="0" step="any" placeholder="$ 0" value="'+esc(e.costo)+'" oninput="cpEd.costo=this.value">';
   h+='<p class="l">¿Cuántos compraste? (opcional)</p><input id="cp_q" type="number" inputmode="decimal" min="0" step="any" placeholder="'+(it?esc(it.unidad):"cantidad")+'" value="'+esc(e.cant)+'" oninput="cpEd.cant=this.value">';
-  if(it&&it.cantidad!=null)h+='<p class="l" style="font-size:13px">Se sumará a tu inventario (hoy: '+esc(invTxt(it))+').</p>';
+  if(it&&it.cantidad!=null)h+='<p class="l" style="font-size:13px">Se sumará a tu inventario (hoy: '+esc(invTxt(it))+').'+(invSt(it)==="out"?' <b>Escribe cuántos compraste</b> para quitarlo de la lista de compras.':'')+'</p>';
   h+='<label class="ck"><input type="checkbox" '+(e.caja?"checked":"")+' onchange="cpEd.caja=this.checked">💵 Lo pagué con dinero de la caja</label>';
   h+='<p class="l">Nota (opcional)</p><input id="cp_t" maxlength="200" placeholder="Ej. Tienda La Esperanza" value="'+esc(e.nota)+'" oninput="cpEd.nota=this.value">'+
     (err?'<div class="change" style="color:var(--red);font-size:14px">'+esc(err)+'</div>':'')+'<button class="btn big" id="cp_ok" onclick="saveCompra()">Guardar compra</button><button class="btn big alt" onclick="closeS()">Cancelar</button></div></div>';
@@ -844,11 +876,12 @@ async function saveCompra(){var e=cpEd,it=inv.filter(function(x){return x.id===e
 async function compDel(id){if(cpArm!==id){cpArm=id;draw();return}cpArm=0;
   try{await sbFetch("/rest/v1/compras?id=eq."+id,{method:"DELETE"},true);comp=comp.filter(function(c){return c.id!==id})}catch(x){compErr="No se pudo borrar ("+(x&&x.message)+")."}draw()}
 function invGet(){return inv.filter(function(x){return x.id===invEdit.id})[0]}
-function openInv(id){var it=inv.filter(function(x){return x.id===id})[0];if(!it)return;invEdit={id:id,modo:invSt(it),n:it.cantidad==null||+it.cantidad<=0?"":fmtN(it.cantidad),del:false};rInv()}
+function openInv(id){var it=inv.filter(function(x){return x.id===id})[0];if(!it)return;invEdit={id:id,modo:invSt(it),n:it.cantidad==null||+it.cantidad<=0?"":fmtN(it.cantidad),del:false,min:it.minimo==null?"":fmtN(it.minimo)};rInv()}
 function rInv(err){var e=invEdit,it=invGet();if(!it)return;
   var h='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><h2>'+esc(it.nombre)+'</h2><p class="l">¿Cuánto tienes?</p><div class="seg" style="grid-template-columns:repeat(3,1fr)">'+
    [["inf","∞ Sin límite"],["qty","Tengo…"],["out","Se acabó"]].map(function(a){return '<button class="'+(e.modo===a[0]?"on":"")+'" onclick="invEdit.modo=\''+a[0]+'\';rInv()">'+a[1]+'</button>'}).join("")+'</div>';
   if(e.modo==="qty")h+='<div class="qty"><button aria-label="Menos" onclick="invStep(-1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14"/></svg></button><input id="in_q" type="number" inputmode="decimal" min="0" step="any" value="'+esc(e.n)+'" placeholder="0" oninput="invEdit.n=this.value"><button aria-label="Más" onclick="invStep(1)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M5 12h14M12 5v14"/></svg></button></div><p class="l" style="text-align:center;margin-top:6px">'+esc(it.unidad)+'</p>';
+  if(e.modo==="qty")h+='<p class="l">🔔 Avísame cuando queden <small class="hint">(opcional)</small></p><input id="in_min" type="number" inputmode="decimal" min="0" step="any" placeholder="Ej. 2 '+esc(it.unidad)+'" value="'+esc(e.min)+'" oninput="invEdit.min=this.value">';
   if(e.modo==="inf")h+='<p class="l" style="font-size:13px">No llevas la cuenta de este artículo; se toma como que nunca se acaba.</p>';
   if(it.vinculo)h+='<p class="l" style="font-size:13px">'+(e.modo==="out"?'Los clientes verán <b>'+esc(it.vinculo)+'</b> como agotado.':'Si marcas "Se acabó", los clientes verán '+esc(it.vinculo)+' como agotado.')+'</p>';
   h+=(err?'<div class="change" style="color:var(--red);font-size:14px">'+esc(err)+'</div>':'')+'<button class="btn big" id="inv_ok" onclick="saveInv()">Guardar</button><button class="btn big alt" style="color:var(--ink)" onclick="openCompra(\''+it.id+'\')">🧾 Registrar compra de este artículo</button><button class="btn big alt" onclick="closeS()">Cancelar</button><button class="btn big alt" style="color:var(--red)" onclick="delInv()">'+(e.del?"¿Seguro? Toca otra vez para borrarlo":"🗑 Borrar artículo")+'</button></div></div>';
@@ -859,9 +892,10 @@ function invLink(it,c){if(!it.vinculo||!shopOk)return;var a=shop.agotado.slice()
 async function saveInv(){var e=invEdit,it=invGet(),c;if(!it)return;
   if(e.modo==="inf")c=null;else if(e.modo==="out")c=0;else{c=parseFloat(String(e.n).replace(",","."));if(!(c>=0)){rInv("Escribe cuántos tienes (un número).");return}}
   var b=document.getElementById("inv_ok");if(b){b.disabled=true;b.textContent="Guardando…"}
-  try{var r=await sbFetch("/rest/v1/inventario?id=eq."+encodeURIComponent(it.id),{method:"PATCH",headers:Object.assign(sbH(true),{Prefer:"return=representation"}),body:JSON.stringify({cantidad:c,updated_at:new Date().toISOString()})},true);
+  try{var r=await sbFetch("/rest/v1/inventario?id=eq."+encodeURIComponent(it.id),{method:"PATCH",headers:Object.assign(sbH(true),{Prefer:"return=representation"}),body:JSON.stringify({cantidad:c,minimo:e.modo==="qty"&&String(e.min).trim()!==""&&parseFloat(e.min)>=0?parseFloat(e.min):null,updated_at:new Date().toISOString()})},true);
     if(!r||!r.length)throw new Error("sin permiso");Object.assign(it,r[0])}catch(x){rInv("No se pudo guardar ("+(x&&x.message)+").");return}
-  closeS();invLink(it,c);draw()}
+  closeS();invLink(it,c);faltPrev=faltSig();draw();
+  if(c===0||isLow(it))document.getElementById("ov").innerHTML='<div class="ov" onclick="if(event.target===this)closeS()"><div class="sheet"><div class="hero" style="font-size:64px">🛒</div><h2>'+esc(it.nombre)+(c===0?' se terminó':' está por acabarse')+'</h2><p class="l">'+(c===0?'Se tiene que comprar. ':'Quedan '+fmtN(it.cantidad)+' '+esc(it.unidad)+'. ')+'Ya está en tu lista de compras'+(it.vinculo&&c===0?' y los clientes lo ven agotado':'')+'.</p><button class="btn big" onclick="shopList()">Ver lista de compras</button><button class="btn big alt" onclick="closeS()">Listo</button></div></div>'}
 async function delInv(){var it=invGet();if(!it)return;if(!invEdit.del){invEdit.del=true;rInv();return}
   try{await sbFetch("/rest/v1/inventario?id=eq."+encodeURIComponent(it.id),{method:"DELETE"},true);inv=inv.filter(function(x){return x.id!==it.id});closeS();draw()}catch(x){invEdit.del=false;rInv("No se pudo quitar ("+(x&&x.message)+").")}}
 async function addInv(){var n=document.getElementById("in_n").value.trim(),cn=document.getElementById("in_c").value.trim()||"Otros",u=document.getElementById("in_u").value.trim()||"piezas",er=document.getElementById("in_e");
@@ -939,7 +973,7 @@ function ocard(o,first){
    '<div class="ob"><b>'+esc(o.n||"Sin nombre")+'</b>'+(o.tel?'<small>📞 '+esc(o.tel)+'</small>':'')+(o.dir?'<small>📍 '+esc(o.dir)+'</small>':'')+(o.nota?'<small>📝 '+esc(o.nota)+'</small>':'')+'</div><ul>'+o.items.map(function(l){return '<li>'+esc(l)+'</li>'}).join("")+'</ul><div class="tot sm"><span>Total</span><span>'+$(o.total)+'</span></div>'+cob+act+'</div>'}
 function drawOrders(m){
   var pen=orders.filter(function(o){return o.st==="pen"}),ok=orders.filter(function(o){return o.st==="ok"});
-  var h=avisosHtml()+'<h2 style="margin:14px 0 8px">Por preparar ('+pen.length+')</h2>';
+  var h=avisosHtml()+faltHtml()+'<h2 style="margin:14px 0 8px">Por preparar ('+pen.length+')</h2>';
   h+=pen.length?pen.map(function(o,i){return ocard(o,i===0)}).join(""):'<p class="empty">No hay pedidos pendientes.</p>';
   if(ok.length)h+='<h2 style="margin:24px 0 8px">Despachados ('+ok.length+')</h2>'+ok.map(function(o){return ocard(o,false)}).join("")+'<button class="btn alt sm" onclick="clrO()">Limpiar despachados</button>';
   h+='<h2 style="margin-top:28px">Agregar pedido de WhatsApp</h2><p class="l">Copia el mensaje que te llegó del cliente y pégalo aquí para meterlo a la fila.</p><textarea id="pt" rows="6" placeholder="Pega aquí el pedido"></textarea><div class="change" id="pe" style="color:var(--red);font-size:15px"></div><button class="btn" onclick="pasteO()">Agregar a la fila</button>';
@@ -1045,7 +1079,7 @@ function draw(){applyTema();
   var t4=document.getElementById("t4"),mp=my.filter(function(x){return x.st==="pen"}).length;t4.hidden=admin||!(my.length||hist&&hist.length);t4.innerHTML="🛍️ Mis compras"+(mp?'<span class="bd">'+mp+'</span>':"");t4.className=view==4?"on":"";
   document.title=(admin&&np?"("+np+") ":"")+"Casa de Los Ponpones";
   var ss=document.getElementById("stt");ss.hidden=!shopOk;ss.className="stt"+(shop.abierta?"":" off");ss.innerHTML="<i></i>"+(shop.abierta?"Abierto":"Cerrado");
-  var t5=document.getElementById("t5");t5.hidden=!admin;t5.className=view==5?"on":"";
+  var t5=document.getElementById("t5");t5.hidden=!admin;t5.className=view==5?"on":"";var nf=admin?faltan().length:0;t5.innerHTML="📦 Inventario"+(nf?'<span class="bd">'+nf+'</span>':"");
   if((view==2||view==3||view==5)&&!admin||view==4&&admin)view=1;
   var m=document.getElementById("main"),b=document.getElementById("bar");
   if(view==1){
@@ -1257,7 +1291,7 @@ function today(){var d=new Date().toDateString();return sales.filter(function(s)
 function drawSales(m){
   var ts=today(),sum=ts.reduce(function(a,s){return a+s.total},0),cnt={m:0,w:0,f:0};
   ts.forEach(function(s){s.items.forEach(function(i){cnt[i.p]+=i.q})});
-  var h=shopHtml()+repHtml()+opsHtml()+'<h2 style="margin:24px 0 4px">Cobrado en caja hoy · '+$(sum)+'</h2>';
+  var h=faltHtml()+shopHtml()+repHtml()+opsHtml()+'<h2 style="margin:24px 0 4px">Cobrado en caja hoy · '+$(sum)+'</h2>';
   h+=ts.length?ts.slice().reverse().map(function(s){
     return '<div class="row"><span>'+new Date(s.t).toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"})+'<small>'+esc(s.items.map(function(i){return i.q+" "+name(i)+(det(i)?" ("+det(i)+")":"")}).join(", "))+'</small></span><span><b>'+$(s.total)+'</b> <button class="x" aria-label="Editar venta" onclick="reopenSale('+s.id+')">✏️</button> <button class="x" aria-label="Borrar venta" onclick="ds('+s.id+')">✕</button></span></div>'}).join(""):'<p class="empty">Todavía no hay ventas hoy. Cuando cobres un pedido aparecerá aquí.</p>';
   h+=clientsHtml();
